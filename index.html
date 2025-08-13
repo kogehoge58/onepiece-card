@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <title>
+   山札ビューア（プレビューはダイアログ上）＋手札＋ドロー＋出す＋トラッシュ＋レスト
+  </title>
+  <style>
+   :root { --gap: 12px; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
+
+  /* 共通画像ボタン */
+  .img-btn { background: none; border: none; padding: 0; cursor: pointer; }
+  .deck-btn-img { width: 100px; height: auto; display: block; }
+
+  /* 山札ボタンに「ドロー」を重ねる */
+  .deck-container { position: relative; display: inline-block; }
+  .draw-btn {
+    position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+    padding: 6px 10px; font-size: 14px; border: none; border-radius: 8px;
+    background: rgba(255,255,255,.95); box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    cursor: pointer; display: none;
+  }
+  .deck-container:hover .draw-btn { display: block; }
+
+  /* ダイアログ共通 */
+  dialog {
+    border: none; border-radius: 16px; padding: 0;
+    max-width: min(1000px, 92vw); width: 92vw; position: relative;
+  }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  .dlg-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #eee; }
+  .dlg-title { font-weight: 600; }
+  .dlg-body { padding: 16px; max-height: min(72vh, 70dvh); overflow: auto; }
+  .dlg-footer { padding: 12px 16px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* カード・グリッド */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--gap); }
+  .card {
+    position: relative; border: 1px solid #e6e6e6; border-radius: 12px;
+    overflow: hidden; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  }
+  .thumb { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; background: #f3f3f3; }
+
+  /* デッキプレビュー（デッキダイアログ上に重ねる） */
+  .preview-wrap {
+    position: absolute; inset: 0; display: none; place-items: center;
+    background: rgba(0,0,0,.6); z-index: 100;
+  }
+  .preview-wrap.show { display: grid; }
+  .preview {
+    max-width: min(88vw, 1100px); max-height: 82vh; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  /* 手札カードの「出す」、フィールドカードの「トラッシュ」「レスト」 */
+  .play-btn, .trash-btn, .rest-btn {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    padding: 6px 10px; font-size: 13px; border: none; border-radius: 8px;
+    background: rgba(255,255,255,.95); box-shadow: 0 2px 6px rgba(0,0,0,.15); cursor: pointer;
+    display: none;
+  }
+  .play-btn { bottom: 6px; }              /* 手札カード用 */
+  .trash-btn { bottom: 6px; }             /* フィールドカード用 */
+  .rest-btn { top: 6px; right: 6px; left: auto; transform: none; } /* フィールドカード用（右上） */
+
+  .card:hover .play-btn,
+  .card:hover .trash-btn,
+  .card:hover .rest-btn { display: inline-block; }
+
+  /* レスト表示バッジ */
+  .rest-badge {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    padding: 4px 10px; font-size: 14px; font-weight: 700; color: #fff;
+    background: rgba(0,0,0,.6); border-radius: 999px; pointer-events: none;
+  }
+
+  /* 見出し */
+  .section-title { margin: 18px 0 8px; font-size: 14px; color: #666; }
+
+  /* レスト状態の見た目（黒み） */
+  .card.rested .thumb {
+      filter: brightness(0.5);
+  }
+  </style>
+ </head>
+ <body>
+  <!-- トップの操作ボタン列 -->
+  <div style="display:flex; gap:12px; align-items:center;">
+   <!-- 山札（deck.png にドロー重ね） -->
+   <div class="deck-container">
+    <button aria-controls="deckDialog" aria-haspopup="dialog" class="img-btn" id="openDeckBtn">
+     <img alt="山札" class="deck-btn-img" src="component_images/deck.png"/>
+    </button>
+    <button class="draw-btn" id="drawBtn" title="上から1枚引く">
+     ドロー
+    </button>
+   </div>
+   <!-- 手札 -->
+   <button aria-controls="handDialog" aria-haspopup="dialog" class="img-btn" id="openHandBtn">
+    <img alt="手札" class="deck-btn-img" src="component_images/hand.png"/>
+   </button>
+   <!-- トラッシュ（手札画像の右に配置） -->
+   <button aria-controls="trashDialog" aria-haspopup="dialog" class="img-btn" id="openTrashBtn">
+    <img alt="トラッシュ" class="deck-btn-img" src="component_images/trash.png"/>
+   </button>
+  </div>
+  <!-- フィールド（山札・手札画像の下に常時表示） -->
+  <div id="fieldSection">
+   <div class="section-title">
+    出したカード
+   </div>
+   <div aria-label="出したカード一覧" class="grid" id="fieldGrid">
+   </div>
+  </div>
+  <!-- 山札ダイアログ -->
+  <dialog id="deckDialog">
+   <div class="dlg-header">
+    <div class="dlg-title">
+     山札（画像 1～10）
+    </div>
+    <button id="closeDeckBtn" title="閉じる">
+     閉じる
+    </button>
+   </div>
+   <div class="dlg-body">
+    <div aria-label="山札の画像一覧" class="grid" id="grid">
+    </div>
+   </div>
+   <div class="dlg-footer">
+    <button id="okBtn">
+     OK
+    </button>
+   </div>
+   <div aria-label="画像プレビュー" aria-modal="true" class="preview-wrap" id="previewWrap" role="dialog">
+    <img alt="プレビュー" class="preview" id="previewImg"/>
+   </div>
+  </dialog>
+  <!-- 手札ダイアログ -->
+  <dialog id="handDialog">
+   <div class="dlg-header">
+    <div class="dlg-title">
+     手札
+    </div>
+    <button id="closeHandBtn" title="閉じる">
+     閉じる
+    </button>
+   </div>
+   <div class="dlg-body">
+    <div aria-label="手札一覧" class="grid" id="handGrid">
+    </div>
+   </div>
+   <div class="dlg-footer">
+    <button id="okHandBtn">
+     OK
+    </button>
+   </div>
+  </dialog>
+  <!-- トラッシュダイアログ -->
+  <dialog id="trashDialog">
+   <div class="dlg-header">
+    <div class="dlg-title">
+     トラッシュ
+    </div>
+    <button id="closeTrashBtn" title="閉じる">
+     閉じる
+    </button>
+   </div>
+   <div class="dlg-body">
+    <div aria-label="トラッシュ一覧" class="grid" id="trashGrid">
+    </div>
+   </div>
+   <div class="dlg-footer">
+    <button id="okTrashBtn">
+     OK
+    </button>
+   </div>
+  </dialog>
+  <script>
+   (() => {
+  const IMG_DIR = "./images";      // 山札の元画像フォルダ（1.png〜10.png）
+
+  const COUNT = 10;
+  let deckArray  = Array.from({ length: COUNT }, (_, i) => `${IMG_DIR}/${i + 1}.png`); // 山札（上=先頭）
+  let handArray  = [];               // 手札（string配列: 画像パス）
+  let fieldArray = [];               // 出したカード（{src, rested} の配列）
+  let trashArray = [];               // トラッシュ（string配列: 画像パス）
+
+  // --- DOM取得
+  const deckBtn = document.getElementById("openDeckBtn");
+  const deckDlg = document.getElementById("deckDialog");
+  const closeDeckBtn = document.getElementById("closeDeckBtn");
+  const okDeckBtn = document.getElementById("okBtn");
+  const deckGrid = document.getElementById("grid");
+  const previewWrap = document.getElementById("previewWrap");
+  const previewImg  = document.getElementById("previewImg");
+
+  const handBtn = document.getElementById("openHandBtn");
+  const handDlg = document.getElementById("handDialog");
+  const closeHandBtn = document.getElementById("closeHandBtn");
+  const okHandBtn = document.getElementById("okHandBtn");
+  const handGrid = document.getElementById("handGrid");
+
+  const fieldGrid = document.getElementById("fieldGrid");
+
+  const trashBtn = document.getElementById("openTrashBtn");
+  const trashDlg = document.getElementById("trashDialog");
+  const closeTrashBtn = document.getElementById("closeTrashBtn");
+  const okTrashBtn = document.getElementById("okTrashBtn");
+  const trashGrid = document.getElementById("trashGrid");
+
+  // --- 描画
+  function renderDeck() {
+    deckGrid.innerHTML = "";
+    deckArray.forEach((src, idx) => {
+      const card = document.createElement("div");
+      card.className = "card";
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = src;
+      img.alt = `山札のカード ${idx + 1}`;
+      img.addEventListener("click", () => showPreview(src, img.alt));
+      card.appendChild(img);
+      deckGrid.appendChild(card);
+    });
+  }
+
+  function renderHand() {
+    handGrid.innerHTML = "";
+    handArray.forEach((src, idx) => {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = src;
+      img.alt = `手札のカード ${idx + 1}`;
+      card.appendChild(img);
+
+      // 「出す」ボタン（ホバー時）
+      const playBtn = document.createElement("button");
+      playBtn.type = "button";
+      playBtn.className = "play-btn";
+      playBtn.textContent = "出す";
+      playBtn.title = "このカードを出す";
+      playBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        playFromHand(idx);
+      });
+
+      card.appendChild(playBtn);
+      handGrid.appendChild(card);
+    });
+  }
+
+  function renderField() {
+    fieldGrid.innerHTML = "";
+    fieldArray.forEach((obj, idx) => {
+      const { src, rested } = obj;
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = src;
+      img.alt = `出したカード ${idx + 1}`;
+      card.appendChild(img);
+
+      // レスト状態のバッジ
+      if (rested) {
+        const badge = document.createElement("div");
+        badge.className = "rest-badge";
+        badge.textContent = "レスト";
+        card.classList.add("rested");
+        card.appendChild(badge);
+      }
+
+      // 「レスト」ボタン（ホバー時）
+      const rBtn = document.createElement("button");
+      rBtn.type = "button";
+      rBtn.className = "rest-btn";
+      rBtn.textContent = rested ? "アクティブ" : "レスト";
+      rBtn.title = "レストのON/OFF";
+      rBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleRest(idx);
+      });
+      card.appendChild(rBtn);
+
+      // 「トラッシュ」ボタン（ホバー時）
+      const tBtn = document.createElement("button");
+      tBtn.type = "button";
+      tBtn.className = "trash-btn";
+      tBtn.textContent = "トラッシュ";
+      tBtn.title = "このカードをトラッシュへ";
+      tBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        trashFromField(idx);
+      });
+      card.appendChild(tBtn);
+
+      fieldGrid.appendChild(card);
+    });
+  }
+
+  function renderTrash() {
+    trashGrid.innerHTML = "";
+    trashArray.forEach((src, idx) => {
+      const card = document.createElement("div");
+      card.className = "card";
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = src;
+      img.alt = `トラッシュ ${idx + 1}`;
+      card.appendChild(img);
+      trashGrid.appendChild(card);
+    });
+  }
+
+  // --- 動作
+  function playFromHand(index) {
+    const [card] = handArray.splice(index, 1);
+    if (card) {
+      fieldArray.push({ src: card, rested: false }); // フィールドではレスト状態を保持
+      renderHand();
+      renderField();
+      handDlg.close(); // 出す後に手札ダイアログを閉じる
+    }
+  }
+
+  function toggleRest(index) {
+    const item = fieldArray[index];
+    if (!item) return;
+    item.rested = !item.rested; // レストON/OFF
+    renderField();
+  }
+
+  function trashFromField(index) {
+    const [item] = fieldArray.splice(index, 1);
+    if (item) {
+      trashArray.push(item.src); // 実際のカード画像を保存
+      renderField();
+      renderTrash();
+    }
+  }
+
+  // --- プレビュー
+  function showPreview(src, alt) {
+    previewImg.src = src;
+    previewImg.alt = alt || "プレビュー";
+    previewWrap.classList.add("show");
+  }
+  function hidePreview() {
+    previewWrap.classList.remove("show");
+    previewImg.src = "";
+  }
+
+  // --- 山札ダイアログ
+  deckBtn.addEventListener("click", () => { renderDeck(); deckDlg.showModal(); });
+  function closeDeckDialog() { if (deckDlg.open) deckDlg.close(); }
+  closeDeckBtn.addEventListener("click", closeDeckDialog);
+  okDeckBtn.addEventListener("click", closeDeckDialog);
+  deckDlg.addEventListener("click", (e) => { if (e.target === deckDlg) closeDeckDialog(); });
+
+  // --- 手札ダイアログ
+  handBtn.addEventListener("click", () => { renderHand(); handDlg.showModal(); });
+  function closeHandDialog() { if (handDlg.open) handDlg.close(); }
+  closeHandBtn.addEventListener("click", closeHandDialog);
+  okHandBtn.addEventListener("click", closeHandDialog);
+  handDlg.addEventListener("click", (e) => { if (e.target === handDlg) closeHandDialog(); });
+
+  // --- トラッシュダイアログ
+  trashBtn.addEventListener("click", () => { renderTrash(); trashDlg.showModal(); });
+  function closeTrashDialog() { if (trashDlg.open) trashDlg.close(); }
+  closeTrashBtn.addEventListener("click", closeTrashDialog);
+  okTrashBtn.addEventListener("click", closeTrashDialog);
+  trashDlg.addEventListener("click", (e) => { if (e.target === trashDlg) closeTrashDialog(); });
+
+  // --- Escキー処理
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (previewWrap.classList.contains("show")) hidePreview();
+      else {
+        closeDeckDialog(); closeHandDialog(); closeTrashDialog();
+      }
+    }
+  });
+  previewWrap.addEventListener("click", hidePreview);
+  previewImg.addEventListener("click", hidePreview);
+
+  // --- ドロー（deck.png の上のボタン）
+  document.getElementById("drawBtn").addEventListener("click", () => {
+    if (deckArray.length === 0) {
+      alert("山札が空です");
+      return;
+    }
+    const drawn = deckArray.shift(); // 上から1枚
+    handArray.push(drawn);           // 手札へ
+    renderDeck();
+    renderHand();
+    if (!handDlg.open) handDlg.showModal();
+  });
+})();
+  </script>
+ </body>
+</html>
