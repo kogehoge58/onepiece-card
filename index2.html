@@ -40,12 +40,31 @@
       width: 120px;
       margin: 5px;
     }
+
+    /* ドローボタン */
+    #drawButton {
+      position: absolute;
+      top: 0;
+      left: 0;
+      padding: 4px 8px;
+      font-size: 14px;
+      z-index: 1;
+    }
+
+    /* デッキエリア */
+    #deckArea {
+      position: relative;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
 
-  <!-- デッキ画像（クリック可能） -->
-  <img src="component_images/deck.png" id="deckImage" alt="deck">
+  <!-- デッキ画像とドローボタンをまとめたエリア -->
+  <div id="deckArea">
+    <img src="component_images/deck.png" id="deckImage" alt="deck">
+    <button id="drawButton">ドロー</button>
+  </div>
 
   <!-- 手札画像（クリック可能） -->
   <img src="component_images/hand.png" id="handImage" alt="hand">
@@ -59,6 +78,7 @@
   <script>
     // 要素取得
     const deckImage = document.getElementById("deckImage");// デッキ画像
+    const drawButton = document.getElementById("drawButton");// ドローボタン
     const handImage = document.getElementById("handImage");// 手札画像
     const imageDialog = document.getElementById("imageDialog");// ダイアログ本体
     const overlay = document.getElementById("overlay");// ダイアログ背景
@@ -79,6 +99,12 @@
       // ダイアログと背景を表示
       overlay.style.display = "block";
       imageDialog.style.display = "block";
+    });
+
+    // ドローボタン押下時の処理
+    drawButton.addEventListener("click", (e) => {
+      e.stopPropagation(); // deckImage のクリックイベントが発火しないように
+      alert("カードをドローしました！");
     });
 
     // hand.png がクリックされたときの処理
