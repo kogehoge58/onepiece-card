@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>デッキ画像一覧</title>
+  <style>
+    /* deck.pngのスタイル */
+    #deckImage {
+      width: 120px;
+      cursor: pointer;
+    }
+
+    /* ダイアログの背景（半透明の黒） */
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 9;
+    }
+
+    /* 画像表示用のモーダル（中央に表示される白背景のボックス） */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      padding: 20px;
+      border: 2px solid black;
+      max-width: 90%;
+      max-height: 80%;
+      overflow: auto;
+      z-index: 10;
+    }
+
+    /* ダイアログ内の画像の見た目 */
+    .modal img {
+      width: 120px;
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- デッキ画像（クリック可能） -->
+  <img src="component_images/deck.png" id="deckImage" alt="deck">
+
+  <!-- 手札画像（クリック可能） -->
+  <img src="component_images/hand.png" id="handImage" alt="hand">
+
+  <!-- ダイアログの背景 -->
+  <div class="overlay" id="overlay"></div>
+
+  <!-- ダイアログ本体（ここに画像一覧を出す） -->
+  <div class="modal" id="imageDialog"></div>
+
+  <script>
+    // デッキ画像の要素取得
+    const deckImage = document.getElementById("deckImage");
+
+    // ダイアログと背景の要素取得
+    const imageDialog = document.getElementById("imageDialog");
+    const overlay = document.getElementById("overlay");
+
+    // deck.png がクリックされたときの処理
+    deckImage.addEventListener("click", () => {
+      // ダイアログの中身を初期化（前回の内容を消す）
+      imageDialog.innerHTML = "";
+
+      // card (1).png 〜 card (50).png を順に生成して表示
+      for (let i = 1; i <= 50; i++) {
+        const img = document.createElement("img");
+        img.src = `images/card (${i}).png`;    // 画像のパスを指定
+        img.alt = `card ${i}`;          // 代替テキスト
+        imageDialog.appendChild(img);   // ダイアログに追加
+      }
+
+      // ダイアログと背景を表示
+      overlay.style.display = "block";
+      imageDialog.style.display = "block";
+    });
+
+    // 背景（黒い部分）をクリックしたらダイアログを閉じる
+    overlay.addEventListener("click", () => {
+      overlay.style.display = "none";
+      imageDialog.style.display = "none";
+    });
+  </script>
+
+</body>
+</html>
