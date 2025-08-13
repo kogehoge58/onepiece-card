@@ -76,48 +76,78 @@
   <div class="modal" id="imageDialog"></div>
 
   <script>
-    // 要素取得
-    const deckImage = document.getElementById("deckImage");// デッキ画像
-    const drawButton = document.getElementById("drawButton");// ドローボタン
-    const handImage = document.getElementById("handImage");// 手札画像
-    const imageDialog = document.getElementById("imageDialog");// ダイアログ本体
-    const overlay = document.getElementById("overlay");// ダイアログ背景
+    // ===== 要素の取得 =====
+    const deckImage = document.getElementById("deckImage");      // deck.png画像
+    const drawButton = document.getElementById("drawButton");    // 「ドロー」ボタン
+    const handImage = document.getElementById("handImage");      // hand.png画像
+    const imageDialog = document.getElementById("imageDialog");  // ダイアログ本体
+    const overlay = document.getElementById("overlay");          // ダイアログ背景
 
-    // deck.png がクリックされたときの処理
+    // ===== 山札（deck）と手札（hand）の初期化 =====
+    const deck = [];  // 山札：表示用カード画像の配列
+    const hand = [];  // 手札：ドローされたカード画像の配列
+
+    // 山札に images/card (1).png ～ card (50).png を追加
+    for (let i = 1; i <= 50; i++) {
+      deck.push(`images/card (${i}).png`);
+    }
+
+    // ===== deck.png 押下時の処理 =====
+    // 現在の山札に残っているカードをすべて表示
     deckImage.addEventListener("click", () => {
-      // ダイアログの中身を初期化（前回の内容を消す）
-      imageDialog.innerHTML = "";
+      imageDialog.innerHTML = "";  // 前回の表示をクリア
 
-      // card (1).png 〜 card (50).png を順に生成して表示
-      for (let i = 1; i <= 50; i++) {
+      // 山札の各カードを画像で表示
+      deck.forEach((cardPath, index) => {
         const img = document.createElement("img");
-        img.src = `images/card (${i}).png`;    // 画像のパスを指定
-        img.alt = `card ${i}`;          // 代替テキスト
-        imageDialog.appendChild(img);   // ダイアログに追加
+        img.src = cardPath;
+        img.alt = `card ${index + 1}`;
+        imageDialog.appendChild(img);
+      });
+
+      // ダイアログ表示
+      overlay.style.display = "block";
+      imageDialog.style.display = "block";
+    });
+
+    // ===== ドローボタン押下時の処理 =====
+    // 山札から1枚引いて手札に移動させる
+    drawButton.addEventListener("click", (e) => {
+      e.stopPropagation(); // deckImage の click イベントが発火しないように防止
+
+      if (deck.length === 0) {
+        alert("山札が空です！");
+        return;
       }
 
-      // ダイアログと背景を表示
-      overlay.style.display = "block";
-      imageDialog.style.display = "block";
+      const drawnCard = deck.shift(); // 山札の一番上を取り出す
+      hand.push(drawnCard);           // 手札に追加
     });
 
-    // ドローボタン押下時の処理
-    drawButton.addEventListener("click", (e) => {
-      e.stopPropagation(); // deckImage のクリックイベントが発火しないように
-      alert("カードをドローしました！");
-    });
-
-    // hand.png がクリックされたときの処理
+    // ===== hand.png 押下時の処理 =====
+    // 手札にあるカードをすべてダイアログに表示
     handImage.addEventListener("click", () => {
-      // ダイアログの中身を初期化（前回の内容を消す）
-      imageDialog.innerHTML = "";
+      imageDialog.innerHTML = ""; // 前回表示のクリア
 
-      // ダイアログと背景を表示
+      if (hand.length === 0) {
+        // 手札が空のときのメッセージ
+        imageDialog.innerHTML = "<p>手札は空です。</p>";
+      } else {
+        // 手札の各カードを画像で表示
+        hand.forEach((cardPath, index) => {
+          const img = document.createElement("img");
+          img.src = cardPath;
+          img.alt = `hand card ${index + 1}`;
+          imageDialog.appendChild(img);
+        });
+      }
+
+      // ダイアログ表示
       overlay.style.display = "block";
       imageDialog.style.display = "block";
     });
 
-    // 背景（黒い部分）をクリックしたらダイアログを閉じる
+    // ===== ダイアログ外をクリックしたときの処理 =====
     overlay.addEventListener("click", () => {
       overlay.style.display = "none";
       imageDialog.style.display = "none";
