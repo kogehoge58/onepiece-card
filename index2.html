@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <title>デッキ画像一覧</title>
   <style>
-    /* deck.pngのスタイル */
-    #deckImage {
+    /* deck.png と hand.png の共通スタイル */
+    #deckImage, #handImage {
       width: 120px;
       cursor: pointer;
     }
@@ -57,12 +57,11 @@
   <div class="modal" id="imageDialog"></div>
 
   <script>
-    // デッキ画像の要素取得
-    const deckImage = document.getElementById("deckImage");
-
-    // ダイアログと背景の要素取得
-    const imageDialog = document.getElementById("imageDialog");
-    const overlay = document.getElementById("overlay");
+    // 要素取得
+    const deckImage = document.getElementById("deckImage");// デッキ画像
+    const handImage = document.getElementById("handImage");// 手札画像
+    const imageDialog = document.getElementById("imageDialog");// ダイアログ本体
+    const overlay = document.getElementById("overlay");// ダイアログ背景
 
     // deck.png がクリックされたときの処理
     deckImage.addEventListener("click", () => {
@@ -76,6 +75,16 @@
         img.alt = `card ${i}`;          // 代替テキスト
         imageDialog.appendChild(img);   // ダイアログに追加
       }
+
+      // ダイアログと背景を表示
+      overlay.style.display = "block";
+      imageDialog.style.display = "block";
+    });
+
+    // hand.png がクリックされたときの処理
+    handImage.addEventListener("click", () => {
+      // ダイアログの中身を初期化（前回の内容を消す）
+      imageDialog.innerHTML = "";
 
       // ダイアログと背景を表示
       overlay.style.display = "block";
