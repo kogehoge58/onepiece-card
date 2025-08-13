@@ -75,7 +75,7 @@
       margin: 5px;
     }
 
-    /* 移動ボタン：初期は非表示、hover時だけ出現 */
+    /* 「フィールドへ」ボタン：初期は非表示、hover時だけ出現 */
     .move-button {
       display: none;
       position: absolute;
@@ -179,14 +179,14 @@
         img.src = cardPath;
         img.alt = `hand card ${index + 1}`;
 
-        // 「移動」ボタンの生成（初期は非表示）
+        // 「フィールドへ」ボタンの生成（初期は非表示）
         const moveBtn = document.createElement("button");
-        moveBtn.textContent = "移動";
+        moveBtn.textContent = "フィールドへ";
         moveBtn.className = "move-button"; // CSSで非表示 → hoverで表示
         moveBtn.addEventListener("click", (e) => {
           e.stopPropagation(); // 親要素のクリックイベントを無効化
-          alert(`カード ${index + 1} を移動しました！`);
-          // TODO: 実際の移動処理はここに実装する
+          alert(`カード ${index + 1} をフィールドへ移動しました！`);
+          // TODO: 実際のフィールドへの移動処理はここに実装する
         });
 
         // ラッパーdivに画像とボタンを追加
