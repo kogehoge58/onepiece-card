@@ -43,6 +43,7 @@
 
     /* ドローボタン */
     #drawButton {
+      display: none;
       position: absolute;
       top: 0;
       left: 0;
@@ -51,23 +52,38 @@
       z-index: 1;
     }
 
+    /* deckImage ホバー時にボタンを表示 */
+    #deckArea:hover #drawButton {
+      display: block;
+    }
+
     /* デッキエリア */
     #deckArea {
       position: relative;
       display: inline-block;
     }
+
+    /* 画像表示エリア */
+    .imagesContainer {
+      display: flex;
+    }
   </style>
 </head>
 <body>
 
-  <!-- デッキ画像とドローボタンをまとめたエリア -->
-  <div id="deckArea">
-    <img src="component_images/deck.png" id="deckImage" alt="deck">
-    <button id="drawButton">ドロー</button>
-  </div>
+  <!-- 画像表示エリア -->
+  <div class="imagesContainer">
+    <!-- デッキ画像とドローボタンをまとめたエリア -->
+    <div id="deckArea">
+      <img src="component_images/deck.png" id="deckImage" alt="deck">
+      <button id="drawButton">ドロー</button>
+    </div>
 
-  <!-- 手札画像（クリック可能） -->
-  <img src="component_images/hand.png" id="handImage" alt="hand">
+    <!-- 手札画像（クリック可能） -->
+    <div id="handArea">
+      <img src="component_images/hand.png" id="handImage" alt="hand">
+    </div>
+  </div>
 
   <!-- ダイアログの背景 -->
   <div class="overlay" id="overlay"></div>
