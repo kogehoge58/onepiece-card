@@ -67,6 +67,29 @@
     .imagesContainer {
       display: flex;
     }
+
+    /* 各カードを囲む wrapper（relativeにしてボタンを重ねるため） */
+    .card-wrapper {
+      position: relative;
+      display: inline-block;
+      margin: 5px;
+    }
+
+    /* 移動ボタン：初期は非表示、hover時だけ出現 */
+    .move-button {
+      display: none;
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      padding: 2px 6px;
+      font-size: 12px;
+      z-index: 2;
+    }
+
+    /* ホバーしたときにボタンを表示 */
+    .card-wrapper:hover .move-button {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -141,24 +164,40 @@
     });
 
     // ===== hand.png 押下時の処理 =====
-    // 手札にあるカードをすべてダイアログに表示
     handImage.addEventListener("click", () => {
-      imageDialog.innerHTML = ""; // 前回表示のクリア
+      // ダイアログ内を初期化
+      imageDialog.innerHTML = "";
 
-      if (hand.length === 0) {
-        // 手札が空のときのメッセージ
-        imageDialog.innerHTML = "<p>手札は空です。</p>";
-      } else {
-        // 手札の各カードを画像で表示
-        hand.forEach((cardPath, index) => {
-          const img = document.createElement("img");
-          img.src = cardPath;
-          img.alt = `hand card ${index + 1}`;
-          imageDialog.appendChild(img);
+      // 手札のカードを1枚ずつ処理
+      hand.forEach((cardPath, index) => {
+        // 各カードを囲む div（ホバー検出用）
+        const wrapper = document.createElement("div");
+        wrapper.className = "card-wrapper"; // CSSで relative + hover指定用
+
+        // カード画像の生成
+        const img = document.createElement("img");
+        img.src = cardPath;
+        img.alt = `hand card ${index + 1}`;
+
+        // 「移動」ボタンの生成（初期は非表示）
+        const moveBtn = document.createElement("button");
+        moveBtn.textContent = "移動";
+        moveBtn.className = "move-button"; // CSSで非表示 → hoverで表示
+        moveBtn.addEventListener("click", (e) => {
+          e.stopPropagation(); // 親要素のクリックイベントを無効化
+          alert(`カード ${index + 1} を移動しました！`);
+          // TODO: 実際の移動処理はここに実装する
         });
-      }
 
-      // ダイアログ表示
+        // ラッパーdivに画像とボタンを追加
+        wrapper.appendChild(img);
+        wrapper.appendChild(moveBtn);
+
+        // ダイアログにカードを追加
+        imageDialog.appendChild(wrapper);
+      });
+
+      // オーバーレイとダイアログを表示
       overlay.style.display = "block";
       imageDialog.style.display = "block";
     });
