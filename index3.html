@@ -296,7 +296,7 @@
     <button type="button" role="menuitem" data-action="hand-plus">手札+1</button>
     <button type="button" role="menuitem" data-action="life-plus">ライフ+1</button>
     <button type="button" role="menuitem" data-action="trash-plus">トラッシュ+1</button>
-    <button type="button" role="menuitem" data-action="shuffle">シャッフル</button>
+    <button type="button" role="menuitem" data-action="shuffle">シャッフルする</button>
   </div>
 
   <!-- 画像プレビュー用モーダル -->
@@ -675,6 +675,7 @@
       const img = document.createElement('img');  // 盤面カード表示
       img.src = src;
       img.alt = `${player}-CHARA-${idx+1}`;
+      img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
       cell.appendChild(img);
       return true;
     }
