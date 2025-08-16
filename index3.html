@@ -303,6 +303,17 @@
     </div>
   </div>
 
+  <!-- ==== ギャラリーサムネ共通メニュー ==== -->
+  <div id="thumb-menu" class="context-menu" role="menu" aria-hidden="true">
+    <button type="button" role="menuitem" data-action="to-hand">To：手札</button>
+    <button type="button" role="menuitem" data-action="to-life">To：ライフ</button>
+    <button type="button" role="menuitem" data-action="to-trash">To：トラッシュ</button>
+    <button type="button" role="menuitem" data-action="to-deck-top">To：デッキ（上）</button>
+    <button type="button" role="menuitem" data-action="to-deck-bottom">To：デッキ（下）</button>
+    <button type="button" role="menuitem" data-action="to-chara">To：キャラエリア</button>
+    <button type="button" role="menuitem" data-action="to-stage">To：ステージエリア</button>
+  </div>
+
   <script>
     /* ===== 画像スタック ===== */
     const deckImages = {
@@ -549,6 +560,48 @@
     document.querySelectorAll('img[src$="leader.png"]').forEach(img => {
       img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
     });
+
+    /* ==== ギャラリーサムネ共通メニュー制御 ==== */
+    const thumbMenu = document.getElementById('thumb-menu');
+
+    function showThumbMenu(e, img){
+      e.preventDefault();
+      // 他メニューが出ていたら閉じる
+      if (typeof hideDeckMenu === 'function') hideDeckMenu();
+
+      thumbMenu.dataset.src = img?.src || '';
+      thumbMenu.style.display = 'block';
+      thumbMenu.setAttribute('aria-hidden', 'false');
+
+      // 位置（はみ出し防止）
+      let x = e.clientX, y = e.clientY;
+      const w = thumbMenu.offsetWidth, h = thumbMenu.offsetHeight, pad = 8;
+      if (x + w + pad > window.innerWidth)  x = window.innerWidth  - w - pad;
+      if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
+      thumbMenu.style.left = `${x}px`;
+      thumbMenu.style.top  = `${y}px`;
+    }
+    function hideThumbMenu(){
+      thumbMenu.style.display = 'none';
+      thumbMenu.setAttribute('aria-hidden', 'true');
+      delete thumbMenu.dataset.src;
+    }
+
+    // #thumbs 内の画像を右クリックしたら開く（領域によらず一律）
+    document.getElementById('thumbs').addEventListener('contextmenu', (e) => {
+      const img = e.target.closest('img');
+      if (!img) return;
+      showThumbMenu(e, img);
+    });
+
+    // 外側クリック・スクロール・リサイズ・Escで閉じる
+    document.addEventListener('click', (e) => { if (!thumbMenu.contains(e.target)) hideThumbMenu(); });
+    window.addEventListener('scroll', hideThumbMenu, true);
+    window.addEventListener('resize', hideThumbMenu);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideThumbMenu(); });
+
+    // ★メニュー項目クリック時の実処理は未実装のまま
+    // thumbMenu.addEventListener('click', (e) => { /* 後で実装 */ });
   </script>
 </body>
 </html>
