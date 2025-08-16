@@ -83,13 +83,6 @@
       background: #fff; max-width: 90vw; max-height: 90vh;
       width: 90vw; height: 90vh; border-radius: 10px; padding: 16px; display: flex; flex-direction: column;
     }
-    .modal-header {
-      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
-      font-weight: bold;
-    }
-    .modal-close {
-      border: 1px solid #333; padding: 4px 10px; border-radius: 6px; background: #f4f4f4; cursor: pointer;
-    }
     .thumbs {
       flex: 1; overflow: auto;               /* 一覧はモーダル内だけスクロールOK */
       display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -98,7 +91,6 @@
     .thumbs img {
       width: 100%; aspect-ratio: 1 / 1.4; object-fit: cover; border: 1px solid #aaa;
     }
-    .path-note { font-size: 12px; color: #666; margin-left: 8px; }
 
     /* ==== DECK用コンテキストメニュー ==== */
     .context-menu{
@@ -160,7 +152,7 @@
         <!-- A-DECK -->
         <div class="card deck">
           <img id="a-deck" src="component_images/back.png" alt="A-DECK">
-          <span id="a-deck-label" class="deck-label">デッキ×0</span>
+          <span id="a-deck-label" class="deck-label">デッキ×50</span>
         </div>
 
         <!-- A-DON-DECK -->
@@ -195,7 +187,7 @@
 
         <!-- A-HAND -->
         <div class="card">
-          <img src="component_images/back.png" alt="A-HAND">
+          <img id="a-hand" src="component_images/back.png" alt="A-HAND">
           <span id="a-hand-label" class="hand-label">手札×0</span>
         </div>
 
@@ -239,7 +231,7 @@
         <!-- B-DECK -->
         <div class="card deck">
           <img id="b-deck" src="component_images/back.png" alt="B-DECK">
-          <span id="b-deck-label" class="deck-label">デッキ×0</span>
+          <span id="b-deck-label" class="deck-label">デッキ×50</span>
         </div>
 
         <!-- B-DON-DECK -->
@@ -274,7 +266,7 @@
 
         <!-- B-HAND -->
         <div class="card">
-          <img src="component_images/back.png" alt="B-HAND">
+          <img id="b-hand" src="component_images/back.png" alt="B-HAND">
           <span id="b-hand-label" class="hand-label">手札×0</span>
         </div>
 
@@ -302,30 +294,32 @@
   </div>
 
   <script>
+    /* ===== 画像スタック ===== */
+    const deckImages = {
+      A: Array.from({length:50}, (_,i) => encodeURI(`deck/player_A/images/image (${i+1}).png`)),
+      B: Array.from({length:50}, (_,i) => encodeURI(`deck/player_B/images/image (${i+1}).png`)),
+    };
+    const handImages = { A: [], B: [] };
+
     /* ===== カウント管理 ===== */
     let deckCounts   = { A: 50, B: 50 };
     let lifeCounts   = { A: 0,  B: 0 };
     let handCounts   = { A: 0,  B: 0 };
     let trashCounts  = { A: 0,  B: 0 };
 
-    let donDeckCounts = { A: 10, B: 10 };  // 初期：10
-    let donActCounts  = { A: 0,  B: 0 };   // 初期：0
-    let donRestCounts = { A: 0,  B: 0 };   // 初期：0
+    let donDeckCounts = { A: 10, B: 10 };
+    let donActCounts  = { A: 0,  B: 0 };
+    let donRestCounts = { A: 0,  B: 0 };
 
     function renderCounts(){
-      // デッキ
       document.getElementById('a-deck-label').textContent  = `デッキ×${deckCounts.A}`;
       document.getElementById('b-deck-label').textContent  = `デッキ×${deckCounts.B}`;
-      // ライフ
       document.getElementById('a-life-label').textContent  = `ライフ×${lifeCounts.A}`;
       document.getElementById('b-life-label').textContent  = `ライフ×${lifeCounts.B}`;
-      // 手札
       document.getElementById('a-hand-label').textContent  = `手札×${handCounts.A}`;
       document.getElementById('b-hand-label').textContent  = `手札×${handCounts.B}`;
-      // トラッシュ
       document.getElementById('a-trash-label').textContent = `トラッシュ×${trashCounts.A}`;
       document.getElementById('b-trash-label').textContent = `トラッシュ×${trashCounts.B}`;
-      // ドン（デッキ / アクティブ / レスト）
       document.getElementById('a-don-deck-label').textContent = `ドンデッキ×${donDeckCounts.A}`;
       document.getElementById('b-don-deck-label').textContent = `ドンデッキ×${donDeckCounts.B}`;
       document.getElementById('a-don-act-label').textContent  = `アクティブ×${donActCounts.A}`;
@@ -334,7 +328,6 @@
       document.getElementById('b-don-rest-label').textContent = `レスト×${donRestCounts.B}`;
     }
 
-    // 共通更新
     function setCount(type, player, n){
       if(type==="deck")      deckCounts[player]   = n;
       if(type==="life")      lifeCounts[player]   = n;
@@ -346,7 +339,7 @@
       renderCounts();
     }
 
-    // 右上ボタンクリック（-1/+1）をまとめて処理
+    /* ===== DON系カウンターの上下限（0〜10） ===== */
     document.addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-counter');
       if (!btn) return;
@@ -365,8 +358,8 @@
       const min = 0;
       const max = maxByType[type] ?? Infinity;
 
-      const next = Math.min(max, Math.max(min, current + delta)); // 0〜10に制限
-      if (next === current) return; // 変化なしなら何もしない
+      const next = Math.min(max, Math.max(min, current + delta));
+      if (next === current) return;
 
       table[player] = next;
       renderCounts();
@@ -374,40 +367,60 @@
 
     renderCounts();
 
-    /* ===== モーダル制御（デッキ画像一覧） ===== */
+    /* ===== ギャラリー（配列から表示） ===== */
     const backdrop = document.getElementById('gallery-backdrop');
     const thumbs   = document.getElementById('thumbs');
-
-    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) hideModal(); });
 
     function hideModal() {
       backdrop.style.display = 'none';
       thumbs.innerHTML = '';
       backdrop.setAttribute('aria-hidden', 'true');
     }
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) hideModal(); });
 
-    function openGallery(folderLabel, basePath) {
+    function openGalleryFromList(title, list){
+      thumbs.innerHTML = '';
       const frag = document.createDocumentFragment();
-      for (let i = 1; i <= 50; i++) {
+      list.forEach(src => {
         const img = document.createElement('img');
-        const rawPath = `${basePath}/image (${i}).png`;
-        img.src = encodeURI(rawPath);    // 日本語・スペースをURLエンコード
-        img.alt = `image (${i}).png`;
+        img.src = src;
+        img.alt = '';
         frag.appendChild(img);
-      }
+      });
       thumbs.appendChild(frag);
-
       backdrop.style.display = 'flex';
       backdrop.setAttribute('aria-hidden', 'false');
     }
 
-    // クリックで各フォルダのギャラリーを開く
+    // デッキ・手札 クリックで一覧
     document.getElementById('a-deck').addEventListener('click', () => {
-      openGallery('player_A', 'deck/player_A/images');
+      openGalleryFromList('A デッキ', deckImages.A);
     });
     document.getElementById('b-deck').addEventListener('click', () => {
-      openGallery('player_B', 'deck/player_B/images');
+      openGalleryFromList('B デッキ', deckImages.B);
     });
+    document.getElementById('a-hand').addEventListener('click', () => {
+      openGalleryFromList('A 手札', handImages.A);
+    });
+    document.getElementById('b-hand').addEventListener('click', () => {
+      openGalleryFromList('B 手札', handImages.B);
+    });
+
+    /* ===== デッキ → 手札（手札+1） ===== */
+    function drawToHand(player){
+      // デッキ上（先頭）を1枚引く
+      const stack = deckImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();             // 先頭を取り出す（＝山札の一番上）
+
+      // 手札へ移動
+      handImages[player].push(top);
+
+      // カウンタ更新
+      deckCounts[player] = Math.max(0, deckCounts[player] - 1);
+      handCounts[player] = (handCounts[player] || 0) + 1;
+      renderCounts();
+    }
 
     /* ==== DECK右クリック用コンテキストメニュー ==== */
     const deckMenu = document.getElementById('deck-menu');
@@ -415,12 +428,12 @@
     const bDeckEl  = document.getElementById('b-deck');
 
     function showDeckMenu(e, player){
-      e.preventDefault(); // 既定の右クリックメニュー抑止
+      e.preventDefault();
       deckMenu.dataset.player = player;
       deckMenu.style.display = 'block';
       deckMenu.setAttribute('aria-hidden', 'false');
 
-      // 画面からはみ出さないよう位置調整
+      // 位置（はみ出し抑止）
       let x = e.clientX, y = e.clientY;
       const w = deckMenu.offsetWidth, h = deckMenu.offsetHeight;
       const pad = 8;
@@ -429,18 +442,15 @@
       deckMenu.style.left = `${x}px`;
       deckMenu.style.top  = `${y}px`;
     }
-
     function hideDeckMenu(){
       deckMenu.style.display = 'none';
       deckMenu.setAttribute('aria-hidden', 'true');
       delete deckMenu.dataset.player;
     }
 
-    // A/Bデッキで右クリック時にメニュー表示
     aDeckEl.addEventListener('contextmenu', (e) => showDeckMenu(e, 'A'));
     bDeckEl.addEventListener('contextmenu', (e) => showDeckMenu(e, 'B'));
 
-    // メニュー外クリック・スクロール・リサイズ・Escで閉じる
     document.addEventListener('click', (e) => {
       if (!deckMenu.contains(e.target)) hideDeckMenu();
     });
@@ -448,8 +458,19 @@
     window.addEventListener('resize', hideDeckMenu);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideDeckMenu(); });
 
-    // いまは項目クリック時の処理は未実装のまま（要求どおり）
-    // deckMenu.addEventListener('click', (e) => { /* ここに後で実装 */ });
+    // ★ メニュークリック：手札+1のみ実装（ライフ/トラッシュは未実装のまま）
+    deckMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const player = deckMenu.dataset.player;
+      if (!player) return;
+
+      if (action === 'hand-plus') {
+        drawToHand(player);
+      }
+      hideDeckMenu();
+    });
   </script>
 </body>
 </html>
