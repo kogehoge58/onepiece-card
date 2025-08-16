@@ -323,15 +323,24 @@
     document.addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-counter');
       if (!btn) return;
-      const type   = btn.dataset.type;   // "donDeck" | "donAct" | "donRest"
-      const player = btn.dataset.player; // "A" | "B"
+
+      const type   = btn.dataset.type;    // "donDeck" | "donAct" | "donRest"
+      const player = btn.dataset.player;  // "A" | "B"
       const delta  = parseInt(btn.dataset.delta, 10) || 0;
 
-      const tables = { donDeck: donDeckCounts, donAct: donActCounts, donRest: donRestCounts };
-      const table  = tables[type];
-      if (!table || !table[player]) table && (table[player] = 0);
+      const tables    = { donDeck: donDeckCounts, donAct: donActCounts, donRest: donRestCounts };
+      const maxByType = { donDeck: 10,           donAct: 10,           donRest: 10           };
 
-      const next = Math.max(0, (table[player] ?? 0) + delta);
+      const table = tables[type];
+      if (!table || !player) return;
+
+      const current = Number(table[player]) || 0;
+      const min = 0;
+      const max = maxByType[type] ?? Infinity;
+
+      const next = Math.min(max, Math.max(min, current + delta)); // 0〜10に制限
+      if (next === current) return; // 変化なしなら何もしない
+
       table[player] = next;
       renderCounts();
     });
