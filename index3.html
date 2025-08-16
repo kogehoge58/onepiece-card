@@ -49,6 +49,21 @@
       user-select: none;
     }
 
+    /* ===== 共通ラベル（ライフ・手札も） ===== */
+    .card .life-label,
+    .card .hand-label {
+      position: absolute;
+      left: 6px; bottom: 6px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(0,0,0,.6);
+      color: #fff; font-weight: 700;
+      font-size: clamp(10px, 0.9vw, 12px);
+      line-height: 1;
+      pointer-events: none;
+      user-select: none;
+    }
+
     /* ===== モーダル ===== */
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,0.5);
@@ -91,23 +106,22 @@
         <div class="card">A-MENU</div>
         <div class="card">
           <img src="component_images/back.png" alt="A-LIFE">
+          <span id="a-life-label" class="life-label">ライフ×0</span>
         </div>
         <div class="card">
           <img src="deck/黒ルッチ/leader.png" alt="A-LEADER">
         </div>
         <div class="card">A-STAGE</div>
-
-        <!-- A-DECK（クリックで黒ルッチの画像一覧を開く） -->
         <div class="card deck">
           <img id="a-deck" src="component_images/back.png" alt="A-DECK">
           <span id="a-deck-label" class="deck-label">山札×0</span>
         </div>
-
         <div class="card">A-DON-DECK</div>
         <div class="card">A-DON-ACT</div>
         <div class="card">A-DON-REST</div>
         <div class="card">
           <img src="component_images/back.png" alt="A-HAND">
+          <span id="a-hand-label" class="hand-label">手札×0</span>
         </div>
         <div class="card">A-TRASH</div>
       </div>
@@ -125,23 +139,22 @@
         <div class="card">B-MENU</div>
         <div class="card">
           <img src="component_images/back.png" alt="B-LIFE">
+          <span id="b-life-label" class="life-label">ライフ×0</span>
         </div>
         <div class="card">
           <img src="deck/緑ゾロ/leader.png" alt="B-LEADER">
         </div>
         <div class="card">B-STAGE</div>
-
-        <!-- B-DECK（クリックで緑ゾロの画像一覧を開く） -->
         <div class="card deck">
           <img id="b-deck" src="component_images/back.png" alt="B-DECK">
           <span id="b-deck-label" class="deck-label">山札×0</span>
         </div>
-
         <div class="card">B-DON-DECK</div>
         <div class="card">B-DON-ACT</div>
         <div class="card">B-DON-REST</div>
         <div class="card">
           <img src="component_images/back.png" alt="B-HAND">
+          <span id="b-hand-label" class="hand-label">手札×0</span>
         </div>
         <div class="card">B-TRASH</div>
       </div>
@@ -161,24 +174,32 @@
   </div>
 
   <script>
-    // ===== 山札カウント =====
-    let deckCounts = { A: 50, B: 50 }; // 初期枚数（必要に応じて変更）
+    // ===== カウント管理 =====
+    let deckCounts = { A: 50, B: 50 };
+    let lifeCounts = { A: 0, B: 0 };
+    let handCounts = { A: 0, B: 0 };
 
-    function renderDeckCounts(){
-      const a = document.getElementById('a-deck-label');
-      const b = document.getElementById('b-deck-label');
-      if (a) a.textContent = `山札×${deckCounts.A}`;
-      if (b) b.textContent = `山札×${deckCounts.B}`;
+    function renderCounts(){
+      // 山札
+      document.getElementById('a-deck-label').textContent = `山札×${deckCounts.A}`;
+      document.getElementById('b-deck-label').textContent = `山札×${deckCounts.B}`;
+      // ライフ
+      document.getElementById('a-life-label').textContent = `ライフ×${lifeCounts.A}`;
+      document.getElementById('b-life-label').textContent = `ライフ×${lifeCounts.B}`;
+      // 手札
+      document.getElementById('a-hand-label').textContent = `手札×${handCounts.A}`;
+      document.getElementById('b-hand-label').textContent = `手札×${handCounts.B}`;
     }
 
-    // 外部から更新したい場合に呼ぶ：setDeckCount('A', 47) など
-    function setDeckCount(player, n){
-      if (player === 'A') deckCounts.A = n;
-      if (player === 'B') deckCounts.B = n;
-      renderDeckCounts();
+    // 外部から更新用
+    function setCount(type, player, n){
+      if(type==="deck") deckCounts[player] = n;
+      if(type==="life") lifeCounts[player] = n;
+      if(type==="hand") handCounts[player] = n;
+      renderCounts();
     }
 
-    renderDeckCounts();
+    renderCounts();
 
     // ===== モーダル制御 =====
     const backdrop = document.getElementById('gallery-backdrop');
