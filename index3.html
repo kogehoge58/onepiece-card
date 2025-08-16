@@ -34,6 +34,21 @@
     }
     .card img { width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
 
+    /* ===== デッキ用（左下ラベル） ===== */
+    .card.deck { position: relative; }
+    .deck-label{
+      position: absolute;
+      left: 6px; bottom: 6px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(0,0,0,.6);
+      color: #fff; font-weight: 700;
+      font-size: clamp(10px, 0.9vw, 12px);
+      line-height: 1;
+      pointer-events: none; /* クリックは画像に通す */
+      user-select: none;
+    }
+
     /* ===== モーダル ===== */
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,0.5);
@@ -79,8 +94,9 @@
         <div class="card">A-STAGE</div>
 
         <!-- A-DECK（クリックで黒ルッチの画像一覧を開く） -->
-        <div class="card">
+        <div class="card deck">
           <img id="a-deck" src="component_images/deck.png" alt="A-DECK">
+          <span id="a-deck-label" class="deck-label">山札×0</span>
         </div>
 
         <div class="card">A-DON-DECK</div>
@@ -106,8 +122,9 @@
         <div class="card">B-STAGE</div>
 
         <!-- B-DECK（クリックで緑ゾロの画像一覧を開く） -->
-        <div class="card">
+        <div class="card deck">
           <img id="b-deck" src="component_images/deck.png" alt="B-DECK">
+          <span id="b-deck-label" class="deck-label">山札×0</span>
         </div>
 
         <div class="card">B-DON-DECK</div>
@@ -132,7 +149,26 @@
   </div>
 
   <script>
-    // モーダル制御
+    // ===== 山札カウント =====
+    let deckCounts = { A: 50, B: 50 }; // 初期枚数（必要に応じて変更）
+
+    function renderDeckCounts(){
+      const a = document.getElementById('a-deck-label');
+      const b = document.getElementById('b-deck-label');
+      if (a) a.textContent = `山札×${deckCounts.A}`;
+      if (b) b.textContent = `山札×${deckCounts.B}`;
+    }
+
+    // 外部から更新したい場合に呼ぶ：setDeckCount('A', 47) など
+    function setDeckCount(player, n){
+      if (player === 'A') deckCounts.A = n;
+      if (player === 'B') deckCounts.B = n;
+      renderDeckCounts();
+    }
+
+    renderDeckCounts();
+
+    // ===== モーダル制御 =====
     const backdrop = document.getElementById('gallery-backdrop');
     const thumbs   = document.getElementById('thumbs');
     const titleEl  = document.getElementById('modal-title');
