@@ -108,7 +108,7 @@
 
         <!-- A-LEADER -->
         <div class="card">
-          <img src="deck/黒ルッチ/leader.png" alt="A-LEADER">
+          <img src="deck/player_A/leader.png" alt="A-LEADER">
         </div>
 
         <div class="card">A-STAGE</div>
@@ -175,7 +175,7 @@
 
         <!-- B-LEADER -->
         <div class="card">
-          <img src="deck/緑ゾロ/leader.png" alt="B-LEADER">
+          <img src="deck/player_B/leader.png" alt="B-LEADER">
         </div>
 
         <div class="card">B-STAGE</div>
@@ -295,7 +295,7 @@
     }
 
     function openGallery(folderLabel, basePath) {
-      // basePath 例: 'deck/黒ルッチ/images'
+      // basePath 例: 'deck/player_A/images'
       titleEl.textContent = `${folderLabel} の画像一覧`;
       pathEl.textContent  = basePath;
 
@@ -316,10 +316,10 @@
 
     // クリックで各フォルダのギャラリーを開く
     document.getElementById('a-deck').addEventListener('click', () => {
-      openGallery('黒ルッチ', 'deck/黒ルッチ/images');
+      openGallery('player_A', 'deck/player_A/images');
     });
     document.getElementById('b-deck').addEventListener('click', () => {
-      openGallery('緑ゾロ', 'deck/緑ゾロ/images');
+      openGallery('player_B', 'deck/player_B/images');
     });
   </script>
 </body>
