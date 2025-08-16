@@ -35,7 +35,7 @@
     }
     .card img { width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
 
-    /* 共通ラベル */
+    /* 共通ラベル（左下） */
     .card .deck-label,
     .card .life-label,
     .card .hand-label,
@@ -51,6 +51,25 @@
       font-size: clamp(10px, 0.9vw, 12px);
       line-height: 1;
       pointer-events: none;
+      user-select: none;
+    }
+
+    /* 右上カウンタボタン（-1 / +1） */
+    .counter-controls{
+      position: absolute;
+      top: 6px; right: 6px;
+      display: flex; gap: 6px;
+      z-index: 2;
+    }
+    .btn-counter{
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(0,0,0,.6);
+      color: #fff; font-weight: 700;
+      font-size: clamp(10px, 0.9vw, 12px);
+      line-height: 1;
+      border: none;
+      cursor: pointer;
       user-select: none;
     }
 
@@ -94,7 +113,7 @@
         <div class="card">A-CHARA-4</div>
         <div class="card">A-CHARA-5</div>
 
-        <!-- A-START（画像＋ラベル） -->
+        <!-- A-START -->
         <div class="card">
           <img src="component_images/start.png" alt="A-START">
           <span class="start-label">ターン開始</span>
@@ -119,22 +138,34 @@
           <span id="a-deck-label" class="deck-label">デッキ×0</span>
         </div>
 
-        <!-- A-DON-DECK（画像＋カウンタ） -->
+        <!-- A-DON-DECK -->
         <div class="card">
           <img src="component_images/don_back.png" alt="A-DON-DECK">
           <span id="a-don-deck-label" class="don-label">ドンデッキ×10</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="-1" aria-label="A ドンデッキ -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="1"  aria-label="A ドンデッキ +1">+1</button>
+          </div>
         </div>
 
-        <!-- A-DON-ACT（画像＋カウンタ） -->
+        <!-- A-DON-ACT -->
         <div class="card">
           <img src="component_images/don.png" alt="A-DON-ACT">
           <span id="a-don-act-label" class="don-label">アクティブ×0</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="-1" aria-label="A アクティブ -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="1"  aria-label="A アクティブ +1">+1</button>
+          </div>
         </div>
 
-        <!-- A-DON-REST（画像＋カウンタ） -->
+        <!-- A-DON-REST -->
         <div class="card">
           <img src="component_images/don.png" alt="A-DON-REST">
           <span id="a-don-rest-label" class="don-label">レスト×0</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="-1" aria-label="A レスト -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="1"  aria-label="A レスト +1">+1</button>
+          </div>
         </div>
 
         <!-- A-HAND -->
@@ -161,7 +192,7 @@
         <div class="card">B-CHARA-4</div>
         <div class="card">B-CHARA-5</div>
 
-        <!-- B-START（画像＋ラベル） -->
+        <!-- B-START -->
         <div class="card">
           <img src="component_images/start.png" alt="B-START">
           <span class="start-label">ターン開始</span>
@@ -186,22 +217,34 @@
           <span id="b-deck-label" class="deck-label">デッキ×0</span>
         </div>
 
-        <!-- B-DON-DECK（画像＋カウンタ） -->
+        <!-- B-DON-DECK -->
         <div class="card">
           <img src="component_images/don_back.png" alt="B-DON-DECK">
           <span id="b-don-deck-label" class="don-label">ドンデッキ×10</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="-1" aria-label="B ドンデッキ -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="1"  aria-label="B ドンデッキ +1">+1</button>
+          </div>
         </div>
 
-        <!-- B-DON-ACT（画像＋カウンタ） -->
+        <!-- B-DON-ACT -->
         <div class="card">
           <img src="component_images/don.png" alt="B-DON-ACT">
           <span id="b-don-act-label" class="don-label">アクティブ×0</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="-1" aria-label="B アクティブ -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="1"  aria-label="B アクティブ +1">+1</button>
+          </div>
         </div>
 
-        <!-- B-DON-REST（画像＋カウンタ） -->
+        <!-- B-DON-REST -->
         <div class="card">
           <img src="component_images/don.png" alt="B-DON-REST">
           <span id="b-don-rest-label" class="don-label">レスト×0</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="-1" aria-label="B レスト -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="1"  aria-label="B レスト +1">+1</button>
+          </div>
         </div>
 
         <!-- B-HAND -->
@@ -264,7 +307,7 @@
       document.getElementById('b-don-rest-label').textContent = `レスト×${donRestCounts.B}`;
     }
 
-    // 外部から共通で更新できるように
+    // 共通更新
     function setCount(type, player, n){
       if(type==="deck")      deckCounts[player]   = n;
       if(type==="life")      lifeCounts[player]   = n;
@@ -275,6 +318,23 @@
       if(type==="donRest")   donRestCounts[player]= n;
       renderCounts();
     }
+
+    // 右上ボタンクリック（-1/+1）をまとめて処理
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-counter');
+      if (!btn) return;
+      const type   = btn.dataset.type;   // "donDeck" | "donAct" | "donRest"
+      const player = btn.dataset.player; // "A" | "B"
+      const delta  = parseInt(btn.dataset.delta, 10) || 0;
+
+      const tables = { donDeck: donDeckCounts, donAct: donActCounts, donRest: donRestCounts };
+      const table  = tables[type];
+      if (!table || !table[player]) table && (table[player] = 0);
+
+      const next = Math.max(0, (table[player] ?? 0) + delta);
+      table[player] = next;
+      renderCounts();
+    });
 
     renderCounts();
 
@@ -295,11 +355,9 @@
     }
 
     function openGallery(folderLabel, basePath) {
-      // basePath 例: 'deck/player_A/images'
       titleEl.textContent = `${folderLabel} の画像一覧`;
       pathEl.textContent  = basePath;
 
-      // サムネイル50枚生成（image (1).png ～ image (50).png）
       const frag = document.createDocumentFragment();
       for (let i = 1; i <= 50; i++) {
         const img = document.createElement('img');
