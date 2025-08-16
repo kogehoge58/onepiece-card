@@ -127,11 +127,12 @@
     <div class="player-field">
       <div class="player-title">プレイヤーA</div>
       <div class="card-grid">
-        <div class="card">A-CHARA-1</div>
-        <div class="card">A-CHARA-2</div>
-        <div class="card">A-CHARA-3</div>
-        <div class="card">A-CHARA-4</div>
-        <div class="card">A-CHARA-5</div>
+        <!-- ★CHARA(5枠) 空セル化＋id付与 -->
+        <div id="a-chara-1" class="card"></div>
+        <div id="a-chara-2" class="card"></div>
+        <div id="a-chara-3" class="card"></div>
+        <div id="a-chara-4" class="card"></div>
+        <div id="a-chara-5" class="card"></div>
 
         <!-- A-START -->
         <div class="card">
@@ -206,11 +207,12 @@
     <div class="player-field">
       <div class="player-title">プレイヤーB</div>
       <div class="card-grid">
-        <div class="card">B-CHARA-1</div>
-        <div class="card">B-CHARA-2</div>
-        <div class="card">B-CHARA-3</div>
-        <div class="card">B-CHARA-4</div>
-        <div class="card">B-CHARA-5</div>
+        <!-- ★CHARA(5枠) 空セル化＋id付与 -->
+        <div id="b-chara-1" class="card"></div>
+        <div id="b-chara-2" class="card"></div>
+        <div id="b-chara-3" class="card"></div>
+        <div id="b-chara-4" class="card"></div>
+        <div id="b-chara-5" class="card"></div>
 
         <!-- B-START -->
         <div class="card">
@@ -321,8 +323,8 @@
       B: Array.from({length:50}, (_,i) => encodeURI(`deck/player_B/images/image (${i+1}).png`)),
     };
     const handImages  = { A: [], B: [] };
-    const lifeImages  = { A: [], B: [] };   // 追加：ライフに積むカード（表には出さない）
-    const trashImages = { A: [], B: [] };   // 追加：トラッシュに落ちたカード
+    const lifeImages  = { A: [], B: [] };
+    const trashImages = { A: [], B: [] };
 
     /* ===== カウント管理 ===== */
     let deckCounts   = { A: 50, B: 50 };
@@ -401,12 +403,16 @@
     }
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) hideModal(); });
 
+    // ★ どの一覧を開いているかの文脈（キャラ移動に必要）
+    let thumbsContext = { area: null, player: null };
+
     function openGalleryFromList(title, list){
       thumbs.innerHTML = '';
       const frag = document.createDocumentFragment();
       list.forEach(src => {
         const img = document.createElement('img');
         img.src = src;
+        img.dataset.src = src;   // ← 元配列の値を保持
         img.alt = '';
         frag.appendChild(img);
       });
@@ -415,29 +421,37 @@
       backdrop.setAttribute('aria-hidden', 'false');
     }
 
-    // デッキ・手札 クリックで一覧
+    // デッキ・手札・ライフ・トラッシュ クリックで一覧（文脈セット）
     document.getElementById('a-deck').addEventListener('click', () => {
+      thumbsContext = { area: 'deck', player: 'A' };
       openGalleryFromList('A デッキ', deckImages.A);
     });
     document.getElementById('b-deck').addEventListener('click', () => {
+      thumbsContext = { area: 'deck', player: 'B' };
       openGalleryFromList('B デッキ', deckImages.B);
     });
     document.getElementById('a-hand').addEventListener('click', () => {
+      thumbsContext = { area: 'hand', player: 'A' };
       openGalleryFromList('A 手札', handImages.A);
     });
     document.getElementById('b-hand').addEventListener('click', () => {
+      thumbsContext = { area: 'hand', player: 'B' };
       openGalleryFromList('B 手札', handImages.B);
     });
     document.getElementById('a-life').addEventListener('click', () => {
+      thumbsContext = { area: 'life', player: 'A' };
       openGalleryFromList('A ライフ', lifeImages.A);
     });
     document.getElementById('b-life').addEventListener('click', () => {
+      thumbsContext = { area: 'life', player: 'B' };
       openGalleryFromList('B ライフ', lifeImages.B);
     });
     document.getElementById('a-trash').addEventListener('click', () => {
+      thumbsContext = { area: 'trash', player: 'A' };
       openGalleryFromList('A トラッシュ', trashImages.A);
     });
     document.getElementById('b-trash').addEventListener('click', () => {
+      thumbsContext = { area: 'trash', player: 'B' };
       openGalleryFromList('B トラッシュ', trashImages.B);
     });
 
@@ -513,7 +527,7 @@
     window.addEventListener('resize', hideDeckMenu);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideDeckMenu(); });
 
-    // ★ メニュークリック：手札+1 / ライフ+1 / トラッシュ+1 を実装
+    // ★ メニュークリック：手札+1 / ライフ+1 / トラッシュ+1
     deckMenu.addEventListener('click', (e) => {
       const btn = e.target.closest('button');
       if (!btn) return;
@@ -561,15 +575,19 @@
       img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
     });
 
-    /* ==== ギャラリーサムネ共通メニュー制御 ==== */
+    /* ==== ギャラリーサムネ共通メニュー ==== */
     const thumbMenu = document.getElementById('thumb-menu');
+
+    // 右クリックされたサムネ（DOM参照）
+    let lastRightClickedThumb = null;
 
     function showThumbMenu(e, img){
       e.preventDefault();
-      // 他メニューが出ていたら閉じる
       if (typeof hideDeckMenu === 'function') hideDeckMenu();
 
-      thumbMenu.dataset.src = img?.src || '';
+      lastRightClickedThumb = img;
+      // data-src を優先（エンコードの揺れ対策）
+      thumbMenu.dataset.src = img?.dataset?.src || img?.src || '';
       thumbMenu.style.display = 'block';
       thumbMenu.setAttribute('aria-hidden', 'false');
 
@@ -587,7 +605,7 @@
       delete thumbMenu.dataset.src;
     }
 
-    // #thumbs 内の画像を右クリックしたら開く（領域によらず一律）
+    // #thumbs 内の画像を右クリックしたら開く（領域一律）
     document.getElementById('thumbs').addEventListener('contextmenu', (e) => {
       const img = e.target.closest('img');
       if (!img) return;
@@ -599,9 +617,6 @@
     window.addEventListener('scroll', hideThumbMenu, true);
     window.addEventListener('resize', hideThumbMenu);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideThumbMenu(); });
-
-    // ★メニュー項目クリック時の実処理は未実装のまま
-    // thumbMenu.addEventListener('click', (e) => { /* 後で実装 */ });
 
     // ▼ メニュー開放中は左クリックで「メニューだけ閉じる」(他のクリック処理は無効化)
     document.addEventListener('click', (e) => {
@@ -618,10 +633,79 @@
       if (typeof hideThumbMenu === 'function') hideThumbMenu();
       if (typeof hideDeckMenu  === 'function') hideDeckMenu();
 
-      // ここで他のクリック処理（画像プレビュー等）を止める
+      // 下層のクリック処理（プレビュー等）を止める
       e.stopPropagation();
       e.preventDefault();
-    }, true); // ← capture を true にするのがポイント
+    }, true);
+
+    /* ====== キャラエリア配置（To：キャラエリア） ====== */
+    // キャラエリアの占有状況（null なら空き）
+    const charaImages = { A: Array(5).fill(null), B: Array(5).fill(null) };
+    const charaSlots  = {
+      A: ['a-chara-1','a-chara-2','a-chara-3','a-chara-4','a-chara-5'],
+      B: ['b-chara-1','b-chara-2','b-chara-3','b-chara-4','b-chara-5'],
+    };
+
+    function placeInChara(player, src){
+      const idx = charaImages[player].findIndex(v => !v);
+      if (idx === -1) {
+        alert('キャラエリアがいっぱいです。');
+        return false;
+      }
+      charaImages[player][idx] = src;
+
+      const cell = document.getElementById(charaSlots[player][idx]);
+      if (!cell) return false;
+      cell.innerHTML = '';                        // 何か入っていたらクリア
+      const img = document.createElement('img');  // 盤面カード表示
+      img.src = src;
+      img.alt = `${player}-CHARA-${idx+1}`;
+      cell.appendChild(img);
+      return true;
+    }
+
+    // 汎用：配列から該当srcを1件だけ削除
+    function removeOne(list, src){
+      const i = list.indexOf(src);
+      if (i >= 0) list.splice(i, 1);
+    }
+
+    // エリア配列の参照マップ
+    const areaLists = { deck: deckImages, hand: handImages, life: lifeImages, trash: trashImages };
+
+    // サムネ用メニュー：To：キャラエリア
+    thumbMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+
+      const action = btn.dataset.action;
+      if (action !== 'to-chara') return;  // 他項目は未実装のまま
+
+      const src = thumbMenu.dataset.src || '';
+      const { area, player } = thumbsContext || {};
+      if (!src || !area || !player) { hideThumbMenu(); return; }
+
+      // 1) キャラエリアに置く（満員なら中断）
+      const ok = placeInChara(player, src);
+      if (!ok) { hideThumbMenu(); return; }
+
+      // 2) 元リストから削除 & カウンタ更新
+      const list = areaLists[area]?.[player];
+      if (Array.isArray(list)) removeOne(list, src);
+      if (area === 'deck')  deckCounts[player]  = Math.max(0, deckCounts[player] - 1);
+      if (area === 'hand')  handCounts[player]  = Math.max(0, handCounts[player] - 1);
+      if (area === 'life')  lifeCounts[player]  = Math.max(0, lifeCounts[player] - 1);
+      if (area === 'trash') trashCounts[player] = Math.max(0, trashCounts[player] - 1);
+      renderCounts();
+
+      // 3) サムネDOMも取り除く
+      if (lastRightClickedThumb && lastRightClickedThumb.isConnected) {
+        lastRightClickedThumb.remove();
+      }
+
+      // 4) メニューを閉じる
+      hideThumbMenu();
+    });
   </script>
 </body>
 </html>
