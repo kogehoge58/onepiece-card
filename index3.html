@@ -602,6 +602,26 @@
 
     // ★メニュー項目クリック時の実処理は未実装のまま
     // thumbMenu.addEventListener('click', (e) => { /* 後で実装 */ });
+
+    // ▼ メニュー開放中は左クリックで「メニューだけ閉じる」(他のクリック処理は無効化)
+    document.addEventListener('click', (e) => {
+      const menuOpen =
+        (typeof thumbMenu !== 'undefined' && thumbMenu?.style.display === 'block') ||
+        (typeof deckMenu  !== 'undefined' && deckMenu?.style.display  === 'block');
+
+      if (!menuOpen) return;
+
+      // メニュー自身のクリックは通す
+      if (thumbMenu?.contains(e.target) || deckMenu?.contains(e.target)) return;
+
+      // メニューを閉じるだけ
+      if (typeof hideThumbMenu === 'function') hideThumbMenu();
+      if (typeof hideDeckMenu  === 'function') hideDeckMenu();
+
+      // ここで他のクリック処理（画像プレビュー等）を止める
+      e.stopPropagation();
+      e.preventDefault();
+    }, true); // ← capture を true にするのがポイント
   </script>
 </body>
 </html>
