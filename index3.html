@@ -116,6 +116,9 @@
     .context-menu button:hover{
       background: rgba(255,255,255,0.12);
     }
+
+    /* 画像プレビュー用（中央拡大） */
+    #preview-backdrop { z-index: 10001; } /* ギャラリーより前に出す */
   </style>
 </head>
 <body>
@@ -133,7 +136,7 @@
         <!-- A-START -->
         <div class="card">
           <img src="component_images/start.png" alt="A-START">
-          <span class="start-label">ターン開始</span>
+          <span class="start-label">リフレッシュ</span>
         </div>
 
         <!-- A-LIFE -->
@@ -212,7 +215,7 @@
         <!-- B-START -->
         <div class="card">
           <img src="component_images/start.png" alt="B-START">
-          <span class="start-label">ターン開始</span>
+          <span class="start-label">リフレッシュ</span>
         </div>
 
         <!-- B-LIFE -->
@@ -291,6 +294,13 @@
     <button type="button" role="menuitem" data-action="hand-plus">手札+1</button>
     <button type="button" role="menuitem" data-action="life-plus">ライフ+1</button>
     <button type="button" role="menuitem" data-action="trash-plus">トラッシュ+1</button>
+  </div>
+
+  <!-- 画像プレビュー用モーダル -->
+  <div id="preview-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div id="preview-content" style="background:#fff; border-radius:10px; padding:8px; max-width:90vw; max-height:90vh; display:flex; align-items:center; justify-content:center;">
+      <img id="preview-img" alt="" style="max-width:88vw; max-height:88vh; object-fit:contain;">
+    </div>
   </div>
 
   <script>
@@ -507,6 +517,37 @@
       } else if (action === 'trash-plus') {
         moveTopToTrash(player);
       }
+    });
+
+    /* ==== 画像プレビュー制御 ==== */
+    const previewBackdrop = document.getElementById('preview-backdrop');
+    const previewImg      = document.getElementById('preview-img');
+
+    function openImagePreview(src, alt=''){
+      previewImg.src = src;
+      previewImg.alt = alt || '';
+      previewBackdrop.style.display = 'flex';
+      previewBackdrop.setAttribute('aria-hidden', 'false');
+    }
+    function hidePreview(){
+      previewBackdrop.style.display = 'none';
+      previewBackdrop.setAttribute('aria-hidden', 'true');
+      previewImg.src = '';
+      previewImg.alt = '';
+    }
+    previewBackdrop.addEventListener('click', (e) => { if (e.target === previewBackdrop) hidePreview(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hidePreview(); });
+
+    /* ギャラリー内のサムネ（image (1)～(50)）クリックで拡大 */
+    document.getElementById('thumbs').addEventListener('click', (e) => {
+      const img = e.target.closest('img');
+      if (!img) return;
+      openImagePreview(img.src, img.alt || '');
+    });
+
+    /* 画面上の leader.png をクリックで拡大（A/B両方） */
+    document.querySelectorAll('img[src$="leader.png"]').forEach(img => {
+      img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
     });
   </script>
 </body>
