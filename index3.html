@@ -99,6 +99,31 @@
       width: 100%; aspect-ratio: 1 / 1.4; object-fit: cover; border: 1px solid #aaa;
     }
     .path-note { font-size: 12px; color: #666; margin-left: 8px; }
+
+    /* ==== DECK用コンテキストメニュー ==== */
+    .context-menu{
+      position: fixed;
+      display: none;
+      min-width: 160px;
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      border-radius: 10px;
+      padding: 6px 0;
+      z-index: 10000;
+      box-shadow: 0 10px 24px rgba(0,0,0,.3);
+      backdrop-filter: blur(2px);
+    }
+    .context-menu button{
+      all: unset;
+      display: block;
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .context-menu button:hover{
+      background: rgba(255,255,255,0.12);
+    }
   </style>
 </head>
 <body>
@@ -265,13 +290,15 @@
   <!-- ===== モーダル（共通） ===== -->
   <div id="gallery-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal">
-      <div class="modal-header">
-        <div id="modal-title">画像一覧</div>
-        <div class="path-note" id="modal-path"></div>
-        <button class="modal-close" id="modal-close">閉じる</button>
-      </div>
       <div id="thumbs" class="thumbs"></div>
     </div>
+  </div>
+
+  <!-- ==== DECKメニュー（共通） ==== -->
+  <div id="deck-menu" class="context-menu" role="menu" aria-hidden="true">
+    <button type="button" role="menuitem" data-action="hand-plus">手札+1</button>
+    <button type="button" role="menuitem" data-action="life-plus">ライフ+1</button>
+    <button type="button" role="menuitem" data-action="trash-plus">トラッシュ+1</button>
   </div>
 
   <script>
@@ -350,11 +377,7 @@
     /* ===== モーダル制御（デッキ画像一覧） ===== */
     const backdrop = document.getElementById('gallery-backdrop');
     const thumbs   = document.getElementById('thumbs');
-    const titleEl  = document.getElementById('modal-title');
-    const pathEl   = document.getElementById('modal-path');
-    const closeBtn = document.getElementById('modal-close');
 
-    closeBtn.addEventListener('click', () => hideModal());
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) hideModal(); });
 
     function hideModal() {
@@ -364,9 +387,6 @@
     }
 
     function openGallery(folderLabel, basePath) {
-      titleEl.textContent = `${folderLabel} の画像一覧`;
-      pathEl.textContent  = basePath;
-
       const frag = document.createDocumentFragment();
       for (let i = 1; i <= 50; i++) {
         const img = document.createElement('img');
@@ -388,6 +408,48 @@
     document.getElementById('b-deck').addEventListener('click', () => {
       openGallery('player_B', 'deck/player_B/images');
     });
+
+    /* ==== DECK右クリック用コンテキストメニュー ==== */
+    const deckMenu = document.getElementById('deck-menu');
+    const aDeckEl  = document.getElementById('a-deck');
+    const bDeckEl  = document.getElementById('b-deck');
+
+    function showDeckMenu(e, player){
+      e.preventDefault(); // 既定の右クリックメニュー抑止
+      deckMenu.dataset.player = player;
+      deckMenu.style.display = 'block';
+      deckMenu.setAttribute('aria-hidden', 'false');
+
+      // 画面からはみ出さないよう位置調整
+      let x = e.clientX, y = e.clientY;
+      const w = deckMenu.offsetWidth, h = deckMenu.offsetHeight;
+      const pad = 8;
+      if (x + w + pad > window.innerWidth)  x = window.innerWidth  - w - pad;
+      if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
+      deckMenu.style.left = `${x}px`;
+      deckMenu.style.top  = `${y}px`;
+    }
+
+    function hideDeckMenu(){
+      deckMenu.style.display = 'none';
+      deckMenu.setAttribute('aria-hidden', 'true');
+      delete deckMenu.dataset.player;
+    }
+
+    // A/Bデッキで右クリック時にメニュー表示
+    aDeckEl.addEventListener('contextmenu', (e) => showDeckMenu(e, 'A'));
+    bDeckEl.addEventListener('contextmenu', (e) => showDeckMenu(e, 'B'));
+
+    // メニュー外クリック・スクロール・リサイズ・Escで閉じる
+    document.addEventListener('click', (e) => {
+      if (!deckMenu.contains(e.target)) hideDeckMenu();
+    });
+    window.addEventListener('scroll', hideDeckMenu, true);
+    window.addEventListener('resize', hideDeckMenu);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideDeckMenu(); });
+
+    // いまは項目クリック時の処理は未実装のまま（要求どおり）
+    // deckMenu.addEventListener('click', (e) => { /* ここに後で実装 */ });
   </script>
 </body>
 </html>
