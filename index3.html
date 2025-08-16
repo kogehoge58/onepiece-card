@@ -149,6 +149,7 @@
         <!-- A-LEADER -->
         <div class="card">
           <img src="deck/player_A/leader.png" alt="A-LEADER">
+          <span id="a-leader-don-label" class="don-label">ドン×0</span>
         </div>
 
         <div class="card">A-STAGE</div>
@@ -229,6 +230,7 @@
         <!-- B-LEADER -->
         <div class="card">
           <img src="deck/player_B/leader.png" alt="B-LEADER">
+          <span id="b-leader-don-label" class="don-label">ドン×0</span>
         </div>
 
         <div class="card">B-STAGE</div>
@@ -677,6 +679,13 @@
       img.alt = `${player}-CHARA-${idx+1}`;
       img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
       cell.appendChild(img);
+
+      const don = document.createElement('span');
+      don.className = 'don-label';
+      don.id = `${player.toLowerCase()}-chara-${idx+1}-don-label`; // 例: a-chara-1-don-label
+      don.textContent = 'ドン×0';
+      cell.appendChild(don);
+
       return true;
     }
 
