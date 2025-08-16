@@ -319,6 +319,14 @@
     <button type="button" role="menuitem" data-action="to-stage">To：ステージエリア</button>
   </div>
 
+  <!-- ==== リーダー／キャラ用 右クリックメニュー ==== -->
+  <div id="piece-menu" class="context-menu" role="menu" aria-hidden="true">
+    <button type="button" role="menuitem" data-action="move">移動</button>
+    <button type="button" role="menuitem" data-action="rest">レスト</button>
+    <button type="button" role="menuitem" data-action="don-plus">ドン+1</button>
+    <button type="button" role="menuitem" data-action="don-minus">ドン-1</button>
+  </div>
+
   <script>
     /* ===== 画像スタック ===== */
     const deckImages = {
@@ -622,11 +630,12 @@
 
     // 右クリック（contextmenu）を全体で禁止。ただし個別に許可している要素のみ通す
     document.addEventListener('contextmenu', (e) => {
-      const allowed = e.target.closest('#thumbs img, #a-deck, #b-deck');
-      if (!allowed) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      const allowed = e.target.closest(
+        '#thumbs img, #a-deck, #b-deck, img[src$="leader.png"],' +
+        ' #a-chara-1 img, #a-chara-2 img, #a-chara-3 img, #a-chara-4 img, #a-chara-5 img,' +
+        ' #b-chara-1 img, #b-chara-2 img, #b-chara-3 img, #b-chara-4 img, #b-chara-5 img'
+      );
+      if (!allowed) { e.preventDefault(); e.stopPropagation(); }
     }, true);
 
     // 外側クリック・スクロール・リサイズ・Escで閉じる
@@ -639,16 +648,18 @@
     document.addEventListener('click', (e) => {
       const menuOpen =
         (typeof thumbMenu !== 'undefined' && thumbMenu?.style.display === 'block') ||
-        (typeof deckMenu  !== 'undefined' && deckMenu?.style.display  === 'block');
+        (typeof deckMenu  !== 'undefined' && deckMenu?.style.display  === 'block') ||
+        (typeof pieceMenu !== 'undefined' && pieceMenu?.style.display === 'block');
 
       if (!menuOpen) return;
 
       // メニュー自身のクリックは通す
-      if (thumbMenu?.contains(e.target) || deckMenu?.contains(e.target)) return;
+      if (thumbMenu?.contains(e.target) || deckMenu?.contains(e.target) || pieceMenu?.contains(e.target)) return;
 
       // メニューを閉じるだけ
       if (typeof hideThumbMenu === 'function') hideThumbMenu();
       if (typeof hideDeckMenu  === 'function') hideDeckMenu();
+      if (typeof hidePieceMenu === 'function') hidePieceMenu();
 
       // 下層のクリック処理（プレビュー等）を止める
       e.stopPropagation();
@@ -739,6 +750,68 @@
         [arr[i], arr[j]] = [arr[j], arr[i]];
       }
     }
+
+    /* ==== リーダー／キャラ用メニュー ==== */
+    const pieceMenu = document.getElementById('piece-menu');
+
+    function showPieceMenu(e, ctx = {}) {
+      e.preventDefault();
+      // 他メニューは閉じる
+      if (typeof hideDeckMenu === 'function')  hideDeckMenu();
+      if (typeof hideThumbMenu === 'function') hideThumbMenu();
+
+      // 文脈を保持（後で処理追加する想定）
+      pieceMenu.dataset.player = ctx.player || '';
+      pieceMenu.dataset.area   = ctx.area   || ''; // "leader" | "chara"
+      pieceMenu.dataset.slot   = ctx.slot != null ? String(ctx.slot) : '';
+
+      pieceMenu.style.display = 'block';
+      pieceMenu.setAttribute('aria-hidden', 'false');
+
+      // 位置（はみ出し防止）
+      let x = e.clientX, y = e.clientY;
+      const w = pieceMenu.offsetWidth, h = pieceMenu.offsetHeight, pad = 8;
+      if (x + w + pad > window.innerWidth)  x = window.innerWidth  - w - pad;
+      if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
+      pieceMenu.style.left = `${x}px`;
+      pieceMenu.style.top  = `${y}px`;
+    }
+    function hidePieceMenu(){
+      pieceMenu.style.display = 'none';
+      pieceMenu.setAttribute('aria-hidden', 'true');
+      delete pieceMenu.dataset.player;
+      delete pieceMenu.dataset.area;
+      delete pieceMenu.dataset.slot;
+    }
+
+    // リーダー画像（A/B）右クリック
+    document.querySelectorAll('img[src$="leader.png"]').forEach(img => {
+      img.addEventListener('contextmenu', (e) => {
+        const alt = img.alt || '';
+        const player = alt.startsWith('A-') ? 'A' : alt.startsWith('B-') ? 'B' : '';
+        showPieceMenu(e, { player, area: 'leader' });
+      });
+    });
+
+    // キャラエリア画像 右クリック（動的生成対応）
+    document.addEventListener('contextmenu', (e) => {
+      const charaImg = e.target.closest(
+        '#a-chara-1 img, #a-chara-2 img, #a-chara-3 img, #a-chara-4 img, #a-chara-5 img,' +
+        '#b-chara-1 img, #b-chara-2 img, #b-chara-3 img, #b-chara-4 img, #b-chara-5 img'
+      );
+      if (!charaImg) return;
+      const cell = charaImg.parentElement;
+      const m = cell.id.match(/^([ab])-chara-(\d)$/i);
+      if (!m) return;
+      const player = m[1].toUpperCase(); // 'A' | 'B'
+      const slot   = parseInt(m[2], 10); // 1..5
+      showPieceMenu(e, { player, area: 'chara', slot });
+    });
+
+    // 外側クリックで閉じる
+    document.addEventListener('click', (e) => {
+      if (!pieceMenu.contains(e.target)) hidePieceMenu();
+    });
   </script>
 </body>
 </html>
