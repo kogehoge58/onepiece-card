@@ -4,58 +4,62 @@
   <meta charset="UTF-8">
   <title>カードフィールド</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       width: 100vw;
       height: 100vh;
-      overflow: hidden;
+      overflow: hidden;           /* 画面本体はスクロール禁止 */
       font-family: sans-serif;
     }
 
-    .container {
-      display: flex;
-      width: 100%;
-      height: 100%;
-    }
-
+    .container { display: flex; width: 100%; height: 100%; }
     .player-field {
-      flex: 1;
-      border: 2px solid black;
-      padding: 30px;
-      display: flex;
-      flex-direction: column;
+      flex: 1; border: 2px solid black; padding: 30px;
+      display: flex; flex-direction: column;
     }
-
-    .player-title {
-      font-weight: bold;
-      margin-bottom: 5px;
-      text-align: center;
-      flex: 0 0 auto;
-    }
+    .player-title { font-weight: bold; margin-bottom: 5px; text-align: center; flex: 0 0 auto; }
 
     .card-grid {
-      flex: 1;
-      display: grid;
+      flex: 1; display: grid;
       grid-template-columns: repeat(5, 1fr);
       grid-template-rows: repeat(3, 1fr);
       gap: 5px;
     }
 
     .card {
-      width: 100%;
-      aspect-ratio: 1 / 1.4;
-      border: 1px solid #333;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 0.7vw;
+      width: 100%; aspect-ratio: 1 / 1.4;
+      border: 1px solid #333; display: flex; justify-content: center; align-items: center;
+      font-size: 0.7vw; font-weight: bold; position: relative; overflow: hidden;
+    }
+    .card img { width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+
+    /* ===== モーダル ===== */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: none;              /* 初期は非表示 */
+      align-items: center; justify-content: center; z-index: 9999;
+    }
+    .modal {
+      background: #fff; max-width: 90vw; max-height: 90vh;
+      width: 90vw; height: 90vh; border-radius: 10px; padding: 16px; display: flex; flex-direction: column;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
       font-weight: bold;
     }
+    .modal-close {
+      border: 1px solid #333; padding: 4px 10px; border-radius: 6px; background: #f4f4f4; cursor: pointer;
+    }
+    .thumbs {
+      flex: 1; overflow: auto;               /* 一覧はモーダル内だけスクロールOK */
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+    }
+    .thumbs img {
+      width: 100%; aspect-ratio: 1 / 1.4; object-fit: cover; border: 1px solid #aaa;
+    }
+    .path-note { font-size: 12px; color: #666; margin-left: 8px; }
   </style>
 </head>
 <body>
@@ -73,9 +77,12 @@
         <div class="card">A-LIFE</div>
         <div class="card">A-LEADER</div>
         <div class="card">A-STAGE</div>
+
+        <!-- A-DECK（クリックで黒ルッチの画像一覧を開く） -->
         <div class="card">
-          <img src="component_images/deck.png" alt="A-DECK" style="width:100%; height:100%; object-fit:contain;">
+          <img id="a-deck" src="component_images/deck.png" alt="A-DECK">
         </div>
+
         <div class="card">A-DON-DECK</div>
         <div class="card">A-DON-ACT</div>
         <div class="card">A-DON-REST</div>
@@ -97,9 +104,12 @@
         <div class="card">B-LIFE</div>
         <div class="card">B-LEADER</div>
         <div class="card">B-STAGE</div>
+
+        <!-- B-DECK（クリックで緑ゾロの画像一覧を開く） -->
         <div class="card">
-          <img src="component_images/deck.png" alt="B-DECK" style="width:100%; height:100%; object-fit:contain;">
+          <img id="b-deck" src="component_images/deck.png" alt="B-DECK">
         </div>
+
         <div class="card">B-DON-DECK</div>
         <div class="card">B-DON-ACT</div>
         <div class="card">B-DON-REST</div>
@@ -108,5 +118,63 @@
       </div>
     </div>
   </div>
+
+  <!-- ===== モーダル（共通） ===== -->
+  <div id="gallery-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-header">
+        <div id="modal-title">画像一覧</div>
+        <div class="path-note" id="modal-path"></div>
+        <button class="modal-close" id="modal-close">閉じる</button>
+      </div>
+      <div id="thumbs" class="thumbs"></div>
+    </div>
+  </div>
+
+  <script>
+    // モーダル制御
+    const backdrop = document.getElementById('gallery-backdrop');
+    const thumbs   = document.getElementById('thumbs');
+    const titleEl  = document.getElementById('modal-title');
+    const pathEl   = document.getElementById('modal-path');
+    const closeBtn = document.getElementById('modal-close');
+
+    closeBtn.addEventListener('click', () => hideModal());
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) hideModal(); });
+
+    function hideModal() {
+      backdrop.style.display = 'none';
+      thumbs.innerHTML = '';
+      backdrop.setAttribute('aria-hidden', 'true');
+    }
+
+    function openGallery(folderLabel, basePath) {
+      // basePath 例: 'deck/黒ルッチ/images'
+      titleEl.textContent = `${folderLabel} の画像一覧`;
+      pathEl.textContent  = basePath;
+
+      // サムネイル50枚生成（image (1).png ～ image (50).png）
+      const frag = document.createDocumentFragment();
+      for (let i = 1; i <= 50; i++) {
+        const img = document.createElement('img');
+        const rawPath = `${basePath}/image (${i}).png`;
+        img.src = encodeURI(rawPath);    // 日本語・スペースをURLエンコード
+        img.alt = `image (${i}).png`;
+        frag.appendChild(img);
+      }
+      thumbs.appendChild(frag);
+
+      backdrop.style.display = 'flex';
+      backdrop.setAttribute('aria-hidden', 'false');
+    }
+
+    // クリックで各フォルダのギャラリーを開く
+    document.getElementById('a-deck').addEventListener('click', () => {
+      openGallery('黒ルッチ', 'deck/黒ルッチ/images');
+    });
+    document.getElementById('b-deck').addEventListener('click', () => {
+      openGallery('緑ゾロ', 'deck/緑ゾロ/images');
+    });
+  </script>
 </body>
 </html>
