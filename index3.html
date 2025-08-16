@@ -612,6 +612,15 @@
       showThumbMenu(e, img);
     });
 
+    // 右クリック（contextmenu）を全体で禁止。ただし個別に許可している要素のみ通す
+    document.addEventListener('contextmenu', (e) => {
+      const allowed = e.target.closest('#thumbs img, #a-deck, #b-deck');
+      if (!allowed) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+
     // 外側クリック・スクロール・リサイズ・Escで閉じる
     document.addEventListener('click', (e) => { if (!thumbMenu.contains(e.target)) hideThumbMenu(); });
     window.addEventListener('scroll', hideThumbMenu, true);
