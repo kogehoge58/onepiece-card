@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>画像右クリックメニュー（A / B / C）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --menu-bg: #111827;
+      --menu-fg: #e5e7eb;
+      --menu-border: #374151;
+      --menu-hover: #1f2937;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+
+    body {
+      margin: 0;
+      padding: 40px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      background: #0b1020;
+      color: #e5e7eb;
+    }
+
+    h1 { font-size: 18px; font-weight: 600; margin: 0 0 16px; color: #c7d2fe; }
+
+    .wrap {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      align-items: start;
+    }
+
+    /* 右クリック対象の画像 */
+    img.menuable {
+      width: 320px;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      user-select: none;
+      -webkit-user-drag: none;
+      background: #111;
+    }
+
+    /* コンテキストメニュー */
+    .ctx {
+      position: fixed;
+      top: 0;
+      left: 0;
+      min-width: 140px;
+      background: var(--menu-bg);
+      color: var(--menu-fg);
+      border: 1px solid var(--menu-border);
+      border-radius: 10px;
+      padding: 6px;
+      box-shadow: var(--shadow);
+      display: none;
+      z-index: 1000;
+    }
+    .ctx[aria-hidden="false"] { display: block; }
+
+    .ctx button {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font: inherit;
+    }
+    .ctx button:hover,
+    .ctx button:focus {
+      outline: 0;
+      background: var(--menu-hover);
+    }
+
+    .tip {
+      font-size: 12px;
+      opacity: .7;
+    }
+  </style>
+</head>
+<body>
+  <h1>画像を右クリックでメニュー（A / B / C）</h1>
+  <p class="tip">※対象にしたい画像に <code>menuable</code> クラスを付けるだけ。</p>
+
+  <div class="wrap">
+    <!-- デモ用：外部に依存しないSVGプレースホルダ -->
+    <img
+      class="menuable"
+      alt="サンプル画像"
+      src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='%2307f' offset='0'/><stop stop-color='%2380f' offset='1'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g)'/><text x='50%' y='50%' fill='white' font-family='sans-serif' font-size='48' dominant-baseline='middle' text-anchor='middle'>右クリック！</text></svg>"
+    />
+  </div>
+
+  <!-- カスタムコンテキストメニュー -->
+  <nav id="imgMenu" class="ctx" aria-hidden="true" role="menu">
+    <button type="button" role="menuitem" data-action="A">A</button>
+    <button type="button" role="menuitem" data-action="B">B</button>
+    <button type="button" role="menuitem" data-action="C">C</button>
+  </nav>
+
+  <script>
+    (() => {
+      const menu = document.getElementById('imgMenu');
+      let targetImg = null;
+
+      // 画像上での右クリック（ネイティブメニューを抑止してカスタムを表示）
+      document.addEventListener('contextmenu', (e) => {
+        const img = e.target.closest('img.menuable');
+        if (!img) {
+          // 画像以外で右クリック → カスタムメニューを閉じるだけ（ページ全体の右クリは許可）
+          hideMenu();
+          return;
+        }
+        e.preventDefault();
+        targetImg = img;
+        openMenuAt(e.clientX, e.clientY);
+      });
+
+      // メニュー項目クリック（A / B / C のハンドラ）
+      menu.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const action = btn.dataset.action;
+
+        // ★ここに任意の処理を書く（今は例としてalert/consoleに出す）
+        console.log(`選択: ${action}`, { img: targetImg });
+        // alert(`${action} を選択（alt: ${targetImg?.alt ?? ''}）`);
+
+        // hideMenu();
+      });
+
+      // メニュー外クリック・スクロール・リサイズ・Escで閉じる
+      document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target)) hideMenu();
+      });
+      window.addEventListener('scroll', hideMenu, { passive: true });
+      window.addEventListener('resize', hideMenu);
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') hideMenu();
+      });
+
+      // 指定座標にメニューを開く（画面端でハミ出さないよう補正）
+      function openMenuAt(x, y) {
+        // いったん表示してサイズを測る
+        menu.style.left = '0px';
+        menu.style.top = '0px';
+        menu.setAttribute('aria-hidden', 'false');
+
+        const { width: mw, height: mh } = menu.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
+        const left = Math.min(x, vw - mw - 8);
+        const top  = Math.min(y, vh - mh - 8);
+
+        menu.style.left = `${left}px`;
+        menu.style.top  = `${top}px`;
+
+        // 最初の項目にフォーカス
+        const first = menu.querySelector('button');
+        first && first.focus();
+      }
+
+      function hideMenu() {
+        targetImg = null;
+        menu.setAttribute('aria-hidden', 'true');
+      }
+    })();
+  </script>
+</body>
+</html>
