@@ -38,7 +38,8 @@
     .card .deck-label,
     .card .life-label,
     .card .hand-label,
-    .card .trash-label {
+    .card .trash-label,
+    .card .don-label {
       position: absolute;
       left: 6px; bottom: 6px;
       padding: 2px 6px;
@@ -91,25 +92,51 @@
         <div class="card">A-CHARA-4</div>
         <div class="card">A-CHARA-5</div>
         <div class="card">A-MENU</div>
+
+        <!-- A-LIFE -->
         <div class="card">
           <img src="component_images/back.png" alt="A-LIFE">
           <span id="a-life-label" class="life-label">ライフ×0</span>
         </div>
+
+        <!-- A-LEADER -->
         <div class="card">
           <img src="deck/黒ルッチ/leader.png" alt="A-LEADER">
         </div>
+
         <div class="card">A-STAGE</div>
+
+        <!-- A-DECK -->
         <div class="card deck">
           <img id="a-deck" src="component_images/back.png" alt="A-DECK">
           <span id="a-deck-label" class="deck-label">デッキ×0</span>
         </div>
-        <div class="card">A-DON-DECK</div>
-        <div class="card">A-DON-ACT</div>
-        <div class="card">A-DON-REST</div>
+
+        <!-- A-DON-DECK（画像＋カウンタ） -->
+        <div class="card">
+          <img src="component_images/don_back.png" alt="A-DON-DECK">
+          <span id="a-don-deck-label" class="don-label">ドンデッキ×10</span>
+        </div>
+
+        <!-- A-DON-ACT（画像＋カウンタ） -->
+        <div class="card">
+          <img src="component_images/don.png" alt="A-DON-ACT">
+          <span id="a-don-act-label" class="don-label">アクティブ×0</span>
+        </div>
+
+        <!-- A-DON-REST（画像＋カウンタ） -->
+        <div class="card">
+          <img src="component_images/don.png" alt="A-DON-REST">
+          <span id="a-don-rest-label" class="don-label">レスト×0</span>
+        </div>
+
+        <!-- A-HAND -->
         <div class="card">
           <img src="component_images/back.png" alt="A-HAND">
           <span id="a-hand-label" class="hand-label">手札×0</span>
         </div>
+
+        <!-- A-TRASH -->
         <div class="card">
           <img src="component_images/trash.png" alt="A-TRASH">
           <span id="a-trash-label" class="trash-label">トラッシュ×0</span>
@@ -127,25 +154,51 @@
         <div class="card">B-CHARA-4</div>
         <div class="card">B-CHARA-5</div>
         <div class="card">B-MENU</div>
+
+        <!-- B-LIFE -->
         <div class="card">
           <img src="component_images/back.png" alt="B-LIFE">
           <span id="b-life-label" class="life-label">ライフ×0</span>
         </div>
+
+        <!-- B-LEADER -->
         <div class="card">
           <img src="deck/緑ゾロ/leader.png" alt="B-LEADER">
         </div>
+
         <div class="card">B-STAGE</div>
+
+        <!-- B-DECK -->
         <div class="card deck">
           <img id="b-deck" src="component_images/back.png" alt="B-DECK">
           <span id="b-deck-label" class="deck-label">デッキ×0</span>
         </div>
-        <div class="card">B-DON-DECK</div>
-        <div class="card">B-DON-ACT</div>
-        <div class="card">B-DON-REST</div>
+
+        <!-- B-DON-DECK（画像＋カウンタ） -->
+        <div class="card">
+          <img src="component_images/don_back.png" alt="B-DON-DECK">
+          <span id="b-don-deck-label" class="don-label">ドンデッキ×10</span>
+        </div>
+
+        <!-- B-DON-ACT（画像＋カウンタ） -->
+        <div class="card">
+          <img src="component_images/don.png" alt="B-DON-ACT">
+          <span id="b-don-act-label" class="don-label">アクティブ×0</span>
+        </div>
+
+        <!-- B-DON-REST（画像＋カウンタ） -->
+        <div class="card">
+          <img src="component_images/don.png" alt="B-DON-REST">
+          <span id="b-don-rest-label" class="don-label">レスト×0</span>
+        </div>
+
+        <!-- B-HAND -->
         <div class="card">
           <img src="component_images/back.png" alt="B-HAND">
           <span id="b-hand-label" class="hand-label">手札×0</span>
         </div>
+
+        <!-- B-TRASH -->
         <div class="card">
           <img src="component_images/trash.png" alt="B-TRASH">
           <span id="b-trash-label" class="trash-label">トラッシュ×0</span>
@@ -167,33 +220,53 @@
   </div>
 
   <script>
-    let deckCounts  = { A: 50, B: 50 };
-    let lifeCounts  = { A: 0,  B: 0 };
-    let handCounts  = { A: 0,  B: 0 };
-    let trashCounts = { A: 0,  B: 0 };
+    /* ===== カウント管理 ===== */
+    let deckCounts   = { A: 50, B: 50 };
+    let lifeCounts   = { A: 0,  B: 0 };
+    let handCounts   = { A: 0,  B: 0 };
+    let trashCounts  = { A: 0,  B: 0 };
+
+    let donDeckCounts = { A: 10, B: 10 };  // 初期：10
+    let donActCounts  = { A: 0,  B: 0 };   // 初期：0
+    let donRestCounts = { A: 0,  B: 0 };   // 初期：0
 
     function renderCounts(){
+      // デッキ
       document.getElementById('a-deck-label').textContent  = `デッキ×${deckCounts.A}`;
       document.getElementById('b-deck-label').textContent  = `デッキ×${deckCounts.B}`;
+      // ライフ
       document.getElementById('a-life-label').textContent  = `ライフ×${lifeCounts.A}`;
       document.getElementById('b-life-label').textContent  = `ライフ×${lifeCounts.B}`;
+      // 手札
       document.getElementById('a-hand-label').textContent  = `手札×${handCounts.A}`;
       document.getElementById('b-hand-label').textContent  = `手札×${handCounts.B}`;
+      // トラッシュ
       document.getElementById('a-trash-label').textContent = `トラッシュ×${trashCounts.A}`;
       document.getElementById('b-trash-label').textContent = `トラッシュ×${trashCounts.B}`;
+      // ドン（デッキ / アクティブ / レスト）
+      document.getElementById('a-don-deck-label').textContent = `ドンデッキ×${donDeckCounts.A}`;
+      document.getElementById('b-don-deck-label').textContent = `ドンデッキ×${donDeckCounts.B}`;
+      document.getElementById('a-don-act-label').textContent  = `アクティブ×${donActCounts.A}`;
+      document.getElementById('b-don-act-label').textContent  = `アクティブ×${donActCounts.B}`;
+      document.getElementById('a-don-rest-label').textContent = `レスト×${donRestCounts.A}`;
+      document.getElementById('b-don-rest-label').textContent = `レスト×${donRestCounts.B}`;
     }
 
+    // 外部から共通で更新できるように
     function setCount(type, player, n){
-      if(type==="deck")  deckCounts[player]  = n;
-      if(type==="life")  lifeCounts[player]  = n;
-      if(type==="hand")  handCounts[player]  = n;
-      if(type==="trash") trashCounts[player] = n;
+      if(type==="deck")      deckCounts[player]   = n;
+      if(type==="life")      lifeCounts[player]   = n;
+      if(type==="hand")      handCounts[player]   = n;
+      if(type==="trash")     trashCounts[player]  = n;
+      if(type==="donDeck")   donDeckCounts[player]= n;
+      if(type==="donAct")    donActCounts[player] = n;
+      if(type==="donRest")   donRestCounts[player]= n;
       renderCounts();
     }
 
     renderCounts();
 
-    // ===== モーダル制御 =====
+    /* ===== モーダル制御（デッキ画像一覧） ===== */
     const backdrop = document.getElementById('gallery-backdrop');
     const thumbs   = document.getElementById('thumbs');
     const titleEl  = document.getElementById('modal-title');
