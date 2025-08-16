@@ -138,7 +138,7 @@
 
         <!-- A-LIFE -->
         <div class="card">
-          <img src="component_images/back.png" alt="A-LIFE">
+          <img id="a-life" src="component_images/back.png" alt="A-LIFE">
           <span id="a-life-label" class="life-label">ライフ×0</span>
         </div>
 
@@ -193,7 +193,7 @@
 
         <!-- A-TRASH -->
         <div class="card">
-          <img src="component_images/trash.png" alt="A-TRASH">
+          <img id="a-trash" src="component_images/trash.png" alt="A-TRASH">
           <span id="a-trash-label" class="trash-label">トラッシュ×0</span>
         </div>
       </div>
@@ -217,7 +217,7 @@
 
         <!-- B-LIFE -->
         <div class="card">
-          <img src="component_images/back.png" alt="B-LIFE">
+          <img id="b-life" src="component_images/back.png" alt="B-LIFE">
           <span id="b-life-label" class="life-label">ライフ×0</span>
         </div>
 
@@ -272,7 +272,7 @@
 
         <!-- B-TRASH -->
         <div class="card">
-          <img src="component_images/trash.png" alt="B-TRASH">
+          <img id="b-trash" src="component_images/trash.png" alt="B-TRASH">
           <span id="b-trash-label" class="trash-label">トラッシュ×0</span>
         </div>
       </div>
@@ -299,7 +299,9 @@
       A: Array.from({length:50}, (_,i) => encodeURI(`deck/player_A/images/image (${i+1}).png`)),
       B: Array.from({length:50}, (_,i) => encodeURI(`deck/player_B/images/image (${i+1}).png`)),
     };
-    const handImages = { A: [], B: [] };
+    const handImages  = { A: [], B: [] };
+    const lifeImages  = { A: [], B: [] };   // 追加：ライフに積むカード（表には出さない）
+    const trashImages = { A: [], B: [] };   // 追加：トラッシュに落ちたカード
 
     /* ===== カウント管理 ===== */
     let deckCounts   = { A: 50, B: 50 };
@@ -405,20 +407,52 @@
     document.getElementById('b-hand').addEventListener('click', () => {
       openGalleryFromList('B 手札', handImages.B);
     });
+    document.getElementById('a-life').addEventListener('click', () => {
+      openGalleryFromList('A ライフ', lifeImages.A);
+    });
+    document.getElementById('b-life').addEventListener('click', () => {
+      openGalleryFromList('B ライフ', lifeImages.B);
+    });
+    document.getElementById('a-trash').addEventListener('click', () => {
+      openGalleryFromList('A トラッシュ', trashImages.A);
+    });
+    document.getElementById('b-trash').addEventListener('click', () => {
+      openGalleryFromList('B トラッシュ', trashImages.B);
+    });
 
     /* ===== デッキ → 手札（手札+1） ===== */
     function drawToHand(player){
-      // デッキ上（先頭）を1枚引く
       const stack = deckImages[player];
       if (!stack || stack.length === 0) return;
-      const top = stack.shift();             // 先頭を取り出す（＝山札の一番上）
-
-      // 手札へ移動
+      const top = stack.shift();
       handImages[player].push(top);
 
-      // カウンタ更新
       deckCounts[player] = Math.max(0, deckCounts[player] - 1);
       handCounts[player] = (handCounts[player] || 0) + 1;
+      renderCounts();
+    }
+
+    /* ===== デッキ → ライフ（ライフ+1） ===== */
+    function drawToLife(player){
+      const stack = deckImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      lifeImages[player].push(top);
+
+      deckCounts[player] = Math.max(0, deckCounts[player] - 1);
+      lifeCounts[player] = (lifeCounts[player] || 0) + 1;
+      renderCounts();
+    }
+
+    /* ===== デッキ → トラッシュ（トラッシュ+1） ===== */
+    function moveTopToTrash(player){
+      const stack = deckImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      trashImages[player].push(top);
+
+      deckCounts[player]  = Math.max(0, deckCounts[player] - 1);
+      trashCounts[player] = (trashCounts[player] || 0) + 1;
       renderCounts();
     }
 
@@ -458,7 +492,7 @@
     window.addEventListener('resize', hideDeckMenu);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideDeckMenu(); });
 
-    // ★ メニュークリック：手札+1のみ実装（ライフ/トラッシュは未実装のまま）
+    // ★ メニュークリック：手札+1 / ライフ+1 / トラッシュ+1 を実装
     deckMenu.addEventListener('click', (e) => {
       const btn = e.target.closest('button');
       if (!btn) return;
@@ -468,6 +502,10 @@
 
       if (action === 'hand-plus') {
         drawToHand(player);
+      } else if (action === 'life-plus') {
+        drawToLife(player);
+      } else if (action === 'trash-plus') {
+        moveTopToTrash(player);
       }
     });
   </script>
