@@ -639,7 +639,7 @@
       if (!player) return;
 
       if (zone === 'deck') {
-        if (action === 'hand-plus')      { drawToHand(player); }
+        if (action === 'hand-plus')      { drawToHand(player); hideDeckMenu(); requestAnimationFrame(() => openHandGallery(player)); }
         else if (action === 'life-plus') { drawToLifeTop(player); } // ★ここだけ差し替え
         else if (action === 'trash-plus'){ moveTopToTrash(player); }
         else if (action === 'shuffle')   {
@@ -647,7 +647,7 @@
           if (confirm('シャッフルしますか？')) shuffleInPlace(deckImages[player]);
         }
       } else if (zone === 'life') {
-        if (action === 'hand-plus')      { lifeToHand(player); }     // LIFE→HAND
+        if (action === 'hand-plus')      { lifeToHand(player); hideDeckMenu(); requestAnimationFrame(() => openHandGallery(player)); }     // LIFE→HAND
         else if (action === 'life-plus') { drawToLife(player); }     // DECK→LIFE (+1)
         else if (action === 'trash-plus'){ lifeToTrash(player); }    // LIFE→TRASH
         else if (action === 'shuffle')   {
@@ -1456,6 +1456,9 @@
       // 一覧を開いていたら更新
       refreshIfOpen('deck', player);
       refreshIfOpen('hand', player);
+
+      // ★マリガン完了後に手札一覧を開く
+      openHandGallery(player);
     }
 
     /* ==== ルールPDF表示 ==== */
@@ -1483,6 +1486,11 @@
       const { area, player } = thumbsContext;
       if (area !== 'deck' && area !== 'life') return null;
       return `${area}-${player}`;
+    }
+
+    function openHandGallery(player){
+      thumbsContext = { area: 'hand', player };
+      openGalleryFromList(`${player} 手札`, handImages[player]);
     }
   </script>
 </body>
