@@ -1385,6 +1385,7 @@
       // 1) リーダー／キャラのレスト解除
       const leaderCell = getPieceCell(player, 'leader');
       setRestState(leaderCell, false);
+      setDonCount(leaderCell, 0);
 
       // 1-a) ステージのレスト解除 ★追加
       const stageCell = getPieceCell(player, 'stage');
