@@ -175,7 +175,8 @@
           <span id="a-leader-don-label" class="don-label">ドン×0</span>
         </div>
 
-        <div class="card">A-STAGE</div>
+        <!-- A-STAGE -->
+        <div id="a-stage" class="card">A-STAGE</div>
 
         <!-- A-DECK -->
         <div class="card deck">
@@ -256,7 +257,8 @@
           <span id="b-leader-don-label" class="don-label">ドン×0</span>
         </div>
 
-        <div class="card">B-STAGE</div>
+        <!-- B-STAGE -->
+        <div id="b-stage" class="card">B-STAGE</div>
 
         <!-- B-DECK -->
         <div class="card deck">
@@ -712,7 +714,7 @@
     function placeInChara(player, src){
       const idx = charaImages[player].findIndex(v => !v);
       if (idx === -1) {
-        alert('キャラエリアがいっぱいです。');
+        alert('キャラエリアが埋まっています。');
         return false;
       }
       charaImages[player][idx] = src;
@@ -744,37 +746,64 @@
     // エリア配列の参照マップ
     const areaLists = { deck: deckImages, hand: handImages, life: lifeImages, trash: trashImages };
 
-    // サムネ用メニュー：To：キャラエリア
+    // サムネ用メニュー
     thumbMenu.addEventListener('click', (e) => {
       const btn = e.target.closest('button');
       if (!btn) return;
 
       const action = btn.dataset.action;
-      if (action !== 'to-chara') return;  // 他項目は未実装のまま
-
       const src = thumbMenu.dataset.src || '';
       const { area, player } = thumbsContext || {};
       if (!src || !area || !player) { hideThumbMenu(); return; }
 
-      // 1) キャラエリアに置く（満員なら中断）
-      const ok = placeInChara(player, src);
-      if (!ok) { hideThumbMenu(); return; }
+      const doRemoveThumb = () => {
+        if (lastRightClickedThumb && lastRightClickedThumb.isConnected) lastRightClickedThumb.remove();
+      };
 
-      // 2) 元リストから削除 & カウンタ更新
-      const list = areaLists[area]?.[player];
-      if (Array.isArray(list)) removeOne(list, src);
-      if (area === 'deck')  deckCounts[player]  = Math.max(0, deckCounts[player] - 1);
-      if (area === 'hand')  handCounts[player]  = Math.max(0, handCounts[player] - 1);
-      if (area === 'life')  lifeCounts[player]  = Math.max(0, lifeCounts[player] - 1);
-      if (area === 'trash') trashCounts[player] = Math.max(0, trashCounts[player] - 1);
-      renderCounts();
-
-      // 3) サムネDOMも取り除く
-      if (lastRightClickedThumb && lastRightClickedThumb.isConnected) {
-        lastRightClickedThumb.remove();
+      if (action === 'to-chara') {
+        // 既存：キャラへ
+        const ok = placeInChara(player, src);
+        if (!ok) { hideThumbMenu(); return; }
+        removeFromArea(player, area, src);
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+        hideThumbMenu();
+        return;
       }
 
-      // 4) メニューを閉じる
+      if (action === 'to-hand') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'hand', src);
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-life') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'life', src);
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-trash') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'trash', src);
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-deck-top') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'deck', src, 'top');
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-deck-bottom') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'deck', src, 'bottom');
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-stage') {
+        const ok = placeInStage(player, src);
+        if (!ok) { hideThumbMenu(); return; }
+        removeFromArea(player, area, src);
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      }
+
       hideThumbMenu();
     });
 
@@ -1055,6 +1084,122 @@
       trashCounts[player] = (trashCounts[player] || 0) + 1;
       renderCounts();
     }
+
+    // ===== STAGE（各陣営1枠） =====
+    const stageImage = { A: null, B: null };
+    const stageSlots = { A: 'a-stage', B: 'b-stage' };
+
+    function placeInStage(player, src){
+      const cell = document.getElementById(stageSlots[player]);
+      if (!cell) return false;
+      if (stageImage[player]) {
+        alert('ステージエリアが埋まっています。');
+        return false;
+      }
+      stageImage[player] = src;
+      cell.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = `${player}-STAGE`;
+      img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
+      cell.appendChild(img);
+      return true;
+    }
+
+    function removeFromArea(player, area, src){
+      const list = areaLists[area]?.[player];
+      if (Array.isArray(list)) removeOne(list, src);
+      if (area === 'deck')  deckCounts[player]  = Math.max(0, deckCounts[player]  - 1);
+      if (area === 'hand')  handCounts[player]  = Math.max(0, handCounts[player]  - 1);
+      if (area === 'life')  lifeCounts[player]  = Math.max(0, lifeCounts[player]  - 1);
+      if (area === 'trash') trashCounts[player] = Math.max(0, trashCounts[player] - 1);
+      renderCounts();
+    }
+    function addToArea(player, area, src, pos='bottom'){
+      const list = areaLists[area]?.[player];
+      if (!Array.isArray(list)) return;
+      if (area === 'deck'){
+        if (pos === 'top') list.unshift(src); else list.push(src);
+        deckCounts[player] = (deckCounts[player] || 0) + 1;
+      } else {
+        list.push(src);
+        if (area === 'hand')  handCounts[player]  = (handCounts[player]  || 0) + 1;
+        if (area === 'life')  lifeCounts[player]  = (lifeCounts[player]  || 0) + 1;
+        if (area === 'trash') trashCounts[player] = (trashCounts[player] || 0) + 1;
+      }
+      renderCounts();
+    }
+    function refreshIfOpen(area, player){
+      if (backdrop.style.display !== 'flex') return;
+      if (thumbsContext.player !== player || thumbsContext.area !== area) return;
+      const titleMap = { deck:'デッキ', hand:'手札', life:'ライフ', trash:'トラッシュ' };
+      openGalleryFromList(`${player} ${titleMap[area]}`, areaLists[area][player]);
+    }
+
+    pieceSubMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[role="menuitem"]');
+      if (!btn) return;
+
+      const action = btn.dataset.action;
+      const player = pieceMenu.dataset.player;
+      const srcCellArea = pieceMenu.dataset.area; // 'leader' | 'chara'
+      const slot = Number(pieceMenu.dataset.slot || 0);
+      const cell = getPieceCell(player, srcCellArea, slot);
+      const imgEl = cell?.querySelector('img');
+      if (!player || !cell || !imgEl) { hidePieceSubMenu(); return; }
+
+      const src = imgEl.getAttribute('src'); // 相対パスで取得
+
+      // まず元のピースを空にする
+      if (srcCellArea === 'chara') {
+        // CHARA枠を空に
+        const m = cell.id.match(/^([ab])-chara-(\d)$/i);
+        if (m) {
+          const idx = parseInt(m[2], 10) - 1;
+          charaImages[player][idx] = null;
+        }
+        cell.innerHTML = 'CHARACTER';
+      } else if (srcCellArea === 'leader') {
+        // リーダーは画像だけ除去（ドンラベル等は残す）
+        imgEl.remove();
+      }
+
+      // 目的地へ投入
+      if (action === 'to-hand') {
+        addToArea(player, 'hand', src);
+        refreshIfOpen('hand', player);
+      } else if (action === 'to-life') {
+        addToArea(player, 'life', src);
+        refreshIfOpen('life', player);
+      } else if (action === 'to-trash') {
+        addToArea(player, 'trash', src);
+        refreshIfOpen('trash', player);
+      } else if (action === 'to-deck-top') {
+        addToArea(player, 'deck', src, 'top');
+        refreshIfOpen('deck', player);
+      } else if (action === 'to-deck-bottom') {
+        addToArea(player, 'deck', src, 'bottom');
+        refreshIfOpen('deck', player);
+      } else if (action === 'to-stage') {
+        if (!placeInStage(player, src)) {
+          // 置けなかった場合は元へ戻す
+          if (srcCellArea === 'chara') {
+            placeInChara(player, src);
+          } else if (srcCellArea === 'leader') {
+            const img = document.createElement('img');
+            img.src = src; img.alt = `${player}-LEADER`;
+            img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
+            cell.insertBefore(img, cell.firstChild);
+          }
+        }
+      } else if (action === 'to-chara') {
+        // リーダー／どこからでも空きのキャラ枠へ
+        placeInChara(player, src);
+      }
+
+      hidePieceSubMenu();
+      hidePieceMenu();
+    });
   </script>
 </body>
 </html>
