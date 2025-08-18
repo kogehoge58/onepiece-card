@@ -667,7 +667,18 @@
     document.getElementById('thumbs').addEventListener('click', (e) => {
       const img = e.target.closest('img');
       if (!img) return;
-      openImagePreview(img.dataset.src || img.src, img.alt || ''); // ★本来画像でプレビュー
+
+      const isDeckOrLife = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life');
+      const isBackImage  = img.src.includes('component_images/back.png');
+
+      // デッキ/ライフ一覧で裏面をクリックしたら、まず表向きにする（プレビューはしない）
+      if (isDeckOrLife && isBackImage) {
+        if (img.dataset.src) img.src = img.dataset.src; // 表向きへ
+        return;
+      }
+
+      // それ以外は従来どおりプレビュー表示
+      openImagePreview(img.dataset.src || img.src, img.alt || '');
     });
 
     /* 画面上の leader.png をクリックで拡大（A/B両方） */
