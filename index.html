@@ -164,6 +164,20 @@
 
     /* ルールPDFモーダルはメニューより前面に出す */
     #rules-backdrop { z-index: 10001; }
+
+    /* ★一覧ダイアログのヘッダー */
+    .modal-header{
+      flex: 0 0 auto;
+      padding: 6px 8px 10px;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 10px;
+    }
+    .modal-title{
+      text-align: center;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: .08em;
+    }
   </style>
 </head>
 <body>
@@ -336,6 +350,7 @@
   <!-- ===== モーダル（共通） ===== -->
   <div id="gallery-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal">
+      <div class="modal-header"><div id="gallery-label" class="modal-title"></div></div>
       <div id="thumbs" class="thumbs"></div>
     </div>
   </div>
@@ -489,7 +504,20 @@
     // ★ どの一覧を開いているかの文脈（キャラ移動に必要）
     let thumbsContext = { area: null, player: null };
 
+    const galleryLabel = document.getElementById('gallery-label');
+
     function openGalleryFromList(title, list){
+      // ★ヘッダーのラベル（手札/デッキ/トラッシュのみ表示）
+      const labelMap = { hand:'手札', deck:'デッキ', trash:'トラッシュ', life:'ライフ' };
+      const area = thumbsContext?.area;
+      if (labelMap[area]){
+        galleryLabel.textContent = labelMap[area];
+        galleryLabel.parentElement.style.display = '';
+      } else {
+        galleryLabel.textContent = '';
+        galleryLabel.parentElement.style.display = 'none';
+      }
+
       thumbs.innerHTML = '';
       const isMasked = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life');
       const key = galleryKey();
