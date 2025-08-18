@@ -473,9 +473,16 @@
     const thumbs   = document.getElementById('thumbs');
 
     function hideModal() {
+      // ★この一覧セッションの表向き記録を解放
+      const key = galleryKey();
+      if (key) delete revealedFaces[key];
+
       backdrop.style.display = 'none';
       thumbs.innerHTML = '';
       backdrop.setAttribute('aria-hidden', 'true');
+
+      // 任意：文脈をクリア（再オープン時に新規扱い）
+      thumbsContext = { area: null, player: null };
     }
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) hideModal(); });
 
@@ -484,12 +491,18 @@
 
     function openGalleryFromList(title, list){
       thumbs.innerHTML = '';
-      const isMasked = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life'); // ★デッキ/ライフだけ裏面表示
+      const isMasked = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life');
+      const key = galleryKey();
+      if (isMasked && key && !revealedFaces[key]) revealedFaces[key] = new Set(); // ★初期化
+
       const frag = document.createDocumentFragment();
       list.forEach(src => {
         const img = document.createElement('img');
-        img.src = isMasked ? 'component_images/back.png' : src;  // ★表示だけ差し替え
-        img.dataset.src = src;                                    // ★中身は保持（移動/プレビュー用）
+        const showSrc = (isMasked && key && !revealedFaces[key].has(src))
+          ? 'component_images/back.png'  // ★裏面（未公開）
+          : src;                         // ★表面（公開済み or 他領域）
+        img.src = showSrc;
+        img.dataset.src = src;           // 本来の画像は保持
         img.alt = '';
         frag.appendChild(img);
       });
@@ -671,13 +684,20 @@
       const isDeckOrLife = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life');
       const isBackImage  = img.src.includes('component_images/back.png');
 
-      // デッキ/ライフ一覧で裏面をクリックしたら、まず表向きにする（プレビューはしない）
+      // ★デッキ/ライフの裏面をクリック → その場で表向きにして記録（プレビューしない）
       if (isDeckOrLife && isBackImage) {
-        if (img.dataset.src) img.src = img.dataset.src; // 表向きへ
+        const key = galleryKey();
+        if (key) {
+          if (!revealedFaces[key]) revealedFaces[key] = new Set();
+          if (img.dataset.src) {
+            revealedFaces[key].add(img.dataset.src); // 表向きとして記録
+            img.src = img.dataset.src;               // 表に切替
+          }
+        }
         return;
       }
 
-      // それ以外は従来どおりプレビュー表示
+      // 表向き画像 or 他領域は従来どおりプレビュー
       openImagePreview(img.dataset.src || img.src, img.alt || '');
     });
 
@@ -1438,6 +1458,15 @@
     }
     rulesBackdrop.addEventListener('click', (e) => { if (e.target === rulesBackdrop) hideRules(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideRules(); });
+
+    // ★ 表向き保持：デッキ/ライフ一覧で表にしたカードを、一覧を閉じるまで記録
+    const revealedFaces = {}; // 例: { 'deck-A': Set<src>, 'life-B': Set<src> }
+    function galleryKey(){
+      if (!thumbsContext || !thumbsContext.area || !thumbsContext.player) return null;
+      const { area, player } = thumbsContext;
+      if (area !== 'deck' && area !== 'life') return null;
+      return `${area}-${player}`;
+    }
   </script>
 </body>
 </html>
