@@ -1407,6 +1407,22 @@
       donActCounts[player] = Math.max(0, Math.min(10, 10 - deckN));
 
       renderCounts();
+
+      // ▼ 既存のリフレッシュ処理が完了した後の追加処理
+      // ・ドンデッキ×n に -2（残が少ない場合はあるだけ）
+      // ・アクティブ×n に +2（上限10、ドンデッキから動かした分だけ加算）
+      {
+        const move = Math.min(2, donDeckCounts[player]);         // 実際に動かせる数
+        donDeckCounts[player] = Math.max(0, donDeckCounts[player] - move);
+        donActCounts[player]  = Math.min(10, donActCounts[player] + move);
+      }
+
+      // ・デッキの一番上のカードを手札へ
+      drawToHand(player);  // ※内部で deck/hand のカウント更新と renderCounts() を実行
+
+      // ★最後に手札の一覧を開く
+      thumbsContext = { area: 'hand', player };
+      openGalleryFromList(`${player} 手札`, handImages[player]);
     }
 
     // ★マリガン：手札をすべてデッキに戻してシャッフル→上から5枚引く
