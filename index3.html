@@ -1309,10 +1309,17 @@
       });
     });
 
-    // クリックで閉じる（機能は未実装なので閉じるだけ）
+    // クリック処理：リフレッシュ実装（他は閉じるだけ）
     mainMenu.addEventListener('click', (e) => {
       const btn = e.target.closest('button[role="menuitem"]');
       if (!btn) return;
+      const action = btn.dataset.action;
+      const player = mainMenu.dataset.player;
+
+      if (action === 'refresh' && player) {
+        refreshPlayer(player);
+      }
+      // ※マリガン／ルール確認は現状機能なし → 閉じるだけ
       hideMainMenu();
     });
 
@@ -1321,6 +1328,34 @@
     window.addEventListener('scroll', hideMainMenu, true);
     window.addEventListener('resize', hideMainMenu);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideMainMenu(); });
+
+    // ★メニュー「リフレッシュ」：盤面を初期化（指定プレイヤーのみ）
+    function refreshPlayer(player){
+      // 1) リーダー／キャラのレスト解除
+      const leaderCell = getPieceCell(player, 'leader');
+      setRestState(leaderCell, false);
+
+      // 1-a) ステージのレスト解除 ★追加
+      const stageCell = getPieceCell(player, 'stage');
+      setRestState(stageCell, false);
+
+      for (let i = 1; i <= 5; i++){
+        const cell = getPieceCell(player, 'chara', i);
+        if (!cell) continue;
+        setRestState(cell, false);
+        // 2) キャラのドン×n を 0に（カードがあるセルのみ）
+        if (cell.querySelector('img')) setDonCount(cell, 0);
+      }
+
+      // 3) ドンレスト を 0 に
+      donRestCounts[player] = 0;
+
+      // 4) ドンアクティブ = 10 - (ドンデッキ)
+      const deckN = Number(donDeckCounts[player]) || 0;
+      donActCounts[player] = Math.max(0, Math.min(10, 10 - deckN));
+
+      renderCounts();
+    }
   </script>
 </body>
 </html>
