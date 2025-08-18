@@ -321,11 +321,17 @@
 
   <!-- ==== リーダー／キャラ用 右クリックメニュー ==== -->
   <div id="piece-menu" class="context-menu" role="menu" aria-hidden="true">
-    <button type="button" role="menuitem" data-action="move">移動</button>
     <button type="button" role="menuitem" data-action="rest">レスト</button>
     <button type="button" role="menuitem" data-action="don-plus">ドン+1</button>
     <button type="button" role="menuitem" data-action="don-minus">ドン-1</button>
+    <button type="button" role="menuitem" data-action="move">
+      移動
+      <span class="submenu-caret" aria-hidden="true">＞</span>
+    </button>
   </div>
+
+  <!-- リーダー／キャラ用のサブメニュー（中身はJSでthumb-menuを流用） -->
+  <div id="piece-submenu" class="context-menu" role="menu" aria-hidden="true"></div>
 
   <script>
     /* ===== 画像スタック ===== */
@@ -649,17 +655,20 @@
       const menuOpen =
         (typeof thumbMenu !== 'undefined' && thumbMenu?.style.display === 'block') ||
         (typeof deckMenu  !== 'undefined' && deckMenu?.style.display  === 'block') ||
-        (typeof pieceMenu !== 'undefined' && pieceMenu?.style.display === 'block');
+        (typeof pieceMenu !== 'undefined' && pieceMenu?.style.display === 'block') ||
+        (typeof pieceSubMenu !== 'undefined' && pieceSubMenu?.style.display === 'block');
 
       if (!menuOpen) return;
 
       // メニュー自身のクリックは通す
-      if (thumbMenu?.contains(e.target) || deckMenu?.contains(e.target) || pieceMenu?.contains(e.target)) return;
+      if (thumbMenu?.contains(e.target) || deckMenu?.contains(e.target) ||
+          pieceMenu?.contains(e.target) || pieceSubMenu?.contains(e.target)) return;
 
       // メニューを閉じるだけ
       if (typeof hideThumbMenu === 'function') hideThumbMenu();
       if (typeof hideDeckMenu  === 'function') hideDeckMenu();
       if (typeof hidePieceMenu === 'function') hidePieceMenu();
+      if (typeof hidePieceSubMenu === 'function') hidePieceSubMenu();
 
       // 下層のクリック処理（プレビュー等）を止める
       e.stopPropagation();
@@ -775,13 +784,18 @@
       if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
       pieceMenu.style.left = `${x}px`;
       pieceMenu.style.top  = `${y}px`;
+
+      wirePieceMoveHover();
     }
+
     function hidePieceMenu(){
       pieceMenu.style.display = 'none';
       pieceMenu.setAttribute('aria-hidden', 'true');
       delete pieceMenu.dataset.player;
       delete pieceMenu.dataset.area;
       delete pieceMenu.dataset.slot;
+
+      hidePieceSubMenu();
     }
 
     // リーダー画像（A/B）右クリック
@@ -811,7 +825,86 @@
     // 外側クリックで閉じる
     document.addEventListener('click', (e) => {
       if (!pieceMenu.contains(e.target)) hidePieceMenu();
+      if (!pieceSubMenu.contains(e.target)) hidePieceSubMenu();
     });
+
+    /* ==== piece-submenu：thumb-menuを流用 ==== */
+    const pieceSubMenu = document.getElementById('piece-submenu');
+    // サムネメニューの項目をそのまま使い回す
+    pieceSubMenu.innerHTML = document.getElementById('thumb-menu').innerHTML;
+
+    // 置き換え：piece-submenu の表示位置を「右 → 右がはみ出すなら左」に自動切替
+    function showPieceSubMenu(nextToBtn){
+      const btnRect  = nextToBtn.getBoundingClientRect();
+      const menuRect = pieceMenu.getBoundingClientRect();
+      const pad = 8;
+
+      pieceSubMenu.style.display = 'block';
+      pieceSubMenu.setAttribute('aria-hidden','false');
+
+      const subW = pieceSubMenu.offsetWidth;
+      const subH = pieceSubMenu.offsetHeight;
+
+      // デフォルトは右側
+      let left = menuRect.right + pad;
+      let top  = btnRect.top;
+
+      // 右側にはみ出すなら、左側へ反転
+      if (left + subW + pad > window.innerWidth) {
+        left = menuRect.left - pad - subW;
+      }
+
+      // 画面外対策（左右・上下のクランプ）
+      if (left < 8) left = 8;
+      if (top + subH + pad > window.innerHeight) top = Math.max(8, window.innerHeight - subH - pad);
+      if (top < 8) top = 8;
+
+      pieceSubMenu.style.left = `${left}px`;
+      pieceSubMenu.style.top  = `${top}px`;
+    }
+    function hidePieceSubMenu(){
+      pieceSubMenu.style.display = 'none';
+      pieceSubMenu.setAttribute('aria-hidden','true');
+    }
+
+    // 「移動」以外の項目にホバーが移ったら、右側のサブメニューを閉じる
+    pieceMenu.addEventListener('mouseover', (e) => {
+      const btn = e.target.closest('button[role="menuitem"]');
+      if (!btn) return;
+      if (btn.dataset.action !== 'move') {
+        hidePieceSubMenu();
+      }
+    });
+
+    /* ホバーでの開閉（メニュー↔サブメニュー間の移動で閉じないように） */
+    // 既存の overPiece / overSub を利用し、タイマーで遅延クローズ
+    let overPiece = false, overSub = false;
+    let subHideTimer = null;
+
+    function clearSubTimer(){ if (subHideTimer) { clearTimeout(subHideTimer); subHideTimer = null; } }
+    function scheduleHideMenus(){
+      clearSubTimer();
+      subHideTimer = setTimeout(() => {
+        // どちらにもカーソルが無いときだけ閉じる
+        if (!overPiece && !overSub) {
+          hidePieceSubMenu();
+          hidePieceMenu();
+        }
+      }, 200); // ← ブリッジ用の猶予（必要なら調整）
+    }
+
+    pieceMenu.addEventListener('mouseenter', () => { overPiece = true;  clearSubTimer(); });
+    pieceMenu.addEventListener('mouseleave', () => { overPiece = false; scheduleHideMenus(); });
+
+    pieceSubMenu.addEventListener('mouseenter', () => { overSub = true;  clearSubTimer(); });
+    pieceSubMenu.addEventListener('mouseleave', () => { overSub = false; scheduleHideMenus(); });
+
+    /* pieceMenuを開いた直後に「移動」ボタンのホバーでサブメニュー表示 */
+    function wirePieceMoveHover(){
+      const moveBtn = pieceMenu.querySelector('button[data-action="move"]');
+      if (!moveBtn) return;
+      moveBtn.addEventListener('mouseenter', () => showPieceSubMenu(moveBtn), { once:false });
+    }
   </script>
 </body>
 </html>
