@@ -340,8 +340,9 @@
   <!-- ==== ギャラリーサムネ共通メニュー ==== -->
   <div id="thumb-menu" class="context-menu" role="menu" aria-hidden="true">
     <button type="button" role="menuitem" data-action="to-hand">To：手札</button>
-    <button type="button" role="menuitem" data-action="to-life">To：ライフ</button>
     <button type="button" role="menuitem" data-action="to-trash">To：トラッシュ</button>
+    <button type="button" role="menuitem" data-action="to-life-top">To：ライフ（上）</button>
+    <button type="button" role="menuitem" data-action="to-life-bottom">To：ライフ（下）</button>
     <button type="button" role="menuitem" data-action="to-deck-top">To：デッキ（上）</button>
     <button type="button" role="menuitem" data-action="to-deck-bottom">To：デッキ（下）</button>
     <button type="button" role="menuitem" data-action="to-chara">To：キャラエリア</button>
@@ -781,9 +782,14 @@
         addToArea(player, 'hand', src);
         doRemoveThumb();
         refreshIfOpen(area, player);
-      } else if (action === 'to-life') {
+      } else if (action === 'to-life-top') {
         removeFromArea(player, area, src);
-        addToArea(player, 'life', src);
+        addToArea(player, 'life', src, 'top');      // ★先頭
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-life-bottom') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'life', src, 'bottom');   // ★末尾
         doRemoveThumb();
         refreshIfOpen(area, player);
       } else if (action === 'to-trash') {
@@ -1132,13 +1138,17 @@
     function addToArea(player, area, src, pos='bottom'){
       const list = areaLists[area]?.[player];
       if (!Array.isArray(list)) return;
+
       if (area === 'deck'){
         if (pos === 'top') list.unshift(src); else list.push(src);
         deckCounts[player] = (deckCounts[player] || 0) + 1;
+      } else if (area === 'life'){
+        if (pos === 'top') list.unshift(src); else list.push(src);   // ★上/下対応
+        lifeCounts[player] = (lifeCounts[player] || 0) + 1;
       } else {
+        // hand / trash は従来通り末尾に追加
         list.push(src);
         if (area === 'hand')  handCounts[player]  = (handCounts[player]  || 0) + 1;
-        if (area === 'life')  lifeCounts[player]  = (lifeCounts[player]  || 0) + 1;
         if (area === 'trash') trashCounts[player] = (trashCounts[player] || 0) + 1;
       }
       renderCounts();
@@ -1180,8 +1190,11 @@
       if (action === 'to-hand') {
         addToArea(player, 'hand', src);
         refreshIfOpen('hand', player);
-      } else if (action === 'to-life') {
-        addToArea(player, 'life', src);
+      } else if (action === 'to-life-top') {
+        addToArea(player, 'life', src, 'top');      // ★先頭
+        refreshIfOpen('life', player);
+      } else if (action === 'to-life-bottom') {
+        addToArea(player, 'life', src, 'bottom');   // ★末尾
         refreshIfOpen('life', player);
       } else if (action === 'to-trash') {
         addToArea(player, 'trash', src);
