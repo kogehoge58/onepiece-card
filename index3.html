@@ -924,12 +924,19 @@
         }
       }, 200); // ← ブリッジ用の猶予（必要なら調整）
     }
+    function scheduleHideSub(){
+      clearSubTimer();
+      subHideTimer = setTimeout(() => {
+        // どちらにもカーソルが無いときだけサブメニューだけ閉じる
+        if (!overPiece && !overSub) hidePieceSubMenu();
+      }, 200); // 橋渡しの猶予（必要なら調整）
+    }
 
     pieceMenu.addEventListener('mouseenter', () => { overPiece = true;  clearSubTimer(); });
-    pieceMenu.addEventListener('mouseleave', () => { overPiece = false; scheduleHideMenus(); });
+    pieceMenu.addEventListener('mouseleave', () => { overPiece = false; scheduleHideSub(); });
 
     pieceSubMenu.addEventListener('mouseenter', () => { overSub = true;  clearSubTimer(); });
-    pieceSubMenu.addEventListener('mouseleave', () => { overSub = false; scheduleHideMenus(); });
+    pieceSubMenu.addEventListener('mouseleave', () => { overSub = false; scheduleHideSub(); });
 
     /* pieceMenuを開いた直後に「移動」ボタンのホバーでサブメニュー表示 */
     function wirePieceMoveHover(){
