@@ -142,6 +142,10 @@
       pointer-events: none;
       user-select: none;
     }
+
+    /* ステージ上のレスト表記は左下（ドン×nと同位置）に固定 */
+    #a-stage .rest-badge,
+    #b-stage .rest-badge { left: 6px; bottom: 6px; }
   </style>
 </head>
 <body>
@@ -667,7 +671,8 @@
       const allowed = e.target.closest(
         '#thumbs img, #a-deck, #b-deck, #a-life, #b-life, img[src$="leader.png"],' +
         ' #a-chara-1 img, #a-chara-2 img, #a-chara-3 img, #a-chara-4 img, #a-chara-5 img,' +
-        ' #b-chara-1 img, #b-chara-2 img, #b-chara-3 img, #b-chara-4 img, #b-chara-5 img'
+        ' #b-chara-1 img, #b-chara-2 img, #b-chara-3 img, #b-chara-4 img, #b-chara-5 img,' +
+        ' #a-stage img, #b-stage img'
       );
       if (!allowed) { e.preventDefault(); e.stopPropagation(); }
     }, true);
@@ -852,6 +857,12 @@
         restBtn.textContent    = resting ? 'アクティブ' : 'レスト';
       }
 
+      const isStage = pieceMenu.dataset.area === 'stage';
+      const donPlus  = pieceMenu.querySelector('button[data-action="don-plus"]');
+      const donMinus = pieceMenu.querySelector('button[data-action="don-minus"]');
+      if (donPlus)  donPlus.style.display  = isStage ? 'none' : 'block';
+      if (donMinus) donMinus.style.display = isStage ? 'none' : 'block';
+
       wirePieceMoveHover();
     }
 
@@ -988,6 +999,9 @@
       }
       if (area === 'chara'){
         return document.getElementById(`${player.toLowerCase()}-chara-${slot}`);
+      }
+      if (area === 'stage'){
+        return document.getElementById(stageSlots[player]);
       }
       return null;
     }
@@ -1142,26 +1156,24 @@
 
       const action = btn.dataset.action;
       const player = pieceMenu.dataset.player;
-      const srcCellArea = pieceMenu.dataset.area; // 'leader' | 'chara'
+      const srcCellArea = pieceMenu.dataset.area; // 'leader' | 'chara' | 'stage' ← ★stageが来る
       const slot = Number(pieceMenu.dataset.slot || 0);
       const cell = getPieceCell(player, srcCellArea, slot);
       const imgEl = cell?.querySelector('img');
       if (!player || !cell || !imgEl) { hidePieceSubMenu(); return; }
 
-      const src = imgEl.getAttribute('src'); // 相対パスで取得
+      const src = imgEl.getAttribute('src');
 
       // まず元のピースを空にする
       if (srcCellArea === 'chara') {
-        // CHARA枠を空に
         const m = cell.id.match(/^([ab])-chara-(\d)$/i);
-        if (m) {
-          const idx = parseInt(m[2], 10) - 1;
-          charaImages[player][idx] = null;
-        }
+        if (m) { const idx = parseInt(m[2], 10) - 1; charaImages[player][idx] = null; }
         cell.innerHTML = 'CHARACTER';
       } else if (srcCellArea === 'leader') {
-        // リーダーは画像だけ除去（ドンラベル等は残す）
-        imgEl.remove();
+        imgEl.remove(); // ラベル等は残す
+      } else if (srcCellArea === 'stage') { // ★追加
+        stageImage[player] = null;
+        cell.innerHTML = `${player}-STAGE`;
       }
 
       // 目的地へ投入
@@ -1199,6 +1211,15 @@
 
       hidePieceSubMenu();
       hidePieceMenu();
+    });
+
+    // ステージ画像 右クリック（動的生成対応）
+    document.addEventListener('contextmenu', (e) => {
+      const stageImg = e.target.closest('#a-stage img, #b-stage img');
+      if (!stageImg) return;
+      const cell = stageImg.closest('#a-stage, #b-stage');
+      const player = cell.id.startsWith('a-') ? 'A' : 'B';
+      showPieceMenu(e, { player, area: 'stage' }); // ★area=stage
     });
   </script>
 </body>
