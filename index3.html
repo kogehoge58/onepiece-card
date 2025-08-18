@@ -52,6 +52,7 @@
       line-height: 1;
       pointer-events: none;
       user-select: none;
+      z-index: 2;
     }
 
     /* 右上カウンタボタン（-1 / +1） */
@@ -119,6 +120,28 @@
 
     /* 画像プレビュー用（中央拡大） */
     #preview-backdrop { z-index: 10001; } /* ギャラリーより前に出す */
+
+    /* レスト表示用：薄い黒マスク＋右上バッジ */
+    .rest-overlay{
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.35);
+      pointer-events: none;
+      /* z-index: 1; */
+    }
+    .rest-badge{
+      position: absolute;
+      left: 6px;
+      bottom: 30px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(0,0,0,.6);
+      color: #fff; font-weight: 700;
+      font-size: clamp(10px, 0.9vw, 12px);
+      line-height: 1;
+      pointer-events: none;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -324,10 +347,7 @@
     <button type="button" role="menuitem" data-action="rest">レスト</button>
     <button type="button" role="menuitem" data-action="don-plus">ドン+1</button>
     <button type="button" role="menuitem" data-action="don-minus">ドン-1</button>
-    <button type="button" role="menuitem" data-action="move">
-      移動
-      <span class="submenu-caret" aria-hidden="true">＞</span>
-    </button>
+    <button type="button" role="menuitem" data-action="move">移動する</button>
   </div>
 
   <!-- リーダー／キャラ用のサブメニュー（中身はJSでthumb-menuを流用） -->
@@ -785,6 +805,18 @@
       pieceMenu.style.left = `${x}px`;
       pieceMenu.style.top  = `${y}px`;
 
+      // 既存の位置計算・表示の直後に追加
+      const restBtn = pieceMenu.querySelector('button[data-action="rest"], button[data-action="active"]');
+      if (restBtn){
+        const player = pieceMenu.dataset.player;
+        const area   = pieceMenu.dataset.area;
+        const slot   = Number(pieceMenu.dataset.slot || 0);
+        const cell   = getPieceCell(player, area, slot);
+        const resting = isRest(cell);
+        restBtn.dataset.action = resting ? 'active' : 'rest';
+        restBtn.textContent    = resting ? 'アクティブ' : 'レスト';
+      }
+
       wirePieceMoveHover();
     }
 
@@ -905,6 +937,65 @@
       if (!moveBtn) return;
       moveBtn.addEventListener('mouseenter', () => showPieceSubMenu(moveBtn), { once:false });
     }
+
+    // 対象セルを取得（leader or chara slot）
+    function getPieceCell(player, area, slot){
+      if (area === 'leader'){
+        const img = document.querySelector(`img[alt="${player}-LEADER"]`);
+        return img?.parentElement || null;
+      }
+      if (area === 'chara'){
+        return document.getElementById(`${player.toLowerCase()}-chara-${slot}`);
+      }
+      return null;
+    }
+    function isRest(cell){
+      return !!cell?.querySelector('.rest-overlay');
+    }
+    function setRestState(cell, on){
+      if (!cell) return;
+      const ov = cell.querySelector('.rest-overlay');
+      const bd = cell.querySelector('.rest-badge');
+      if (on){
+        if (!ov){
+          const o = document.createElement('div');
+          o.className = 'rest-overlay';
+          cell.appendChild(o);
+        }
+        if (!bd){
+          const b = document.createElement('span');
+          b.className = 'rest-badge';
+          b.textContent = 'レスト';
+          cell.appendChild(b);
+        }
+      }else{
+        ov && ov.remove();
+        bd && bd.remove();
+      }
+    }
+
+    pieceMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[role="menuitem"]');
+      if (!btn) return;
+
+      const action = btn.dataset.action;
+      const player = pieceMenu.dataset.player;
+      const area   = pieceMenu.dataset.area;
+      const slot   = Number(pieceMenu.dataset.slot || 0);
+      const cell   = getPieceCell(player, area, slot);
+      if (!cell) return;
+
+      if (action === 'rest'){
+        setRestState(cell, true);
+        btn.dataset.action = 'active';
+        btn.textContent    = 'アクティブ';
+      } else if (action === 'active'){
+        setRestState(cell, false);
+        btn.dataset.action = 'rest';
+        btn.textContent    = 'レスト';
+      }
+      // 他の項目（移動／ドン±1）は既存のまま
+    });
   </script>
 </body>
 </html>
