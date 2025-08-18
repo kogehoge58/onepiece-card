@@ -81,13 +81,28 @@
       align-items: center; justify-content: center; z-index: 9999;
     }
     .modal {
+      --thumb-w: 140px;   /* ★サムネ1枚の幅（必要なら調整） */
+      --thumb-gap: 10px;  /* サムネの間隔 */
       background: #fff; max-width: 90vw; max-height: 90vh;
-      width: 90vw; height: 90vh; border-radius: 10px; padding: 16px; display: flex; flex-direction: column;
+      width: auto;                 /* ★内容幅に合わせて狭める */
+      height: 90vh;                /* 既存どおり縦は固定 */
+      border-radius: 10px; padding: 16px;
+      display: flex; flex-direction: column;
     }
     .thumbs {
-      flex: 1; overflow: auto;               /* 一覧はモーダル内だけスクロールOK */
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 10px;
+      /* 既存 */
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: grid;
+      grid-template-columns: repeat(5, var(--thumb-w));
+      gap: var(--thumb-gap);
+      width: calc(5 * var(--thumb-w) + 4 * var(--thumb-gap));
+
+      /* ★追加/置き換え */
+      scrollbar-gutter: stable;      /* 対応ブラウザで縦スクロール分の溝を常時確保 */
+      box-sizing: content-box;       /* 下のパディングで内容幅を削らないように */
+      padding-inline-end: 20px;      /* 非対応ブラウザ向けのフォールバック余白 */
     }
     .thumbs img {
       width: 100%; aspect-ratio: 1 / 1.4; object-fit: cover; border: 1px solid #aaa;
