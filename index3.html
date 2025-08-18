@@ -533,16 +533,15 @@
     const aDeckEl  = document.getElementById('a-deck');
     const bDeckEl  = document.getElementById('b-deck');
 
-    function showDeckMenu(e, player){
+    function showDeckMenu(e, player, zone = 'deck'){
       e.preventDefault();
       deckMenu.dataset.player = player;
+      deckMenu.dataset.zone   = zone;
       deckMenu.style.display = 'block';
       deckMenu.setAttribute('aria-hidden', 'false');
 
-      // 位置（はみ出し抑止）
       let x = e.clientX, y = e.clientY;
-      const w = deckMenu.offsetWidth, h = deckMenu.offsetHeight;
-      const pad = 8;
+      const w = deckMenu.offsetWidth, h = deckMenu.offsetHeight, pad = 8;
       if (x + w + pad > window.innerWidth)  x = window.innerWidth  - w - pad;
       if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
       deckMenu.style.left = `${x}px`;
@@ -552,6 +551,7 @@
       deckMenu.style.display = 'none';
       deckMenu.setAttribute('aria-hidden', 'true');
       delete deckMenu.dataset.player;
+      delete deckMenu.dataset.zone;
     }
 
     aDeckEl.addEventListener('contextmenu', (e) => showDeckMenu(e, 'A'));
@@ -570,18 +570,24 @@
       if (!btn) return;
       const action = btn.dataset.action;
       const player = deckMenu.dataset.player;
+      const zone   = deckMenu.dataset.zone || 'deck'; // ★対象ゾーン
       if (!player) return;
 
-      if (action === 'hand-plus') {
-        drawToHand(player);
-      } else if (action === 'life-plus') {
-        drawToLife(player);
-      } else if (action === 'trash-plus') {
-        moveTopToTrash(player);
-      } else if (action === 'shuffle') {
-        hideDeckMenu();
-        if (confirm('シャッフルしますか？')) {
-          shuffleInPlace(deckImages[player]);
+      if (zone === 'deck') {
+        if (action === 'hand-plus')      { drawToHand(player); }
+        else if (action === 'life-plus') { drawToLife(player); }
+        else if (action === 'trash-plus'){ moveTopToTrash(player); }
+        else if (action === 'shuffle')   {
+          hideDeckMenu();
+          if (confirm('シャッフルしますか？')) shuffleInPlace(deckImages[player]);
+        }
+      } else if (zone === 'life') {
+        if (action === 'hand-plus')      { lifeToHand(player); }     // LIFE→HAND
+        else if (action === 'life-plus') { drawToLife(player); }     // DECK→LIFE (+1)
+        else if (action === 'trash-plus'){ lifeToTrash(player); }    // LIFE→TRASH
+        else if (action === 'shuffle')   {
+          hideDeckMenu();
+          if (confirm('シャッフルしますか？')) shuffleInPlace(lifeImages[player]); // LIFE内シャッフル
         }
       }
     });
@@ -657,7 +663,7 @@
     // 右クリック（contextmenu）を全体で禁止。ただし個別に許可している要素のみ通す
     document.addEventListener('contextmenu', (e) => {
       const allowed = e.target.closest(
-        '#thumbs img, #a-deck, #b-deck, img[src$="leader.png"],' +
+        '#thumbs img, #a-deck, #b-deck, #a-life, #b-life, img[src$="leader.png"],' +
         ' #a-chara-1 img, #a-chara-2 img, #a-chara-3 img, #a-chara-4 img, #a-chara-5 img,' +
         ' #b-chara-1 img, #b-chara-2 img, #b-chara-3 img, #b-chara-4 img, #b-chara-5 img'
       );
@@ -1026,6 +1032,28 @@
         cell.appendChild(lab);
       }
       lab.textContent = `ドン×${clamped}`;
+    }
+
+    document.getElementById('a-life').addEventListener('contextmenu', (e) => showDeckMenu(e, 'A', 'life'));
+    document.getElementById('b-life').addEventListener('contextmenu', (e) => showDeckMenu(e, 'B', 'life'));
+
+    function lifeToHand(player){
+      const stack = lifeImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      handImages[player].push(top);
+      lifeCounts[player] = Math.max(0, lifeCounts[player] - 1);
+      handCounts[player] = (handCounts[player] || 0) + 1;
+      renderCounts();
+    }
+    function lifeToTrash(player){
+      const stack = lifeImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      trashImages[player].push(top);
+      lifeCounts[player]  = Math.max(0, lifeCounts[player] - 1);
+      trashCounts[player] = (trashCounts[player] || 0) + 1;
+      renderCounts();
     }
   </script>
 </body>
