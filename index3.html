@@ -993,9 +993,33 @@
         setRestState(cell, false);
         btn.dataset.action = 'rest';
         btn.textContent    = 'レスト';
+      } else if (action === 'don-plus' || action === 'don-minus'){
+        const delta = (action === 'don-plus') ? 1 : -1;
+        const next  = getDonCount(cell) + delta;
+        setDonCount(cell, next); // 0〜10にクランプされる
       }
-      // 他の項目（移動／ドン±1）は既存のまま
     });
+
+    // ドン×n ラベル取得/更新（なければ作る）
+    function getDonLabelInCell(cell){
+      return cell?.querySelector('.don-label') || null;
+    }
+    function getDonCount(cell){
+      const lab = getDonLabelInCell(cell);
+      const m = lab?.textContent.match(/(\d+)/);
+      return m ? parseInt(m[1], 10) : 0;
+    }
+    function setDonCount(cell, n){
+      if (!cell) return;
+      const clamped = Math.min(10, Math.max(0, Number(n) || 0));
+      let lab = getDonLabelInCell(cell);
+      if (!lab){
+        lab = document.createElement('span');
+        lab.className = 'don-label';
+        cell.appendChild(lab);
+      }
+      lab.textContent = `ドン×${clamped}`;
+    }
   </script>
 </body>
 </html>
