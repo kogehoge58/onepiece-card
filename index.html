@@ -195,7 +195,7 @@
         </div>
 
         <!-- A-STAGE -->
-        <div id="a-stage" class="card">A-STAGE</div>
+        <div id="a-stage" class="card">STAGE</div>
 
         <!-- A-DECK -->
         <div class="card deck">
@@ -277,7 +277,7 @@
         </div>
 
         <!-- B-STAGE -->
-        <div id="b-stage" class="card">B-STAGE</div>
+        <div id="b-stage" class="card">STAGE</div>
 
         <!-- B-DECK -->
         <div class="card deck">
@@ -1309,7 +1309,7 @@
       });
     });
 
-    // クリック処理：リフレッシュ実装（他は閉じるだけ）
+    // クリック処理：リフレッシュ/マリガン
     mainMenu.addEventListener('click', (e) => {
       const btn = e.target.closest('button[role="menuitem"]');
       if (!btn) return;
@@ -1318,8 +1318,13 @@
 
       if (action === 'refresh' && player) {
         refreshPlayer(player);
+      } else if (action === 'mulligan' && player) {
+        // ★確認ダイアログ
+        if (confirm('マリガンを行いますか？')) {
+          mulliganPlayer(player);
+        }
       }
-      // ※マリガン／ルール確認は現状機能なし → 閉じるだけ
+      // ※ルール確認は現状機能なし → 閉じるだけ
       hideMainMenu();
     });
 
@@ -1355,6 +1360,39 @@
       donActCounts[player] = Math.max(0, Math.min(10, 10 - deckN));
 
       renderCounts();
+    }
+
+    // ★マリガン：手札をすべてデッキに戻してシャッフル→上から5枚引く
+    function mulliganPlayer(player){
+      const deck = deckImages[player];
+      const hand = handImages[player];
+
+      // 手札→デッキ（戻す順は不問：この後シャッフル）
+      if (hand.length > 0) {
+        deck.push(...hand);
+        hand.length = 0;
+      }
+      // カウンタ一旦反映
+      deckCounts[player] = deck.length;
+      handCounts[player] = 0;
+
+      // デッキをシャッフル
+      shuffleInPlace(deck);
+
+      // 上から5枚（残枚数が少なければ取れるだけ）を手札へ
+      const drawN = Math.min(5, deck.length);
+      for (let i = 0; i < drawN; i++) {
+        hand.push(deck.shift());
+      }
+
+      // カウンタ反映
+      deckCounts[player] = deck.length;
+      handCounts[player] = hand.length;
+      renderCounts();
+
+      // 一覧を開いていたら更新
+      refreshIfOpen('deck', player);
+      refreshIfOpen('hand', player);
     }
   </script>
 </body>
