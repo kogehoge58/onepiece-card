@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>カードフィールド</title>
+  <title>ほぼオフ ワンピカード</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -473,9 +473,9 @@
     const thumbs   = document.getElementById('thumbs');
 
     function hideModal() {
-      // ★この一覧セッションの表向き記録を解放
+      // ★デッキは閉じたら裏に戻す／ライフは保持
       const key = galleryKey();
-      if (key) delete revealedFaces[key];
+      if (key && key.startsWith('deck-')) delete revealedFaces[key];
 
       backdrop.style.display = 'none';
       thumbs.innerHTML = '';
