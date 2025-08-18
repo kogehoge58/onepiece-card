@@ -161,6 +161,9 @@
     /* ステージ上のレスト表記は左下（ドン×nと同位置）に固定 */
     #a-stage .rest-badge,
     #b-stage .rest-badge { left: 6px; bottom: 6px; }
+
+    /* ルールPDFモーダルはメニューより前面に出す */
+    #rules-backdrop { z-index: 10001; }
   </style>
 </head>
 <body>
@@ -380,6 +383,13 @@
     <button type="button" role="menuitem" data-action="mulligan">マリガン</button>
     <button type="button" role="menuitem" data-action="rules">ルール確認</button>
     <button type="button" role="menuitem" data-action="refresh">リフレッシュ</button>
+  </div>
+
+  <!-- ルール確認用PDFモーダル -->
+  <div id="rules-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div id="rules-content" style="background:#fff; border-radius:10px; padding:8px; max-width:90vw; max-height:90vh; display:flex; align-items:center; justify-content:center;">
+      <embed id="rules-embed" src="" type="application/pdf" style="width:88vw; height:88vh; border:0;">
+    </div>
   </div>
 
   <script>
@@ -1309,7 +1319,7 @@
       });
     });
 
-    // クリック処理：リフレッシュ/マリガン
+    // クリック処理：リフレッシュ/マリガン/ルール確認
     mainMenu.addEventListener('click', (e) => {
       const btn = e.target.closest('button[role="menuitem"]');
       if (!btn) return;
@@ -1318,14 +1328,18 @@
 
       if (action === 'refresh' && player) {
         refreshPlayer(player);
+        hideMainMenu();
       } else if (action === 'mulligan' && player) {
-        // ★確認ダイアログ
-        if (confirm('マリガンを行いますか？')) {
-          mulliganPlayer(player);
-        }
+        hideMainMenu();
+        requestAnimationFrame(() => {
+          if (confirm('マリガンを行いますか？')) mulliganPlayer(player);
+        });
+      } else if (action === 'rules') {
+        hideMainMenu();           // 先に閉じてから
+        requestAnimationFrame(openRules); // 次フレームでPDFモーダルを開く
+      } else {
+        hideMainMenu();
       }
-      // ※ルール確認は現状機能なし → 閉じるだけ
-      hideMainMenu();
     });
 
     // 外側クリック/スクロール/リサイズ/ESCで閉じる
@@ -1394,6 +1408,24 @@
       refreshIfOpen('deck', player);
       refreshIfOpen('hand', player);
     }
+
+    /* ==== ルールPDF表示 ==== */
+    const rulesBackdrop = document.getElementById('rules-backdrop');
+    const rulesEmbed    = document.getElementById('rules-embed');
+
+    function openRules(){
+      // src をセットして開く（先にメニューは閉じておくこと）
+      rulesEmbed.src = 'component_images/rules/rule_manual.pdf';
+      rulesBackdrop.style.display = 'flex';
+      rulesBackdrop.setAttribute('aria-hidden', 'false');
+    }
+    function hideRules(){
+      rulesBackdrop.style.display = 'none';
+      rulesBackdrop.setAttribute('aria-hidden', 'true');
+      rulesEmbed.src = ''; // 閉じるときに解放
+    }
+    rulesBackdrop.addEventListener('click', (e) => { if (e.target === rulesBackdrop) hideRules(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideRules(); });
   </script>
 </body>
 </html>
