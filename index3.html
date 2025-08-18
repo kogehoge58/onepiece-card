@@ -523,6 +523,18 @@
       renderCounts();
     }
 
+    // デッキ → ライフ（トップに積む版：ライフの先頭へ）
+    function drawToLifeTop(player){
+      const stack = deckImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      lifeImages[player].unshift(top); // ★先頭に積む
+
+      deckCounts[player] = Math.max(0, deckCounts[player] - 1);
+      lifeCounts[player] = (lifeCounts[player] || 0) + 1;
+      renderCounts();
+    }
+
     /* ===== デッキ → トラッシュ（トラッシュ+1） ===== */
     function moveTopToTrash(player){
       const stack = deckImages[player];
@@ -582,7 +594,7 @@
 
       if (zone === 'deck') {
         if (action === 'hand-plus')      { drawToHand(player); }
-        else if (action === 'life-plus') { drawToLife(player); }
+        else if (action === 'life-plus') { drawToLifeTop(player); } // ★ここだけ差し替え
         else if (action === 'trash-plus'){ moveTopToTrash(player); }
         else if (action === 'shuffle')   {
           hideDeckMenu();
