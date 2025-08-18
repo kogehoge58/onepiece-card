@@ -484,11 +484,12 @@
 
     function openGalleryFromList(title, list){
       thumbs.innerHTML = '';
+      const isMasked = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life'); // ★デッキ/ライフだけ裏面表示
       const frag = document.createDocumentFragment();
       list.forEach(src => {
         const img = document.createElement('img');
-        img.src = src;
-        img.dataset.src = src;   // ← 元配列の値を保持
+        img.src = isMasked ? 'component_images/back.png' : src;  // ★表示だけ差し替え
+        img.dataset.src = src;                                    // ★中身は保持（移動/プレビュー用）
         img.alt = '';
         frag.appendChild(img);
       });
@@ -666,7 +667,7 @@
     document.getElementById('thumbs').addEventListener('click', (e) => {
       const img = e.target.closest('img');
       if (!img) return;
-      openImagePreview(img.src, img.alt || '');
+      openImagePreview(img.dataset.src || img.src, img.alt || ''); // ★本来画像でプレビュー
     });
 
     /* 画面上の leader.png をクリックで拡大（A/B両方） */
