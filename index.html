@@ -1387,8 +1387,12 @@
       const player = mainMenu.dataset.player;
 
       if (action === 'refresh' && player) {
-        refreshPlayer(player);
         hideMainMenu();
+        requestAnimationFrame(() => {
+          if (confirm('ターンを開始しますか？')) {
+            refreshPlayer(player);
+          }
+        })
       } else if (action === 'mulligan' && player) {
         hideMainMenu();
         requestAnimationFrame(() => {
@@ -1447,10 +1451,6 @@
 
       // ・デッキの一番上のカードを手札へ
       drawToHand(player);  // ※内部で deck/hand のカウント更新と renderCounts() を実行
-
-      // ★最後に手札の一覧を開く
-      thumbsContext = { area: 'hand', player };
-      openGalleryFromList(`${player} 手札`, handImages[player]);
     }
 
     // ★マリガン：手札をすべてデッキに戻してシャッフル→上から5枚引く
