@@ -578,7 +578,7 @@
       const stack = deckImages[player];
       if (!stack || stack.length === 0) return;
       const top = stack.shift();
-      handImages[player].push(top);
+      handImages[player].unshift(top); // ★先頭に積む
 
       deckCounts[player] = Math.max(0, deckCounts[player] - 1);
       handCounts[player] = (handCounts[player] || 0) + 1;
@@ -614,7 +614,7 @@
       const stack = deckImages[player];
       if (!stack || stack.length === 0) return;
       const top = stack.shift();
-      trashImages[player].push(top);
+      trashImages[player].unshift(top); // ★先頭に積む
 
       deckCounts[player]  = Math.max(0, deckCounts[player] - 1);
       trashCounts[player] = (trashCounts[player] || 0) + 1;
@@ -1196,16 +1196,19 @@
       const stack = lifeImages[player];
       if (!stack || stack.length === 0) return;
       const top = stack.shift();
-      handImages[player].push(top);
+      handImages[player].unshift(top); // ★先頭
+
       lifeCounts[player] = Math.max(0, lifeCounts[player] - 1);
       handCounts[player] = (handCounts[player] || 0) + 1;
       renderCounts();
     }
+
     function lifeToTrash(player){
       const stack = lifeImages[player];
       if (!stack || stack.length === 0) return;
       const top = stack.shift();
-      trashImages[player].push(top);
+      trashImages[player].unshift(top); // ★先頭
+
       lifeCounts[player]  = Math.max(0, lifeCounts[player] - 1);
       trashCounts[player] = (trashCounts[player] || 0) + 1;
       renderCounts();
@@ -1249,11 +1252,11 @@
         if (pos === 'top') list.unshift(src); else list.push(src);
         deckCounts[player] = (deckCounts[player] || 0) + 1;
       } else if (area === 'life'){
-        if (pos === 'top') list.unshift(src); else list.push(src);   // ★上/下対応
+        if (pos === 'top') list.unshift(src); else list.push(src);
         lifeCounts[player] = (lifeCounts[player] || 0) + 1;
       } else {
-        // hand / trash は従来通り末尾に追加
-        list.push(src);
+        // ★hand / trash は常に先頭へ
+        list.unshift(src);
         if (area === 'hand')  handCounts[player]  = (handCounts[player]  || 0) + 1;
         if (area === 'trash') trashCounts[player] = (trashCounts[player] || 0) + 1;
       }
@@ -1473,7 +1476,7 @@
       // 上から5枚（残枚数が少なければ取れるだけ）を手札へ
       const drawN = Math.min(5, deck.length);
       for (let i = 0; i < drawN; i++) {
-        hand.push(deck.shift());
+        hand.unshift(deck.shift()); // ★先頭に積む
       }
 
       // カウンタ反映
