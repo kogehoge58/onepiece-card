@@ -196,6 +196,19 @@
       background:rgba(0,0,0,.6); color:#fff; font-weight:700;
       font-size:clamp(12px,1.1vw,16px); line-height:1; cursor:pointer;
     }
+
+    /* 文字のドラッグ選択を全体で無効化（入力系は除外） */
+    *:not(input):not(textarea){
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+    /* 画像のドラッグ（半透明ゴースト）を無効化 */
+    img{
+      -webkit-user-drag: none;
+      user-drag: none;
+    }
   </style>
 </head>
 <body>
@@ -1670,6 +1683,12 @@
         if (phEl) phEl.style.display = '';       // ★文字を表示
       }
     }
+
+    // 画像やリンク等のデフォルトのドラッグ開始を全体でキャンセル
+    document.addEventListener('dragstart', (e) => e.preventDefault(), true);
+
+    // 念のため：文字選択の開始もイベント側で抑止（CSSが効かないケースの保険）
+    document.addEventListener('selectstart', (e) => e.preventDefault(), true);
   </script>
 </body>
 </html>
