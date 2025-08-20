@@ -705,6 +705,11 @@
       e.preventDefault();
       deckMenu.dataset.player = player;
       deckMenu.dataset.zone   = zone;
+
+      // ★ライフを右クリしたときは「ライフ+1」を隠す（デッキ時は表示に戻す）
+      const lifePlusBtn = deckMenu.querySelector('button[data-action="life-plus"]');
+      if (lifePlusBtn) lifePlusBtn.style.display = (zone === 'life') ? 'none' : 'block';
+
       deckMenu.style.display = 'block';
       deckMenu.setAttribute('aria-hidden', 'false');
 
@@ -850,6 +855,14 @@
       thumbMenu.dataset.src = img?.dataset?.src || img?.src || '';
       thumbMenu.style.display = 'block';
       thumbMenu.setAttribute('aria-hidden', 'false');
+
+      // ★手札一覧を開いているときは「To：手札」を非表示（それ以外では表示）
+      const toHandBtn = thumbMenu.querySelector('button[data-action="to-hand"]');
+      if (toHandBtn) toHandBtn.style.display = (thumbsContext?.area === 'hand') ? 'none' : 'block';
+
+      // ★トラッシュ一覧のときは「To：トラッシュ」を非表示（それ以外では表示）
+      const toTrashBtn = thumbMenu.querySelector('button[data-action="to-trash"]');
+      if (toTrashBtn) toTrashBtn.style.display = (thumbsContext?.area === 'trash') ? 'none' : 'block';
 
       // 位置（はみ出し防止）
       let x = e.clientX, y = e.clientY;
@@ -1076,6 +1089,10 @@
       if (donPlus)  donPlus.style.display  = isStage ? 'none' : 'block';
       if (donMinus) donMinus.style.display = isStage ? 'none' : 'block';
 
+      // リーダーから開いたときは「移動する」を隠す（他エリアでは表示）
+      const moveBtn = pieceMenu.querySelector('button[data-action="move"]');
+      if (moveBtn) moveBtn.style.display = (pieceMenu.dataset.area === 'leader') ? 'none' : 'block';
+
       wirePieceMoveHover();
     }
 
@@ -1132,6 +1149,22 @@
 
       pieceSubMenu.style.display = 'block';
       pieceSubMenu.setAttribute('aria-hidden','false');
+
+      // ★サブメニューの表示制御：元エリアに応じて非表示
+      const area = pieceMenu.dataset.area; // 'leader' | 'chara' | 'stage' | ...
+      const toCharaBtn = pieceSubMenu.querySelector('button[data-action="to-chara"]');
+      const toStageBtn = pieceSubMenu.querySelector('button[data-action="to-stage"]');
+
+      // キャラ／ステージから開いたとき → To：キャラエリア／To：ステージエリア を隠す
+      if (area === 'chara' || area === 'stage') {
+        if (toCharaBtn) toCharaBtn.style.display = 'none';
+        if (toStageBtn) toStageBtn.style.display = 'none';
+      }
+      // それ以外（リーダー等）は表示
+      else {
+        if (toCharaBtn) toCharaBtn.style.display = 'block';
+        if (toStageBtn) toStageBtn.style.display = 'block';
+      }
 
       const subW = pieceSubMenu.offsetWidth;
       const subH = pieceSubMenu.offsetHeight;
