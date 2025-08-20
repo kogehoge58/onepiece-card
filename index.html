@@ -178,6 +178,16 @@
       font-size: 16px;
       letter-spacing: .08em;
     }
+
+    /* サムネ1枚のラッパ & 右上の「裏向き」ボタン */
+    .thumbs .thumb-wrap { position: relative; width: 100%; }
+    .thumbs .thumb-flip{
+      position: absolute; top: 4px; right: 4px;
+      padding: 6px 10px; border-radius: 8px; border: 0;
+      background: rgba(0,0,0,.6); color: #fff; font-weight: 700;
+      font-size: clamp(12px, 1.1vw, 16px); line-height: 1;
+      cursor: pointer; user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -509,33 +519,38 @@
     const galleryLabel = document.getElementById('gallery-label');
 
     function openGalleryFromList(title, list){
-      // ★ヘッダーのラベル（手札/デッキ/トラッシュのみ表示）
-      const labelMap = { hand:'手札', deck:'デッキ', trash:'トラッシュ', life:'ライフ' };
-      const area = thumbsContext?.area;
-      if (labelMap[area]){
-        galleryLabel.textContent = labelMap[area];
-        galleryLabel.parentElement.style.display = '';
-      } else {
-        galleryLabel.textContent = '';
-        galleryLabel.parentElement.style.display = 'none';
-      }
-
+      // ラベル設定（既存）...
       thumbs.innerHTML = '';
       const isMasked = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life');
       const key = galleryKey();
-      if (isMasked && key && !revealedFaces[key]) revealedFaces[key] = new Set(); // ★初期化
+      if (isMasked && key && !revealedFaces[key]) revealedFaces[key] = new Set();
 
       const frag = document.createDocumentFragment();
+      const isLife = (thumbsContext?.area === 'life');
+
       list.forEach(src => {
+        const wrap = document.createElement('div');
+        wrap.className = 'thumb-wrap';
+
+        const shown = (isMasked && key && !revealedFaces[key].has(src)) ? 'component_images/back.png' : src;
         const img = document.createElement('img');
-        const showSrc = (isMasked && key && !revealedFaces[key].has(src))
-          ? 'component_images/back.png'  // ★裏面（未公開）
-          : src;                         // ★表面（公開済み or 他領域）
-        img.src = showSrc;
-        img.dataset.src = src;           // 本来の画像は保持
+        img.src = shown;
+        img.dataset.src = src;
         img.alt = '';
-        frag.appendChild(img);
+        wrap.appendChild(img);
+
+        // ★ライフで「表向き」＝revealed に入っているときだけボタン表示
+        if (isLife && key && revealedFaces[key].has(src)) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'thumb-flip';
+          btn.textContent = '裏向き';
+          wrap.appendChild(btn);
+        }
+
+        frag.appendChild(wrap);
       });
+
       thumbs.appendChild(frag);
       backdrop.style.display = 'flex';
       backdrop.setAttribute('aria-hidden', 'false');
@@ -709,26 +724,52 @@
 
     /* ギャラリー内のサムネ（image (1)～(50)）クリックで拡大 */
     document.getElementById('thumbs').addEventListener('click', (e) => {
+      // ★「裏向き」ボタン
+      const flipBtn = e.target.closest('.thumb-flip');
+      if (flipBtn) {
+        const wrap = flipBtn.closest('.thumb-wrap');
+        const img  = wrap?.querySelector('img');
+        const key  = galleryKey();
+        if (img && key && key.startsWith('life-') && img.dataset.src) {
+          // 露出状態から除外 → 見た目を back.png へ
+          revealedFaces[key]?.delete(img.dataset.src);
+          img.src = 'component_images/back.png';
+          // ボタンは不要になるので外す
+          flipBtn.remove();
+        }
+        e.stopPropagation();
+        e.preventDefault();
+        return;
+      }
+
+      // （以下は既存の処理：裏面クリックで表向き、表はプレビュー等）
       const img = e.target.closest('img');
       if (!img) return;
-
       const isDeckOrLife = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life');
       const isBackImage  = img.src.includes('component_images/back.png');
-
-      // ★デッキ/ライフの裏面をクリック → その場で表向きにして記録（プレビューしない）
       if (isDeckOrLife && isBackImage) {
         const key = galleryKey();
         if (key) {
           if (!revealedFaces[key]) revealedFaces[key] = new Set();
           if (img.dataset.src) {
-            revealedFaces[key].add(img.dataset.src); // 表向きとして記録
-            img.src = img.dataset.src;               // 表に切替
+            revealedFaces[key].add(img.dataset.src);
+            img.src = img.dataset.src;
+            // ★ライフで表になったらボタンを付ける
+            if (key.startsWith('life-')) {
+              const wrap = img.closest('.thumb-wrap');
+              if (wrap && !wrap.querySelector('.thumb-flip')) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'thumb-flip';
+                btn.textContent = '裏向き';
+                wrap.appendChild(btn);
+              }
+            }
           }
         }
         return;
       }
 
-      // 表向き画像 or 他領域は従来どおりプレビュー
       openImagePreview(img.dataset.src || img.src, img.alt || '');
     });
 
