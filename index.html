@@ -519,6 +519,18 @@
     const galleryLabel = document.getElementById('gallery-label');
 
     function openGalleryFromList(title, list){
+      const area = thumbsContext?.area;
+      const labelMap = { hand: '手札', deck: 'デッキ', life: 'ライフ', trash: 'トラッシュ' };
+      if (galleryLabel) {
+        if (labelMap[area]) {
+          galleryLabel.textContent = labelMap[area];
+          galleryLabel.parentElement.style.display = '';   // ヘッダーを表示
+        } else {
+          galleryLabel.textContent = '';
+          galleryLabel.parentElement.style.display = 'none'; // 対象外は非表示
+        }
+      }
+
       // ラベル設定（既存）...
       thumbs.innerHTML = '';
       const isMasked = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life');
