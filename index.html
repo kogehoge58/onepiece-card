@@ -188,6 +188,14 @@
       font-size: clamp(12px, 1.1vw, 16px); line-height: 1;
       cursor: pointer; user-select: none;
     }
+
+    .modal-header{ position: relative; display:flex; align-items:center; justify-content:center; }
+    .header-btn{
+      position:absolute; right:8px; top:6px;
+      padding:6px 10px; border-radius:8px; border:0;
+      background:rgba(0,0,0,.6); color:#fff; font-weight:700;
+      font-size:clamp(12px,1.1vw,16px); line-height:1; cursor:pointer;
+    }
   </style>
 </head>
 <body>
@@ -362,7 +370,10 @@
   <!-- ===== モーダル（共通） ===== -->
   <div id="gallery-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal">
-      <div class="modal-header"><div id="gallery-label" class="modal-title"></div></div>
+      <div class="modal-header">
+        <div id="gallery-label" class="modal-title"></div>
+        <button id="gallery-reveal-all" type="button" class="header-btn" style="display:none;">すべて表向き</button>
+      </div>
       <div id="thumbs" class="thumbs"></div>
     </div>
   </div>
@@ -517,9 +528,43 @@
     let thumbsContext = { area: null, player: null };
 
     const galleryLabel = document.getElementById('gallery-label');
+    const revealAllBtn = document.getElementById('gallery-reveal-all');
 
     function openGalleryFromList(title, list){
+      // ★ライフ/デッキのときだけ「すべて表向き」を表示
       const area = thumbsContext?.area;
+      const player = thumbsContext?.player;
+      const showReveal = (area === 'deck' || area === 'life');
+      revealAllBtn.style.display = showReveal ? '' : 'none';
+      revealAllBtn.onclick = null;
+
+      if (showReveal){
+        revealAllBtn.onclick = () => {
+          const key = galleryKey();
+          if (key){
+            if (!revealedFaces[key]) revealedFaces[key] = new Set();
+            // そのプレイヤーの該当リストを全部「公開済み」に
+            const listArr = areaLists[area][player] || [];
+            listArr.forEach(src => revealedFaces[key].add(src));
+          }
+          // 画面上のサムネを即時表向きに更新
+          thumbs.querySelectorAll('img').forEach(img => {
+            if (img.dataset.src) img.src = img.dataset.src;
+            // ライフは「裏向きにする」ボタンを付ける
+            if (area === 'life'){
+              const wrap = img.closest('.thumb-wrap');
+              if (wrap && !wrap.querySelector('.thumb-flip')){
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'thumb-flip';
+                btn.textContent = '裏向き';
+                wrap.appendChild(btn);
+              }
+            }
+          });
+        };
+      }
+
       const labelMap = { hand: '手札', deck: 'デッキ', life: 'ライフ', trash: 'トラッシュ' };
       if (galleryLabel) {
         if (labelMap[area]) {
