@@ -258,7 +258,8 @@
 
         <!-- A-TRASH -->
         <div class="card">
-          <img id="a-trash" src="component_images/trash.png" alt="A-TRASH">
+          <div id="a-trash-ph">TRASH</div>
+          <img id="a-trash" alt="A-TRASH" style="display:none;">
           <span id="a-trash-label" class="trash-label">トラッシュ×0</span>
         </div>
       </div>
@@ -340,7 +341,8 @@
 
         <!-- B-TRASH -->
         <div class="card">
-          <img id="b-trash" src="component_images/trash.png" alt="B-TRASH">
+          <div id="b-trash-ph">TRASH</div>
+          <img id="b-trash" alt="B-TRASH" style="display:none;">
           <span id="b-trash-label" class="trash-label">トラッシュ×0</span>
         </div>
       </div>
@@ -619,6 +621,7 @@
       deckCounts[player]  = Math.max(0, deckCounts[player] - 1);
       trashCounts[player] = (trashCounts[player] || 0) + 1;
       renderCounts();
+      updateTrashFace(player);
     }
 
     /* ==== DECK右クリック用コンテキストメニュー ==== */
@@ -1212,6 +1215,7 @@
       lifeCounts[player]  = Math.max(0, lifeCounts[player] - 1);
       trashCounts[player] = (trashCounts[player] || 0) + 1;
       renderCounts();
+      updateTrashFace(player);
     }
 
     // ===== STAGE（各陣営1枠） =====
@@ -1243,6 +1247,7 @@
       if (area === 'life')  lifeCounts[player]  = Math.max(0, lifeCounts[player]  - 1);
       if (area === 'trash') trashCounts[player] = Math.max(0, trashCounts[player] - 1);
       renderCounts();
+      if (area === 'trash') updateTrashFace(player);
     }
     function addToArea(player, area, src, pos='bottom'){
       const list = areaLists[area]?.[player];
@@ -1261,6 +1266,7 @@
         if (area === 'trash') trashCounts[player] = (trashCounts[player] || 0) + 1;
       }
       renderCounts();
+      if (area === 'trash') updateTrashFace(player);
     }
     function refreshIfOpen(area, player){
       if (backdrop.style.display !== 'flex') return;
@@ -1514,6 +1520,24 @@
       const { area, player } = thumbsContext;
       if (area !== 'deck' && area !== 'life') return null;
       return `${area}-${player}`;
+    }
+
+    // ★トラッシュ表示：空→非表示、1枚以上→最上段（配列先頭）を表示
+    function updateTrashFace(player){
+      const imgEl = document.getElementById(player === 'A' ? 'a-trash' : 'b-trash');
+      const phEl  = document.getElementById(player === 'A' ? 'a-trash-ph' : 'b-trash-ph'); // ★追加
+      if (!imgEl) return;
+      const arr = trashImages[player];
+
+      if (arr && arr.length > 0){
+        imgEl.src = arr[0];       // 一覧の一番上（先頭）を表示
+        imgEl.style.display = '';
+        if (phEl) phEl.style.display = 'none';   // ★文字を隠す
+      } else {
+        imgEl.removeAttribute('src');
+        imgEl.style.display = 'none';
+        if (phEl) phEl.style.display = '';       // ★文字を表示
+      }
     }
   </script>
 </body>
