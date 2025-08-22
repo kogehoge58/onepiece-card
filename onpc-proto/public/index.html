@@ -1713,10 +1713,11 @@
       donDeckCounts = s.donDeck; donActCounts = s.donAct; donRestCounts = s.donRest;
 
       // ライフの公開状態など、必要ならクライアント側の記録にも流し込む
-      revealedFaces = {
-        'life-A': new Set(s.revealed.life.A), 'life-B': new Set(s.revealed.life.B),
-        'deck-A': new Set(s.revealed.deck.A), 'deck-B': new Set(s.revealed.deck.B),
-      };
+      Object.keys(revealedFaces).forEach(k => delete revealedFaces[k]);
+      revealedFaces['life-A'] = new Set(s.revealed.life.A);
+      revealedFaces['life-B'] = new Set(s.revealed.life.B);
+      revealedFaces['deck-A'] = new Set(s.revealed.deck.A);
+      revealedFaces['deck-B'] = new Set(s.revealed.deck.B);
 
       renderCounts();
       // 開いている一覧があれば更新
