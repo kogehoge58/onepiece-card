@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>オフ模擬ワンピカード</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;           /* 画面本体はスクロール禁止 */
+      font-family: sans-serif;
+      background: url("component_images/wallpaper.png") center center / cover no-repeat;
+    }
+
+    .container { display: flex; width: 100%; height: 100%; }
+    .player-field {
+      flex: 1; border: 2px solid black; padding: 10px 30px;
+      display: flex; flex-direction: column;
+    }
+    .player-title { font-weight: bold; margin-bottom: 5px; text-align: center; flex: 0 0 auto; }
+
+    .card-grid {
+      flex: 1; display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 5px;
+    }
+
+    .card {
+      width: 100%; aspect-ratio: 1 / 1.4;
+      border: 2px solid #333; display: flex; justify-content: center; align-items: center;
+      font-size: 0.7vw; font-weight: bold; position: relative; overflow: hidden;
+    }
+    .card img { width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+
+    /* 共通ラベル（左下） */
+    .card .deck-label,
+    .card .life-label,
+    .card .hand-label,
+    .card .trash-label,
+    .card .don-label,
+    .card .menu-label {
+      position: absolute;
+      left: 6px; bottom: 6px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(0,0,0,.6);
+      color: #fff; font-weight: 700;
+      font-size: clamp(10px, 0.9vw, 12px);
+      line-height: 1;
+      pointer-events: none;
+      user-select: none;
+      z-index: 2;
+    }
+
+    /* 右上カウンタボタン（-1 / +1） */
+    .counter-controls{
+      position: absolute;
+      top: 6px; right: 6px;
+      display: flex; gap: 8px;     /* ← 少し広めに */
+      z-index: 2;
+    }
+    .btn-counter{
+      padding: 6px 10px;           /* ← クリック面積アップ */
+      border-radius: 8px;
+      background: rgba(0,0,0,.6);
+      color: #fff; font-weight: 700;
+      font-size: clamp(12px, 1.1vw, 16px);  /* ← 文字も少し大きく */
+      line-height: 1;
+      border: none;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* ===== モーダル ===== */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: none;              /* 初期は非表示 */
+      align-items: center; justify-content: center; z-index: 9999;
+    }
+    .modal {
+      --thumb-w: 140px;   /* ★サムネ1枚の幅（必要なら調整） */
+      --thumb-gap: 10px;  /* サムネの間隔 */
+      background: #fff; max-width: 90vw; max-height: 90vh;
+      width: auto;                 /* ★内容幅に合わせて狭める */
+      height: 90vh;                /* 既存どおり縦は固定 */
+      border-radius: 10px; padding: 16px;
+      display: flex; flex-direction: column;
+    }
+    .thumbs {
+      /* 既存 */
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: grid;
+      grid-template-columns: repeat(5, var(--thumb-w));
+      gap: var(--thumb-gap);
+      width: calc(5 * var(--thumb-w) + 4 * var(--thumb-gap));
+
+      /* ★追加/置き換え */
+      scrollbar-gutter: stable;      /* 対応ブラウザで縦スクロール分の溝を常時確保 */
+      box-sizing: content-box;       /* 下のパディングで内容幅を削らないように */
+      padding-inline-end: 20px;      /* 非対応ブラウザ向けのフォールバック余白 */
+    }
+    .thumbs img {
+      width: 100%; aspect-ratio: 1 / 1.4; object-fit: cover; border: 1px solid #aaa;
+    }
+
+    /* ==== DECK用コンテキストメニュー ==== */
+    .context-menu{
+      position: fixed;
+      display: none;
+      min-width: 160px;
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      border-radius: 10px;
+      padding: 6px 0;
+      z-index: 10000;
+      box-shadow: 0 10px 24px rgba(0,0,0,.3);
+      backdrop-filter: blur(2px);
+    }
+    .context-menu button{
+      all: unset;
+      display: block;
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .context-menu button:hover{
+      background: rgba(255,255,255,0.12);
+    }
+
+    /* 画像プレビュー用（中央拡大） */
+    #preview-backdrop { z-index: 10001; } /* ギャラリーより前に出す */
+
+    /* レスト表示用：薄い黒マスク＋右上バッジ */
+    .rest-overlay{
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.35);
+      pointer-events: none;
+      /* z-index: 1; */
+    }
+    .rest-badge{
+      position: absolute;
+      left: 6px;
+      bottom: 30px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(0,0,0,.6);
+      color: #fff; font-weight: 700;
+      font-size: clamp(10px, 0.9vw, 12px);
+      line-height: 1;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* ステージ上のレスト表記は左下（ドン×nと同位置）に固定 */
+    #a-stage .rest-badge,
+    #b-stage .rest-badge { left: 6px; bottom: 6px; }
+
+    /* ルールPDFモーダルはメニューより前面に出す */
+    #rules-backdrop { z-index: 10001; }
+
+    /* ★一覧ダイアログのヘッダー */
+    .modal-header{
+      flex: 0 0 auto;
+      padding: 6px 8px 10px;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 10px;
+    }
+    .modal-title{
+      text-align: center;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: .08em;
+    }
+
+    /* サムネ1枚のラッパ & 右上の「裏向き」ボタン */
+    .thumbs .thumb-wrap { position: relative; width: 100%; }
+    .thumbs .thumb-flip{
+      position: absolute; top: 4px; right: 4px;
+      padding: 6px 10px; border-radius: 8px; border: 0;
+      background: rgba(0,0,0,.6); color: #fff; font-weight: 700;
+      font-size: clamp(12px, 1.1vw, 16px); line-height: 1;
+      cursor: pointer; user-select: none;
+    }
+
+    .modal-header{ position: relative; display:flex; align-items:center; justify-content:center; }
+    .header-btn{
+      position:absolute; right:8px; top:6px;
+      padding:6px 10px; border-radius:8px; border:0;
+      background:rgba(0,0,0,.6); color:#fff; font-weight:700;
+      font-size:clamp(12px,1.1vw,16px); line-height:1; cursor:pointer;
+    }
+
+    /* 文字のドラッグ選択を全体で無効化（入力系は除外） */
+    *:not(input):not(textarea){
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+    /* 画像のドラッグ（半透明ゴースト）を無効化 */
+    img{
+      -webkit-user-drag: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- プレイヤーA -->
+    <div class="player-field">
+      <div class="player-title">プレイヤーA</div>
+      <div class="card-grid">
+        <!-- ★CHARA(5枠) 空セル化＋id付与 -->
+        <div id="a-chara-1" class="card">CHARACTER</div>
+        <div id="a-chara-2" class="card">CHARACTER</div>
+        <div id="a-chara-3" class="card">CHARACTER</div>
+        <div id="a-chara-4" class="card">CHARACTER</div>
+        <div id="a-chara-5" class="card">CHARACTER</div>
+
+        <!-- A-MENU -->
+        <div class="card">
+          <img src="component_images/menu.png" alt="A-MENU">
+          <span class="menu-label">メニュー</span>
+        </div>
+
+        <!-- A-LIFE -->
+        <div class="card">
+          <img id="a-life" src="component_images/life.png" alt="A-LIFE">
+          <span id="a-life-label" class="life-label">ライフ×0</span>
+        </div>
+
+        <!-- A-LEADER -->
+        <div class="card">
+          <img src="deck/player_A/leader.png" alt="A-LEADER">
+          <span id="a-leader-don-label" class="don-label">ドン×0</span>
+        </div>
+
+        <!-- A-STAGE -->
+        <div id="a-stage" class="card">STAGE</div>
+
+        <!-- A-DECK -->
+        <div class="card deck">
+          <img id="a-deck" src="component_images/back.png" alt="A-DECK">
+          <span id="a-deck-label" class="deck-label">デッキ×50</span>
+        </div>
+
+        <!-- A-DON-DECK -->
+        <div class="card">
+          <img src="component_images/don_back.png" alt="A-DON-DECK">
+          <span id="a-don-deck-label" class="don-label">ドンデッキ×10</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="-1" aria-label="A ドンデッキ -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="1"  aria-label="A ドンデッキ +1">+1</button>
+          </div>
+        </div>
+
+        <!-- A-DON-ACT -->
+        <div class="card">
+          <img src="component_images/don_act.png" alt="A-DON-ACT">
+          <span id="a-don-act-label" class="don-label">アクティブ×0</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="-1" aria-label="A アクティブ -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="1"  aria-label="A アクティブ +1">+1</button>
+          </div>
+        </div>
+
+        <!-- A-DON-REST -->
+        <div class="card">
+          <img src="component_images/don_rest.png" alt="A-DON-REST">
+          <span id="a-don-rest-label" class="don-label">レスト×0</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="-1" aria-label="A レスト -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="1"  aria-label="A レスト +1">+1</button>
+          </div>
+        </div>
+
+        <!-- A-HAND -->
+        <div class="card">
+          <img id="a-hand" src="component_images/hand.png" alt="A-HAND">
+          <span id="a-hand-label" class="hand-label">手札×0</span>
+        </div>
+
+        <!-- A-TRASH -->
+        <div class="card">
+          <div id="a-trash-ph">TRASH</div>
+          <img id="a-trash" alt="A-TRASH" style="display:none;">
+          <span id="a-trash-label" class="trash-label">トラッシュ×0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- プレイヤーB -->
+    <div class="player-field">
+      <div class="player-title">プレイヤーB</div>
+      <div class="card-grid">
+        <!-- ★CHARA(5枠) 空セル化＋id付与 -->
+        <div id="b-chara-1" class="card">CHARACTER</div>
+        <div id="b-chara-2" class="card">CHARACTER</div>
+        <div id="b-chara-3" class="card">CHARACTER</div>
+        <div id="b-chara-4" class="card">CHARACTER</div>
+        <div id="b-chara-5" class="card">CHARACTER</div>
+
+        <!-- B-MENU -->
+        <div class="card">
+          <img src="component_images/menu.png" alt="B-MENU">
+          <span class="menu-label">メニュー</span>
+        </div>
+
+        <!-- B-LIFE -->
+        <div class="card">
+          <img id="b-life" src="component_images/life.png" alt="B-LIFE">
+          <span id="b-life-label" class="life-label">ライフ×0</span>
+        </div>
+
+        <!-- B-LEADER -->
+        <div class="card">
+          <img src="deck/player_B/leader.png" alt="B-LEADER">
+          <span id="b-leader-don-label" class="don-label">ドン×0</span>
+        </div>
+
+        <!-- B-STAGE -->
+        <div id="b-stage" class="card">STAGE</div>
+
+        <!-- B-DECK -->
+        <div class="card deck">
+          <img id="b-deck" src="component_images/back.png" alt="B-DECK">
+          <span id="b-deck-label" class="deck-label">デッキ×50</span>
+        </div>
+
+        <!-- B-DON-DECK -->
+        <div class="card">
+          <img src="component_images/don_back.png" alt="B-DON-DECK">
+          <span id="b-don-deck-label" class="don-label">ドンデッキ×10</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="-1" aria-label="B ドンデッキ -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="1"  aria-label="B ドンデッキ +1">+1</button>
+          </div>
+        </div>
+
+        <!-- B-DON-ACT -->
+        <div class="card">
+          <img src="component_images/don_act.png" alt="B-DON-ACT">
+          <span id="b-don-act-label" class="don-label">アクティブ×0</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="-1" aria-label="B アクティブ -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="1"  aria-label="B アクティブ +1">+1</button>
+          </div>
+        </div>
+
+        <!-- B-DON-REST -->
+        <div class="card">
+          <img src="component_images/don_rest.png" alt="B-DON-REST">
+          <span id="b-don-rest-label" class="don-label">レスト×0</span>
+          <div class="counter-controls">
+            <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="-1" aria-label="B レスト -1">-1</button>
+            <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="1"  aria-label="B レスト +1">+1</button>
+          </div>
+        </div>
+
+        <!-- B-HAND -->
+        <div class="card">
+          <img id="b-hand" src="component_images/hand.png" alt="B-HAND">
+          <span id="b-hand-label" class="hand-label">手札×0</span>
+        </div>
+
+        <!-- B-TRASH -->
+        <div class="card">
+          <div id="b-trash-ph">TRASH</div>
+          <img id="b-trash" alt="B-TRASH" style="display:none;">
+          <span id="b-trash-label" class="trash-label">トラッシュ×0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== モーダル（共通） ===== -->
+  <div id="gallery-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-header">
+        <div id="gallery-label" class="modal-title"></div>
+        <button id="gallery-reveal-all" type="button" class="header-btn" style="display:none;">すべて表向き</button>
+      </div>
+      <div id="thumbs" class="thumbs"></div>
+    </div>
+  </div>
+
+  <!-- ==== DECKメニュー（共通） ==== -->
+  <div id="deck-menu" class="context-menu" role="menu" aria-hidden="true">
+    <button type="button" role="menuitem" data-action="hand-plus">手札+1</button>
+    <button type="button" role="menuitem" data-action="life-plus">ライフ+1</button>
+    <button type="button" role="menuitem" data-action="trash-plus">トラッシュ+1</button>
+    <button type="button" role="menuitem" data-action="shuffle">シャッフルする</button>
+  </div>
+
+  <!-- 画像プレビュー用モーダル -->
+  <div id="preview-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div id="preview-content" style="background:#fff; border-radius:10px; padding:8px; max-width:90vw; max-height:90vh; display:flex; align-items:center; justify-content:center;">
+      <img id="preview-img" alt="" style="max-width:88vw; max-height:88vh; object-fit:contain;">
+    </div>
+  </div>
+
+  <!-- ==== ギャラリーサムネ共通メニュー ==== -->
+  <div id="thumb-menu" class="context-menu" role="menu" aria-hidden="true">
+    <button type="button" role="menuitem" data-action="to-hand">To：手札</button>
+    <button type="button" role="menuitem" data-action="to-trash">To：トラッシュ</button>
+    <button type="button" role="menuitem" data-action="to-life-top">To：ライフ（上）</button>
+    <button type="button" role="menuitem" data-action="to-life-bottom">To：ライフ（下）</button>
+    <button type="button" role="menuitem" data-action="to-deck-top">To：デッキ（上）</button>
+    <button type="button" role="menuitem" data-action="to-deck-bottom">To：デッキ（下）</button>
+    <button type="button" role="menuitem" data-action="to-chara">To：キャラエリア</button>
+    <button type="button" role="menuitem" data-action="to-stage">To：ステージエリア</button>
+  </div>
+
+  <!-- ==== リーダー／キャラ用 右クリックメニュー ==== -->
+  <div id="piece-menu" class="context-menu" role="menu" aria-hidden="true">
+    <button type="button" role="menuitem" data-action="rest">レスト</button>
+    <button type="button" role="menuitem" data-action="don-plus">ドン+1</button>
+    <button type="button" role="menuitem" data-action="don-minus">ドン-1</button>
+    <button type="button" role="menuitem" data-action="move">移動する</button>
+  </div>
+
+  <!-- リーダー／キャラ用のサブメニュー（中身はJSでthumb-menuを流用） -->
+  <div id="piece-submenu" class="context-menu" role="menu" aria-hidden="true"></div>
+
+  <!-- ==== メニュー（A-MENU / B-MENU）右クリック用 ==== -->
+  <div id="main-menu" class="context-menu" role="menu" aria-hidden="true">
+    <button type="button" role="menuitem" data-action="mulligan">マリガン</button>
+    <button type="button" role="menuitem" data-action="refresh">ターン開始</button>
+    <button type="button" role="menuitem" data-action="rules">ルール確認</button>
+  </div>
+
+  <!-- ルール確認用PDFモーダル -->
+  <div id="rules-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div id="rules-content" style="background:#fff; border-radius:10px; padding:8px; max-width:90vw; max-height:90vh; display:flex; align-items:center; justify-content:center;">
+      <embed id="rules-embed" src="" type="application/pdf" style="width:88vw; height:88vh; border:0;">
+    </div>
+  </div>
+
+  <script>
+    /* ===== 画像スタック ===== */
+    const deckImages = {
+      A: Array.from({length:50}, (_,i) => encodeURI(`deck/player_A/images/image (${i+1}).png`)),
+      B: Array.from({length:50}, (_,i) => encodeURI(`deck/player_B/images/image (${i+1}).png`)),
+    };
+    const handImages  = { A: [], B: [] };
+    const lifeImages  = { A: [], B: [] };
+    const trashImages = { A: [], B: [] };
+
+    /* ===== カウント管理 ===== */
+    let deckCounts   = { A: 50, B: 50 };
+    let lifeCounts   = { A: 0,  B: 0 };
+    let handCounts   = { A: 0,  B: 0 };
+    let trashCounts  = { A: 0,  B: 0 };
+
+    let donDeckCounts = { A: 10, B: 10 };
+    let donActCounts  = { A: 0,  B: 0 };
+    let donRestCounts = { A: 0,  B: 0 };
+
+    function renderCounts(){
+      document.getElementById('a-deck-label').textContent  = `デッキ×${deckCounts.A}`;
+      document.getElementById('b-deck-label').textContent  = `デッキ×${deckCounts.B}`;
+      document.getElementById('a-life-label').textContent  = `ライフ×${lifeCounts.A}`;
+      document.getElementById('b-life-label').textContent  = `ライフ×${lifeCounts.B}`;
+      document.getElementById('a-hand-label').textContent  = `手札×${handCounts.A}`;
+      document.getElementById('b-hand-label').textContent  = `手札×${handCounts.B}`;
+      document.getElementById('a-trash-label').textContent = `トラッシュ×${trashCounts.A}`;
+      document.getElementById('b-trash-label').textContent = `トラッシュ×${trashCounts.B}`;
+      document.getElementById('a-don-deck-label').textContent = `ドンデッキ×${donDeckCounts.A}`;
+      document.getElementById('b-don-deck-label').textContent = `ドンデッキ×${donDeckCounts.B}`;
+      document.getElementById('a-don-act-label').textContent  = `アクティブ×${donActCounts.A}`;
+      document.getElementById('b-don-act-label').textContent  = `アクティブ×${donActCounts.B}`;
+      document.getElementById('a-don-rest-label').textContent = `レスト×${donRestCounts.A}`;
+      document.getElementById('b-don-rest-label').textContent = `レスト×${donRestCounts.B}`;
+    }
+
+    function setCount(type, player, n){
+      if(type==="deck")      deckCounts[player]   = n;
+      if(type==="life")      lifeCounts[player]   = n;
+      if(type==="hand")      handCounts[player]   = n;
+      if(type==="trash")     trashCounts[player]  = n;
+      if(type==="donDeck")   donDeckCounts[player]= n;
+      if(type==="donAct")    donActCounts[player] = n;
+      if(type==="donRest")   donRestCounts[player]= n;
+      renderCounts();
+    }
+
+    /* ===== DON系カウンターの上下限（0〜10） ===== */
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-counter');
+      if (!btn) return;
+
+      const type   = btn.dataset.type;    // "donDeck" | "donAct" | "donRest"
+      const player = btn.dataset.player;  // "A" | "B"
+      const delta  = parseInt(btn.dataset.delta, 10) || 0;
+
+      const tables    = { donDeck: donDeckCounts, donAct: donActCounts, donRest: donRestCounts };
+      const maxByType = { donDeck: 10,           donAct: 10,           donRest: 10           };
+
+      const table = tables[type];
+      if (!table || !player) return;
+
+      const current = Number(table[player]) || 0;
+      const min = 0;
+      const max = maxByType[type] ?? Infinity;
+
+      const next = Math.min(max, Math.max(min, current + delta));
+      if (next === current) return;
+
+      table[player] = next;
+      renderCounts();
+    });
+
+    renderCounts();
+
+    /* ===== ギャラリー（配列から表示） ===== */
+    const backdrop = document.getElementById('gallery-backdrop');
+    const thumbs   = document.getElementById('thumbs');
+
+    function hideModal() {
+      // ★デッキは閉じたら裏に戻す／ライフは保持
+      const key = galleryKey();
+      if (key && key.startsWith('deck-')) delete revealedFaces[key];
+
+      backdrop.style.display = 'none';
+      thumbs.innerHTML = '';
+      backdrop.setAttribute('aria-hidden', 'true');
+
+      // 任意：文脈をクリア（再オープン時に新規扱い）
+      thumbsContext = { area: null, player: null };
+    }
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) hideModal(); });
+
+    // ★ どの一覧を開いているかの文脈（キャラ移動に必要）
+    let thumbsContext = { area: null, player: null };
+
+    const galleryLabel = document.getElementById('gallery-label');
+    const revealAllBtn = document.getElementById('gallery-reveal-all');
+
+    function openGalleryFromList(title, list){
+      // ★ライフ/デッキのときだけ「すべて表向き」を表示
+      const area = thumbsContext?.area;
+      const player = thumbsContext?.player;
+      const showReveal = (area === 'deck' || area === 'life');
+      revealAllBtn.style.display = showReveal ? '' : 'none';
+      revealAllBtn.onclick = null;
+
+      if (showReveal){
+        revealAllBtn.onclick = () => {
+          const key = galleryKey();
+          if (key){
+            if (!revealedFaces[key]) revealedFaces[key] = new Set();
+            // そのプレイヤーの該当リストを全部「公開済み」に
+            const listArr = areaLists[area][player] || [];
+            listArr.forEach(src => revealedFaces[key].add(src));
+          }
+          // 画面上のサムネを即時表向きに更新
+          thumbs.querySelectorAll('img').forEach(img => {
+            if (img.dataset.src) img.src = img.dataset.src;
+            // ライフは「裏向きにする」ボタンを付ける
+            if (area === 'life'){
+              const wrap = img.closest('.thumb-wrap');
+              if (wrap && !wrap.querySelector('.thumb-flip')){
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'thumb-flip';
+                btn.textContent = '裏向き';
+                wrap.appendChild(btn);
+              }
+            }
+          });
+        };
+      }
+
+      const labelMap = { hand: '手札', deck: 'デッキ', life: 'ライフ', trash: 'トラッシュ' };
+      if (galleryLabel) {
+        if (labelMap[area]) {
+          galleryLabel.textContent = labelMap[area];
+          galleryLabel.parentElement.style.display = '';   // ヘッダーを表示
+        } else {
+          galleryLabel.textContent = '';
+          galleryLabel.parentElement.style.display = 'none'; // 対象外は非表示
+        }
+      }
+
+      // ラベル設定（既存）...
+      thumbs.innerHTML = '';
+      const isMasked = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life');
+      const key = galleryKey();
+      if (isMasked && key && !revealedFaces[key]) revealedFaces[key] = new Set();
+
+      const frag = document.createDocumentFragment();
+      const isLife = (thumbsContext?.area === 'life');
+
+      list.forEach(src => {
+        const wrap = document.createElement('div');
+        wrap.className = 'thumb-wrap';
+
+        const shown = (isMasked && key && !revealedFaces[key].has(src)) ? 'component_images/back.png' : src;
+        const img = document.createElement('img');
+        img.src = shown;
+        img.dataset.src = src;
+        img.alt = '';
+        wrap.appendChild(img);
+
+        // ★ライフで「表向き」＝revealed に入っているときだけボタン表示
+        if (isLife && key && revealedFaces[key].has(src)) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'thumb-flip';
+          btn.textContent = '裏向き';
+          wrap.appendChild(btn);
+        }
+
+        frag.appendChild(wrap);
+      });
+
+      thumbs.appendChild(frag);
+      backdrop.style.display = 'flex';
+      backdrop.setAttribute('aria-hidden', 'false');
+    }
+
+    // デッキ・手札・ライフ・トラッシュ クリックで一覧（文脈セット）
+    document.getElementById('a-deck').addEventListener('click', () => {
+      thumbsContext = { area: 'deck', player: 'A' };
+      openGalleryFromList('A デッキ', deckImages.A);
+    });
+    document.getElementById('b-deck').addEventListener('click', () => {
+      thumbsContext = { area: 'deck', player: 'B' };
+      openGalleryFromList('B デッキ', deckImages.B);
+    });
+    document.getElementById('a-hand').addEventListener('click', () => {
+      thumbsContext = { area: 'hand', player: 'A' };
+      openGalleryFromList('A 手札', handImages.A);
+    });
+    document.getElementById('b-hand').addEventListener('click', () => {
+      thumbsContext = { area: 'hand', player: 'B' };
+      openGalleryFromList('B 手札', handImages.B);
+    });
+    document.getElementById('a-life').addEventListener('click', () => {
+      thumbsContext = { area: 'life', player: 'A' };
+      openGalleryFromList('A ライフ', lifeImages.A);
+    });
+    document.getElementById('b-life').addEventListener('click', () => {
+      thumbsContext = { area: 'life', player: 'B' };
+      openGalleryFromList('B ライフ', lifeImages.B);
+    });
+    document.getElementById('a-trash').addEventListener('click', () => {
+      thumbsContext = { area: 'trash', player: 'A' };
+      openGalleryFromList('A トラッシュ', trashImages.A);
+    });
+    document.getElementById('b-trash').addEventListener('click', () => {
+      thumbsContext = { area: 'trash', player: 'B' };
+      openGalleryFromList('B トラッシュ', trashImages.B);
+    });
+
+    /* ===== デッキ → 手札（手札+1） ===== */
+    function drawToHand(player){
+      const stack = deckImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      handImages[player].unshift(top); // ★先頭に積む
+
+      deckCounts[player] = Math.max(0, deckCounts[player] - 1);
+      handCounts[player] = (handCounts[player] || 0) + 1;
+      renderCounts();
+    }
+
+    /* ===== デッキ → ライフ（ライフ+1） ===== */
+    function drawToLife(player){
+      const stack = deckImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      lifeImages[player].push(top);
+
+      deckCounts[player] = Math.max(0, deckCounts[player] - 1);
+      lifeCounts[player] = (lifeCounts[player] || 0) + 1;
+      renderCounts();
+    }
+
+    // デッキ → ライフ（トップに積む版：ライフの先頭へ）
+    function drawToLifeTop(player){
+      const stack = deckImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      lifeImages[player].unshift(top); // ★先頭に積む
+
+      deckCounts[player] = Math.max(0, deckCounts[player] - 1);
+      lifeCounts[player] = (lifeCounts[player] || 0) + 1;
+      renderCounts();
+    }
+
+    /* ===== デッキ → トラッシュ（トラッシュ+1） ===== */
+    function moveTopToTrash(player){
+      const stack = deckImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      trashImages[player].unshift(top); // ★先頭に積む
+
+      deckCounts[player]  = Math.max(0, deckCounts[player] - 1);
+      trashCounts[player] = (trashCounts[player] || 0) + 1;
+      renderCounts();
+      updateTrashFace(player);
+    }
+
+    /* ==== DECK右クリック用コンテキストメニュー ==== */
+    const deckMenu = document.getElementById('deck-menu');
+    const aDeckEl  = document.getElementById('a-deck');
+    const bDeckEl  = document.getElementById('b-deck');
+
+    function showDeckMenu(e, player, zone = 'deck'){
+      e.preventDefault();
+      deckMenu.dataset.player = player;
+      deckMenu.dataset.zone   = zone;
+
+      // ★ライフを右クリしたときは「ライフ+1」を隠す（デッキ時は表示に戻す）
+      const lifePlusBtn = deckMenu.querySelector('button[data-action="life-plus"]');
+      if (lifePlusBtn) lifePlusBtn.style.display = (zone === 'life') ? 'none' : 'block';
+
+      deckMenu.style.display = 'block';
+      deckMenu.setAttribute('aria-hidden', 'false');
+
+      let x = e.clientX, y = e.clientY;
+      const w = deckMenu.offsetWidth, h = deckMenu.offsetHeight, pad = 8;
+      if (x + w + pad > window.innerWidth)  x = window.innerWidth  - w - pad;
+      if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
+      deckMenu.style.left = `${x}px`;
+      deckMenu.style.top  = `${y}px`;
+    }
+    function hideDeckMenu(){
+      deckMenu.style.display = 'none';
+      deckMenu.setAttribute('aria-hidden', 'true');
+      delete deckMenu.dataset.player;
+      delete deckMenu.dataset.zone;
+    }
+
+    aDeckEl.addEventListener('contextmenu', (e) => showDeckMenu(e, 'A'));
+    bDeckEl.addEventListener('contextmenu', (e) => showDeckMenu(e, 'B'));
+
+    document.addEventListener('click', (e) => {
+      if (!deckMenu.contains(e.target)) hideDeckMenu();
+    });
+    window.addEventListener('scroll', hideDeckMenu, true);
+    window.addEventListener('resize', hideDeckMenu);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideDeckMenu(); });
+
+    // ★ メニュークリック：手札+1 / ライフ+1 / トラッシュ+1
+    deckMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const player = deckMenu.dataset.player;
+      const zone   = deckMenu.dataset.zone || 'deck'; // ★対象ゾーン
+      if (!player) return;
+
+      if (zone === 'deck') {
+        if (action === 'hand-plus')      { drawToHand(player); }
+        else if (action === 'life-plus') { drawToLifeTop(player); } // ★ここだけ差し替え
+        else if (action === 'trash-plus'){ moveTopToTrash(player); }
+        else if (action === 'shuffle')   {
+          hideDeckMenu();
+          if (confirm('シャッフルしますか？')) shuffleInPlace(deckImages[player]);
+        }
+      } else if (zone === 'life') {
+        if (action === 'hand-plus')      { lifeToHand(player); }
+        else if (action === 'life-plus') { drawToLife(player); }     // DECK→LIFE (+1)
+        else if (action === 'trash-plus'){ lifeToTrash(player); }    // LIFE→TRASH
+        else if (action === 'shuffle')   {
+          hideDeckMenu();
+          if (confirm('シャッフルしますか？')) shuffleInPlace(lifeImages[player]); // LIFE内シャッフル
+        }
+      }
+    });
+
+    /* ==== 画像プレビュー制御 ==== */
+    const previewBackdrop = document.getElementById('preview-backdrop');
+    const previewImg      = document.getElementById('preview-img');
+
+    function openImagePreview(src, alt=''){
+      previewImg.src = src;
+      previewImg.alt = alt || '';
+      previewBackdrop.style.display = 'flex';
+      previewBackdrop.setAttribute('aria-hidden', 'false');
+    }
+    function hidePreview(){
+      previewBackdrop.style.display = 'none';
+      previewBackdrop.setAttribute('aria-hidden', 'true');
+      previewImg.src = '';
+      previewImg.alt = '';
+    }
+    previewBackdrop.addEventListener('click', (e) => { if (e.target === previewBackdrop) hidePreview(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hidePreview(); });
+
+    /* ギャラリー内のサムネ（image (1)～(50)）クリックで拡大 */
+    document.getElementById('thumbs').addEventListener('click', (e) => {
+      // ★「裏向き」ボタン
+      const flipBtn = e.target.closest('.thumb-flip');
+      if (flipBtn) {
+        const wrap = flipBtn.closest('.thumb-wrap');
+        const img  = wrap?.querySelector('img');
+        const key  = galleryKey();
+        if (img && key && key.startsWith('life-') && img.dataset.src) {
+          // 露出状態から除外 → 見た目を back.png へ
+          revealedFaces[key]?.delete(img.dataset.src);
+          img.src = 'component_images/back.png';
+          // ボタンは不要になるので外す
+          flipBtn.remove();
+        }
+        e.stopPropagation();
+        e.preventDefault();
+        return;
+      }
+
+      // （以下は既存の処理：裏面クリックで表向き、表はプレビュー等）
+      const img = e.target.closest('img');
+      if (!img) return;
+      const isDeckOrLife = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life');
+      const isBackImage  = img.src.includes('component_images/back.png');
+      if (isDeckOrLife && isBackImage) {
+        const key = galleryKey();
+        if (key) {
+          if (!revealedFaces[key]) revealedFaces[key] = new Set();
+          if (img.dataset.src) {
+            revealedFaces[key].add(img.dataset.src);
+            img.src = img.dataset.src;
+            // ★ライフで表になったらボタンを付ける
+            if (key.startsWith('life-')) {
+              const wrap = img.closest('.thumb-wrap');
+              if (wrap && !wrap.querySelector('.thumb-flip')) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'thumb-flip';
+                btn.textContent = '裏向き';
+                wrap.appendChild(btn);
+              }
+            }
+          }
+        }
+        return;
+      }
+
+      openImagePreview(img.dataset.src || img.src, img.alt || '');
+    });
+
+    /* 画面上の leader.png をクリックで拡大（A/B両方） */
+    document.querySelectorAll('img[src$="leader.png"]').forEach(img => {
+      img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
+    });
+
+    /* ==== ギャラリーサムネ共通メニュー ==== */
+    const thumbMenu = document.getElementById('thumb-menu');
+
+    // 右クリックされたサムネ（DOM参照）
+    let lastRightClickedThumb = null;
+
+    function showThumbMenu(e, img){
+      e.preventDefault();
+      if (typeof hideDeckMenu === 'function') hideDeckMenu();
+
+      lastRightClickedThumb = img;
+      // data-src を優先（エンコードの揺れ対策）
+      thumbMenu.dataset.src = img?.dataset?.src || img?.src || '';
+      thumbMenu.style.display = 'block';
+      thumbMenu.setAttribute('aria-hidden', 'false');
+
+      // ★手札一覧を開いているときは「To：手札」を非表示（それ以外では表示）
+      const toHandBtn = thumbMenu.querySelector('button[data-action="to-hand"]');
+      if (toHandBtn) toHandBtn.style.display = (thumbsContext?.area === 'hand') ? 'none' : 'block';
+
+      // ★トラッシュ一覧のときは「To：トラッシュ」を非表示（それ以外では表示）
+      const toTrashBtn = thumbMenu.querySelector('button[data-action="to-trash"]');
+      if (toTrashBtn) toTrashBtn.style.display = (thumbsContext?.area === 'trash') ? 'none' : 'block';
+
+      // 位置（はみ出し防止）
+      let x = e.clientX, y = e.clientY;
+      const w = thumbMenu.offsetWidth, h = thumbMenu.offsetHeight, pad = 8;
+      if (x + w + pad > window.innerWidth)  x = window.innerWidth  - w - pad;
+      if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
+      thumbMenu.style.left = `${x}px`;
+      thumbMenu.style.top  = `${y}px`;
+    }
+    function hideThumbMenu(){
+      thumbMenu.style.display = 'none';
+      thumbMenu.setAttribute('aria-hidden', 'true');
+      delete thumbMenu.dataset.src;
+    }
+
+    // #thumbs 内の画像を右クリックしたら開く（領域一律）
+    document.getElementById('thumbs').addEventListener('contextmenu', (e) => {
+      const img = e.target.closest('img');
+      if (!img) return;
+      showThumbMenu(e, img);
+    });
+
+    // 右クリック（contextmenu）を全体で禁止。ただし個別に許可している要素のみ通す
+    document.addEventListener('contextmenu', (e) => {
+      const allowed = e.target.closest(
+        '#thumbs img, #a-deck, #b-deck, #a-life, #b-life, img[src$="leader.png"],' +
+        ' #a-chara-1 img, #a-chara-2 img, #a-chara-3 img, #a-chara-4 img, #a-chara-5 img,' +
+        ' #b-chara-1 img, #b-chara-2 img, #b-chara-3 img, #b-chara-4 img, #b-chara-5 img,' +
+        ' #a-stage img, #b-stage img, img[src$="menu.png"]' // ★追加
+      );
+      if (!allowed) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
+
+    // 外側クリック・スクロール・リサイズ・Escで閉じる
+    document.addEventListener('click', (e) => { if (!thumbMenu.contains(e.target)) hideThumbMenu(); });
+    window.addEventListener('scroll', hideThumbMenu, true);
+    window.addEventListener('resize', hideThumbMenu);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideThumbMenu(); });
+
+    // ▼ メニュー開放中は左クリックで「メニューだけ閉じる」(他のクリック処理は無効化)
+    document.addEventListener('click', (e) => {
+      const menuOpen =
+        (typeof thumbMenu !== 'undefined' && thumbMenu?.style.display === 'block') ||
+        (typeof deckMenu  !== 'undefined' && deckMenu?.style.display  === 'block') ||
+        (typeof pieceMenu !== 'undefined' && pieceMenu?.style.display === 'block') ||
+        (typeof pieceSubMenu !== 'undefined' && pieceSubMenu?.style.display === 'block') ||
+        (typeof mainMenu !== 'undefined' && mainMenu?.style.display === 'block');   // ★追加
+
+      if (!menuOpen) return;
+
+      // メニュー自身のクリックは通す
+      if (thumbMenu?.contains(e.target) || deckMenu?.contains(e.target) ||
+          pieceMenu?.contains(e.target) || pieceSubMenu?.contains(e.target) ||
+          mainMenu?.contains(e.target)) return; // ★追加
+
+      // メニューを閉じるだけ
+      if (typeof hideThumbMenu === 'function') hideThumbMenu();
+      if (typeof hideDeckMenu  === 'function') hideDeckMenu();
+      if (typeof hidePieceMenu === 'function') hidePieceMenu();
+      if (typeof hidePieceSubMenu === 'function') hidePieceSubMenu();
+      if (typeof hideMainMenu === 'function') hideMainMenu(); // ★追加
+
+      e.stopPropagation();
+      e.preventDefault();
+    }, true);
+
+    /* ====== キャラエリア配置（To：キャラエリア） ====== */
+    // キャラエリアの占有状況（null なら空き）
+    const charaImages = { A: Array(5).fill(null), B: Array(5).fill(null) };
+    const charaSlots  = {
+      A: ['a-chara-1','a-chara-2','a-chara-3','a-chara-4','a-chara-5'],
+      B: ['b-chara-1','b-chara-2','b-chara-3','b-chara-4','b-chara-5'],
+    };
+
+    function placeInChara(player, src){
+      const idx = charaImages[player].findIndex(v => !v);
+      if (idx === -1) {
+        alert('キャラエリアが埋まっています。');
+        return false;
+      }
+      charaImages[player][idx] = src;
+
+      const cell = document.getElementById(charaSlots[player][idx]);
+      if (!cell) return false;
+      cell.innerHTML = '';                        // 何か入っていたらクリア
+      const img = document.createElement('img');  // 盤面カード表示
+      img.src = src;
+      img.alt = `${player}-CHARA-${idx+1}`;
+      img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
+      cell.appendChild(img);
+
+      const don = document.createElement('span');
+      don.className = 'don-label';
+      don.id = `${player.toLowerCase()}-chara-${idx+1}-don-label`; // 例: a-chara-1-don-label
+      don.textContent = 'ドン×0';
+      cell.appendChild(don);
+
+      return true;
+    }
+
+    // 汎用：配列から該当srcを1件だけ削除
+    function removeOne(list, src){
+      const i = list.indexOf(src);
+      if (i >= 0) list.splice(i, 1);
+    }
+
+    // エリア配列の参照マップ
+    const areaLists = { deck: deckImages, hand: handImages, life: lifeImages, trash: trashImages };
+
+    // サムネ用メニュー
+    thumbMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+
+      const action = btn.dataset.action;
+      const src = thumbMenu.dataset.src || '';
+      const { area, player } = thumbsContext || {};
+      if (!src || !area || !player) { hideThumbMenu(); return; }
+
+      const doRemoveThumb = () => {
+        if (lastRightClickedThumb && lastRightClickedThumb.isConnected) lastRightClickedThumb.remove();
+      };
+
+      if (action === 'to-chara') {
+        // 既存：キャラへ
+        const ok = placeInChara(player, src);
+        if (!ok) { hideThumbMenu(); return; }
+        removeFromArea(player, area, src);
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+        hideThumbMenu();
+        return;
+      }
+
+      if (action === 'to-hand') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'hand', src);
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-life-top') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'life', src, 'top');      // ★先頭
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-life-bottom') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'life', src, 'bottom');   // ★末尾
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-trash') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'trash', src);
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-deck-top') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'deck', src, 'top');
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-deck-bottom') {
+        removeFromArea(player, area, src);
+        addToArea(player, 'deck', src, 'bottom');
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      } else if (action === 'to-stage') {
+        const ok = placeInStage(player, src);
+        if (!ok) { hideThumbMenu(); return; }
+        removeFromArea(player, area, src);
+        doRemoveThumb();
+        refreshIfOpen(area, player);
+      }
+
+      hideThumbMenu();
+    });
+
+    // Fisher–Yates シャッフル
+    function shuffleInPlace(arr){
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+
+    /* ==== リーダー／キャラ用メニュー ==== */
+    const pieceMenu = document.getElementById('piece-menu');
+
+    function showPieceMenu(e, ctx = {}) {
+      e.preventDefault();
+      // 他メニューは閉じる
+      if (typeof hideDeckMenu === 'function')  hideDeckMenu();
+      if (typeof hideThumbMenu === 'function') hideThumbMenu();
+
+      // 文脈を保持（後で処理追加する想定）
+      pieceMenu.dataset.player = ctx.player || '';
+      pieceMenu.dataset.area   = ctx.area   || ''; // "leader" | "chara"
+      pieceMenu.dataset.slot   = ctx.slot != null ? String(ctx.slot) : '';
+
+      pieceMenu.style.display = 'block';
+      pieceMenu.setAttribute('aria-hidden', 'false');
+
+      // 位置（はみ出し防止）
+      let x = e.clientX, y = e.clientY;
+      const w = pieceMenu.offsetWidth, h = pieceMenu.offsetHeight, pad = 8;
+      if (x + w + pad > window.innerWidth)  x = window.innerWidth  - w - pad;
+      if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
+      pieceMenu.style.left = `${x}px`;
+      pieceMenu.style.top  = `${y}px`;
+
+      // 既存の位置計算・表示の直後に追加
+      const restBtn = pieceMenu.querySelector('button[data-action="rest"], button[data-action="active"]');
+      if (restBtn){
+        const player = pieceMenu.dataset.player;
+        const area   = pieceMenu.dataset.area;
+        const slot   = Number(pieceMenu.dataset.slot || 0);
+        const cell   = getPieceCell(player, area, slot);
+        const resting = isRest(cell);
+        restBtn.dataset.action = resting ? 'active' : 'rest';
+        restBtn.textContent    = resting ? 'アクティブ' : 'レスト';
+      }
+
+      const isStage = pieceMenu.dataset.area === 'stage';
+      const donPlus  = pieceMenu.querySelector('button[data-action="don-plus"]');
+      const donMinus = pieceMenu.querySelector('button[data-action="don-minus"]');
+      if (donPlus)  donPlus.style.display  = isStage ? 'none' : 'block';
+      if (donMinus) donMinus.style.display = isStage ? 'none' : 'block';
+
+      // リーダーから開いたときは「移動する」を隠す（他エリアでは表示）
+      const moveBtn = pieceMenu.querySelector('button[data-action="move"]');
+      if (moveBtn) moveBtn.style.display = (pieceMenu.dataset.area === 'leader') ? 'none' : 'block';
+
+      wirePieceMoveHover();
+    }
+
+    function hidePieceMenu(){
+      pieceMenu.style.display = 'none';
+      pieceMenu.setAttribute('aria-hidden', 'true');
+      delete pieceMenu.dataset.player;
+      delete pieceMenu.dataset.area;
+      delete pieceMenu.dataset.slot;
+
+      hidePieceSubMenu();
+    }
+
+    // リーダー画像（A/B）右クリック
+    document.querySelectorAll('img[src$="leader.png"]').forEach(img => {
+      img.addEventListener('contextmenu', (e) => {
+        const alt = img.alt || '';
+        const player = alt.startsWith('A-') ? 'A' : alt.startsWith('B-') ? 'B' : '';
+        showPieceMenu(e, { player, area: 'leader' });
+      });
+    });
+
+    // キャラエリア画像 右クリック（動的生成対応）
+    document.addEventListener('contextmenu', (e) => {
+      const charaImg = e.target.closest(
+        '#a-chara-1 img, #a-chara-2 img, #a-chara-3 img, #a-chara-4 img, #a-chara-5 img,' +
+        '#b-chara-1 img, #b-chara-2 img, #b-chara-3 img, #b-chara-4 img, #b-chara-5 img'
+      );
+      if (!charaImg) return;
+      const cell = charaImg.parentElement;
+      const m = cell.id.match(/^([ab])-chara-(\d)$/i);
+      if (!m) return;
+      const player = m[1].toUpperCase(); // 'A' | 'B'
+      const slot   = parseInt(m[2], 10); // 1..5
+      showPieceMenu(e, { player, area: 'chara', slot });
+    });
+
+    // 外側クリックで閉じる
+    document.addEventListener('click', (e) => {
+      if (!pieceMenu.contains(e.target)) hidePieceMenu();
+      if (!pieceSubMenu.contains(e.target)) hidePieceSubMenu();
+    });
+
+    /* ==== piece-submenu：thumb-menuを流用 ==== */
+    const pieceSubMenu = document.getElementById('piece-submenu');
+    // サムネメニューの項目をそのまま使い回す
+    pieceSubMenu.innerHTML = document.getElementById('thumb-menu').innerHTML;
+
+    // 置き換え：piece-submenu の表示位置を「右 → 右がはみ出すなら左」に自動切替
+    function showPieceSubMenu(nextToBtn){
+      const btnRect  = nextToBtn.getBoundingClientRect();
+      const menuRect = pieceMenu.getBoundingClientRect();
+      const pad = 8;
+
+      pieceSubMenu.style.display = 'block';
+      pieceSubMenu.setAttribute('aria-hidden','false');
+
+      // ★サブメニューの表示制御：元エリアに応じて非表示
+      const area = pieceMenu.dataset.area; // 'leader' | 'chara' | 'stage' | ...
+      const toCharaBtn = pieceSubMenu.querySelector('button[data-action="to-chara"]');
+      const toStageBtn = pieceSubMenu.querySelector('button[data-action="to-stage"]');
+
+      // キャラ／ステージから開いたとき → To：キャラエリア／To：ステージエリア を隠す
+      if (area === 'chara' || area === 'stage') {
+        if (toCharaBtn) toCharaBtn.style.display = 'none';
+        if (toStageBtn) toStageBtn.style.display = 'none';
+      }
+      // それ以外（リーダー等）は表示
+      else {
+        if (toCharaBtn) toCharaBtn.style.display = 'block';
+        if (toStageBtn) toStageBtn.style.display = 'block';
+      }
+
+      const subW = pieceSubMenu.offsetWidth;
+      const subH = pieceSubMenu.offsetHeight;
+
+      // デフォルトは右側
+      let left = menuRect.right + pad;
+      let top  = btnRect.top;
+
+      // 右側にはみ出すなら、左側へ反転
+      if (left + subW + pad > window.innerWidth) {
+        left = menuRect.left - pad - subW;
+      }
+
+      // 画面外対策（左右・上下のクランプ）
+      if (left < 8) left = 8;
+      if (top + subH + pad > window.innerHeight) top = Math.max(8, window.innerHeight - subH - pad);
+      if (top < 8) top = 8;
+
+      pieceSubMenu.style.left = `${left}px`;
+      pieceSubMenu.style.top  = `${top}px`;
+    }
+    function hidePieceSubMenu(){
+      pieceSubMenu.style.display = 'none';
+      pieceSubMenu.setAttribute('aria-hidden','true');
+    }
+
+    // 「移動」以外の項目にホバーが移ったら、右側のサブメニューを閉じる
+    pieceMenu.addEventListener('mouseover', (e) => {
+      const btn = e.target.closest('button[role="menuitem"]');
+      if (!btn) return;
+      if (btn.dataset.action !== 'move') {
+        hidePieceSubMenu();
+      }
+    });
+
+    /* ホバーでの開閉（メニュー↔サブメニュー間の移動で閉じないように） */
+    // 既存の overPiece / overSub を利用し、タイマーで遅延クローズ
+    let overPiece = false, overSub = false;
+    let subHideTimer = null;
+
+    function clearSubTimer(){ if (subHideTimer) { clearTimeout(subHideTimer); subHideTimer = null; } }
+    function scheduleHideMenus(){
+      clearSubTimer();
+      subHideTimer = setTimeout(() => {
+        // どちらにもカーソルが無いときだけ閉じる
+        if (!overPiece && !overSub) {
+          hidePieceSubMenu();
+          hidePieceMenu();
+        }
+      }, 200); // ← ブリッジ用の猶予（必要なら調整）
+    }
+    function scheduleHideSub(){
+      clearSubTimer();
+      subHideTimer = setTimeout(() => {
+        // どちらにもカーソルが無いときだけサブメニューだけ閉じる
+        if (!overPiece && !overSub) hidePieceSubMenu();
+      }, 200); // 橋渡しの猶予（必要なら調整）
+    }
+
+    pieceMenu.addEventListener('mouseenter', () => { overPiece = true;  clearSubTimer(); });
+    pieceMenu.addEventListener('mouseleave', () => { overPiece = false; scheduleHideSub(); });
+
+    pieceSubMenu.addEventListener('mouseenter', () => { overSub = true;  clearSubTimer(); });
+    pieceSubMenu.addEventListener('mouseleave', () => { overSub = false; scheduleHideSub(); });
+
+    /* pieceMenuを開いた直後に「移動」ボタンのホバーでサブメニュー表示 */
+    function wirePieceMoveHover(){
+      const moveBtn = pieceMenu.querySelector('button[data-action="move"]');
+      if (!moveBtn) return;
+      moveBtn.addEventListener('mouseenter', () => showPieceSubMenu(moveBtn), { once:false });
+    }
+
+    // 対象セルを取得（leader or chara slot）
+    function getPieceCell(player, area, slot){
+      if (area === 'leader'){
+        const img = document.querySelector(`img[alt="${player}-LEADER"]`);
+        return img?.parentElement || null;
+      }
+      if (area === 'chara'){
+        return document.getElementById(`${player.toLowerCase()}-chara-${slot}`);
+      }
+      if (area === 'stage'){
+        return document.getElementById(stageSlots[player]);
+      }
+      return null;
+    }
+    function isRest(cell){
+      return !!cell?.querySelector('.rest-overlay');
+    }
+    function setRestState(cell, on){
+      if (!cell) return;
+      const ov = cell.querySelector('.rest-overlay');
+      const bd = cell.querySelector('.rest-badge');
+      if (on){
+        if (!ov){
+          const o = document.createElement('div');
+          o.className = 'rest-overlay';
+          cell.appendChild(o);
+        }
+        if (!bd){
+          const b = document.createElement('span');
+          b.className = 'rest-badge';
+          b.textContent = 'レスト';
+          cell.appendChild(b);
+        }
+      }else{
+        ov && ov.remove();
+        bd && bd.remove();
+      }
+    }
+
+    pieceMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[role="menuitem"]');
+      if (!btn) return;
+
+      const action = btn.dataset.action;
+      const player = pieceMenu.dataset.player;
+      const area   = pieceMenu.dataset.area;
+      const slot   = Number(pieceMenu.dataset.slot || 0);
+      const cell   = getPieceCell(player, area, slot);
+      if (!cell) return;
+
+      if (action === 'rest'){
+        setRestState(cell, true);
+        btn.dataset.action = 'active';
+        btn.textContent    = 'アクティブ';
+        // ★押下時に右クリメニューを閉じる
+        hidePieceSubMenu();
+        hidePieceMenu();
+        return;
+      } else if (action === 'active'){
+        setRestState(cell, false);
+        btn.dataset.action = 'rest';
+        btn.textContent    = 'レスト';
+        // ★押下時に右クリメニューを閉じる
+        hidePieceSubMenu();
+        hidePieceMenu();
+        return;
+      } else if (action === 'don-plus' || action === 'don-minus'){
+        const delta = (action === 'don-plus') ? 1 : -1;
+        const next  = getDonCount(cell) + delta;
+        setDonCount(cell, next); // 0〜10にクランプされる
+      }
+    });
+
+    // ドン×n ラベル取得/更新（なければ作る）
+    function getDonLabelInCell(cell){
+      return cell?.querySelector('.don-label') || null;
+    }
+    function getDonCount(cell){
+      const lab = getDonLabelInCell(cell);
+      const m = lab?.textContent.match(/(\d+)/);
+      return m ? parseInt(m[1], 10) : 0;
+    }
+    function setDonCount(cell, n){
+      if (!cell) return;
+      const clamped = Math.min(10, Math.max(0, Number(n) || 0));
+      let lab = getDonLabelInCell(cell);
+      if (!lab){
+        lab = document.createElement('span');
+        lab.className = 'don-label';
+        cell.appendChild(lab);
+      }
+      lab.textContent = `ドン×${clamped}`;
+    }
+
+    document.getElementById('a-life').addEventListener('contextmenu', (e) => showDeckMenu(e, 'A', 'life'));
+    document.getElementById('b-life').addEventListener('contextmenu', (e) => showDeckMenu(e, 'B', 'life'));
+
+    function lifeToHand(player){
+      const stack = lifeImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      handImages[player].unshift(top); // ★先頭
+
+      lifeCounts[player] = Math.max(0, lifeCounts[player] - 1);
+      handCounts[player] = (handCounts[player] || 0) + 1;
+      renderCounts();
+    }
+
+    function lifeToTrash(player){
+      const stack = lifeImages[player];
+      if (!stack || stack.length === 0) return;
+      const top = stack.shift();
+      trashImages[player].unshift(top); // ★先頭
+
+      lifeCounts[player]  = Math.max(0, lifeCounts[player] - 1);
+      trashCounts[player] = (trashCounts[player] || 0) + 1;
+      renderCounts();
+      updateTrashFace(player);
+    }
+
+    // ===== STAGE（各陣営1枠） =====
+    const stageImage = { A: null, B: null };
+    const stageSlots = { A: 'a-stage', B: 'b-stage' };
+
+    function placeInStage(player, src){
+      const cell = document.getElementById(stageSlots[player]);
+      if (!cell) return false;
+      if (stageImage[player]) {
+        alert('ステージエリアが埋まっています。');
+        return false;
+      }
+      stageImage[player] = src;
+      cell.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = `${player}-STAGE`;
+      img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
+      cell.appendChild(img);
+      return true;
+    }
+
+    function removeFromArea(player, area, src){
+      const list = areaLists[area]?.[player];
+      if (Array.isArray(list)) removeOne(list, src);
+      if (area === 'deck')  deckCounts[player]  = Math.max(0, deckCounts[player]  - 1);
+      if (area === 'hand')  handCounts[player]  = Math.max(0, handCounts[player]  - 1);
+      if (area === 'life')  lifeCounts[player]  = Math.max(0, lifeCounts[player]  - 1);
+      if (area === 'trash') trashCounts[player] = Math.max(0, trashCounts[player] - 1);
+      renderCounts();
+      if (area === 'trash') updateTrashFace(player);
+    }
+    function addToArea(player, area, src, pos='bottom'){
+      const list = areaLists[area]?.[player];
+      if (!Array.isArray(list)) return;
+
+      if (area === 'deck'){
+        if (pos === 'top') list.unshift(src); else list.push(src);
+        deckCounts[player] = (deckCounts[player] || 0) + 1;
+      } else if (area === 'life'){
+        if (pos === 'top') list.unshift(src); else list.push(src);
+        lifeCounts[player] = (lifeCounts[player] || 0) + 1;
+      } else {
+        // ★hand / trash は常に先頭へ
+        list.unshift(src);
+        if (area === 'hand')  handCounts[player]  = (handCounts[player]  || 0) + 1;
+        if (area === 'trash') trashCounts[player] = (trashCounts[player] || 0) + 1;
+      }
+      renderCounts();
+      if (area === 'trash') updateTrashFace(player);
+    }
+    function refreshIfOpen(area, player){
+      if (backdrop.style.display !== 'flex') return;
+      if (thumbsContext.player !== player || thumbsContext.area !== area) return;
+      const titleMap = { deck:'デッキ', hand:'手札', life:'ライフ', trash:'トラッシュ' };
+      openGalleryFromList(`${player} ${titleMap[area]}`, areaLists[area][player]);
+    }
+
+    pieceSubMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[role="menuitem"]');
+      if (!btn) return;
+
+      const action = btn.dataset.action;
+      const player = pieceMenu.dataset.player;
+      const srcCellArea = pieceMenu.dataset.area; // 'leader' | 'chara' | 'stage' ← ★stageが来る
+      const slot = Number(pieceMenu.dataset.slot || 0);
+      const cell = getPieceCell(player, srcCellArea, slot);
+      const imgEl = cell?.querySelector('img');
+      if (!player || !cell || !imgEl) { hidePieceSubMenu(); return; }
+
+      const src = imgEl.getAttribute('src');
+
+      // まず元のピースを空にする
+      if (srcCellArea === 'chara') {
+        const m = cell.id.match(/^([ab])-chara-(\d)$/i);
+        if (m) { const idx = parseInt(m[2], 10) - 1; charaImages[player][idx] = null; }
+        cell.innerHTML = 'CHARACTER';
+      } else if (srcCellArea === 'leader') {
+        imgEl.remove(); // ラベル等は残す
+      } else if (srcCellArea === 'stage') { // ★追加
+        stageImage[player] = null;
+        cell.innerHTML = `${player}-STAGE`;
+      }
+
+      // 目的地へ投入
+      if (action === 'to-hand') {
+        addToArea(player, 'hand', src);
+        refreshIfOpen('hand', player);
+      } else if (action === 'to-life-top') {
+        addToArea(player, 'life', src, 'top');      // ★先頭
+        refreshIfOpen('life', player);
+      } else if (action === 'to-life-bottom') {
+        addToArea(player, 'life', src, 'bottom');   // ★末尾
+        refreshIfOpen('life', player);
+      } else if (action === 'to-trash') {
+        addToArea(player, 'trash', src);
+        refreshIfOpen('trash', player);
+      } else if (action === 'to-deck-top') {
+        addToArea(player, 'deck', src, 'top');
+        refreshIfOpen('deck', player);
+      } else if (action === 'to-deck-bottom') {
+        addToArea(player, 'deck', src, 'bottom');
+        refreshIfOpen('deck', player);
+      } else if (action === 'to-stage') {
+        if (!placeInStage(player, src)) {
+          // 置けなかった場合は元へ戻す
+          if (srcCellArea === 'chara') {
+            placeInChara(player, src);
+          } else if (srcCellArea === 'leader') {
+            const img = document.createElement('img');
+            img.src = src; img.alt = `${player}-LEADER`;
+            img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
+            cell.insertBefore(img, cell.firstChild);
+          }
+        }
+      } else if (action === 'to-chara') {
+        // リーダー／どこからでも空きのキャラ枠へ
+        placeInChara(player, src);
+      }
+
+      hidePieceSubMenu();
+      hidePieceMenu();
+    });
+
+    // ステージ画像 右クリック（動的生成対応）
+    document.addEventListener('contextmenu', (e) => {
+      const stageImg = e.target.closest('#a-stage img, #b-stage img');
+      if (!stageImg) return;
+      const cell = stageImg.closest('#a-stage, #b-stage');
+      const player = cell.id.startsWith('a-') ? 'A' : 'B';
+      showPieceMenu(e, { player, area: 'stage' }); // ★area=stage
+    });
+
+    /* ==== メニュー（A/BのMENUカード）右クリック用 ==== */
+    const mainMenu = document.getElementById('main-menu');
+
+    function showMainMenu(e, player){
+      e.preventDefault();
+      // 他メニューは閉じる
+      if (typeof hideThumbMenu === 'function') hideThumbMenu();
+      if (typeof hideDeckMenu  === 'function') hideDeckMenu();
+      if (typeof hidePieceMenu === 'function') hidePieceMenu();
+      if (typeof hidePieceSubMenu === 'function') hidePieceSubMenu();
+
+      mainMenu.dataset.player = player || '';
+      mainMenu.style.display = 'block';
+      mainMenu.setAttribute('aria-hidden', 'false');
+
+      // 位置（はみ出し防止）
+      let x = e.clientX, y = e.clientY;
+      const w = mainMenu.offsetWidth, h = mainMenu.offsetHeight, pad = 8;
+      if (x + w + pad > window.innerWidth)  x = window.innerWidth  - w - pad;
+      if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
+      mainMenu.style.left = `${x}px`;
+      mainMenu.style.top  = `${y}px`;
+    }
+    function hideMainMenu(){
+      mainMenu.style.display = 'none';
+      mainMenu.setAttribute('aria-hidden', 'true');
+      delete mainMenu.dataset.player;
+    }
+
+    // MENU画像（A/B）右クリックで開く
+    document.querySelectorAll('img[src$="menu.png"]').forEach(img => {
+      img.addEventListener('contextmenu', (e) => {
+        const alt = img.alt || '';
+        const player = alt.startsWith('A-') ? 'A' : alt.startsWith('B-') ? 'B' : '';
+        showMainMenu(e, player);
+      });
+    });
+
+    // クリック処理：リフレッシュ/マリガン/ルール確認
+    mainMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[role="menuitem"]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const player = mainMenu.dataset.player;
+
+      if (action === 'refresh' && player) {
+        hideMainMenu();
+        requestAnimationFrame(() => {
+          if (confirm('ターンを開始しますか？')) {
+            refreshPlayer(player);
+          }
+        })
+      } else if (action === 'mulligan' && player) {
+        hideMainMenu();
+        requestAnimationFrame(() => {
+          if (confirm('マリガンを行いますか？')) mulliganPlayer(player);
+        });
+      } else if (action === 'rules') {
+        hideMainMenu();           // 先に閉じてから
+        requestAnimationFrame(openRules); // 次フレームでPDFモーダルを開く
+      } else {
+        hideMainMenu();
+      }
+    });
+
+    // 外側クリック/スクロール/リサイズ/ESCで閉じる
+    document.addEventListener('click', (e) => { if (!mainMenu.contains(e.target)) hideMainMenu(); });
+    window.addEventListener('scroll', hideMainMenu, true);
+    window.addEventListener('resize', hideMainMenu);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideMainMenu(); });
+
+    // ★メニュー「リフレッシュ」：盤面を初期化（指定プレイヤーのみ）
+    function refreshPlayer(player){
+      // 1) リーダー／キャラのレスト解除
+      const leaderCell = getPieceCell(player, 'leader');
+      setRestState(leaderCell, false);
+      setDonCount(leaderCell, 0);
+
+      // 1-a) ステージのレスト解除 ★追加
+      const stageCell = getPieceCell(player, 'stage');
+      setRestState(stageCell, false);
+
+      for (let i = 1; i <= 5; i++){
+        const cell = getPieceCell(player, 'chara', i);
+        if (!cell) continue;
+        setRestState(cell, false);
+        // 2) キャラのドン×n を 0に（カードがあるセルのみ）
+        if (cell.querySelector('img')) setDonCount(cell, 0);
+      }
+
+      // 3) ドンレスト を 0 に
+      donRestCounts[player] = 0;
+
+      // 4) ドンアクティブ = 10 - (ドンデッキ)
+      const deckN = Number(donDeckCounts[player]) || 0;
+      donActCounts[player] = Math.max(0, Math.min(10, 10 - deckN));
+
+      renderCounts();
+
+      // ▼ 既存のリフレッシュ処理が完了した後の追加処理
+      // ・ドンデッキ×n に -2（残が少ない場合はあるだけ）
+      // ・アクティブ×n に +2（上限10、ドンデッキから動かした分だけ加算）
+      {
+        const move = Math.min(2, donDeckCounts[player]);         // 実際に動かせる数
+        donDeckCounts[player] = Math.max(0, donDeckCounts[player] - move);
+        donActCounts[player]  = Math.min(10, donActCounts[player] + move);
+      }
+
+      // ・デッキの一番上のカードを手札へ
+      drawToHand(player);  // ※内部で deck/hand のカウント更新と renderCounts() を実行
+    }
+
+    // ★マリガン：手札をすべてデッキに戻してシャッフル→上から5枚引く
+    function mulliganPlayer(player){
+      const deck = deckImages[player];
+      const hand = handImages[player];
+
+      // 手札→デッキ（戻す順は不問：この後シャッフル）
+      if (hand.length > 0) {
+        deck.push(...hand);
+        hand.length = 0;
+      }
+      // カウンタ一旦反映
+      deckCounts[player] = deck.length;
+      handCounts[player] = 0;
+
+      // デッキをシャッフル
+      shuffleInPlace(deck);
+
+      // 上から5枚（残枚数が少なければ取れるだけ）を手札へ
+      const drawN = Math.min(5, deck.length);
+      for (let i = 0; i < drawN; i++) {
+        hand.unshift(deck.shift()); // ★先頭に積む
+      }
+
+      // カウンタ反映
+      deckCounts[player] = deck.length;
+      handCounts[player] = hand.length;
+      renderCounts();
+
+      // 一覧を開いていたら更新
+      refreshIfOpen('deck', player);
+      refreshIfOpen('hand', player);
+    }
+
+    /* ==== ルールPDF表示 ==== */
+    const rulesBackdrop = document.getElementById('rules-backdrop');
+    const rulesEmbed    = document.getElementById('rules-embed');
+
+    function openRules(){
+      // src をセットして開く（先にメニューは閉じておくこと）
+      rulesEmbed.src = 'component_images/rules/rule_manual.pdf';
+      rulesBackdrop.style.display = 'flex';
+      rulesBackdrop.setAttribute('aria-hidden', 'false');
+    }
+    function hideRules(){
+      rulesBackdrop.style.display = 'none';
+      rulesBackdrop.setAttribute('aria-hidden', 'true');
+      rulesEmbed.src = ''; // 閉じるときに解放
+    }
+    rulesBackdrop.addEventListener('click', (e) => { if (e.target === rulesBackdrop) hideRules(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideRules(); });
+
+    // ★ 表向き保持：デッキ/ライフ一覧で表にしたカードを、一覧を閉じるまで記録
+    const revealedFaces = {}; // 例: { 'deck-A': Set<src>, 'life-B': Set<src> }
+    function galleryKey(){
+      if (!thumbsContext || !thumbsContext.area || !thumbsContext.player) return null;
+      const { area, player } = thumbsContext;
+      if (area !== 'deck' && area !== 'life') return null;
+      return `${area}-${player}`;
+    }
+
+    // ★トラッシュ表示：空→非表示、1枚以上→最上段（配列先頭）を表示
+    function updateTrashFace(player){
+      const imgEl = document.getElementById(player === 'A' ? 'a-trash' : 'b-trash');
+      const phEl  = document.getElementById(player === 'A' ? 'a-trash-ph' : 'b-trash-ph'); // ★追加
+      if (!imgEl) return;
+      const arr = trashImages[player];
+
+      if (arr && arr.length > 0){
+        imgEl.src = arr[0];       // 一覧の一番上（先頭）を表示
+        imgEl.style.display = '';
+        if (phEl) phEl.style.display = 'none';   // ★文字を隠す
+      } else {
+        imgEl.removeAttribute('src');
+        imgEl.style.display = 'none';
+        if (phEl) phEl.style.display = '';       // ★文字を表示
+      }
+    }
+
+    // 画像やリンク等のデフォルトのドラッグ開始を全体でキャンセル
+    document.addEventListener('dragstart', (e) => e.preventDefault(), true);
+
+    // 念のため：文字選択の開始もイベント側で抑止（CSSが効かないケースの保険）
+    document.addEventListener('selectstart', (e) => e.preventDefault(), true);
+  </script>
+</body>
+</html>
