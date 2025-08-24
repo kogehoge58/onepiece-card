@@ -771,12 +771,15 @@
           }
         }
       } else if (zone === 'life') {
-        if (action === 'hand-plus')      { lifeToHand(player); }
+        if (action === 'hand-plus')      { emitAction({ type: 'LIFE_TO_HAND',  player }); }
         else if (action === 'life-plus') { drawToLife(player); }     // DECK→LIFE (+1)
-        else if (action === 'trash-plus'){ lifeToTrash(player); }    // LIFE→TRASH
+        else if (action === 'trash-plus'){ emitAction({ type: 'LIFE_TO_TRASH', player }); }
         else if (action === 'shuffle')   {
           hideDeckMenu();
-          if (confirm('シャッフルしますか？')) shuffleInPlace(lifeImages[player]); // LIFE内シャッフル
+          if (confirm('シャッフルしますか？')) {
+            const seed = (Date.now() ^ Math.floor(Math.random()*1e9)) >>> 0;
+            emitAction({ type: 'LIFE_SHUFFLE', player, seed });
+          }
         }
       }
     });
@@ -1754,6 +1757,9 @@
         case 'DECK_TO_TRASH':      if (typeof moveTopToTrash   === 'function') moveTopToTrash(a.player); break;
         // TODO: 必要に応じてここへ同期対象イベントを追加
         case 'DECK_SHUFFLE':       if (typeof shuffleWithSeed  === 'function') shuffleWithSeed(deckImages[a.player], a.seed ?? 0); break;
+        case 'LIFE_TO_HAND':       if (typeof lifeToHand       === 'function') lifeToHand(a.player); break;
+        case 'LIFE_TO_TRASH':      if (typeof lifeToTrash      === 'function') lifeToTrash(a.player); break;
+        case 'LIFE_SHUFFLE':       if (typeof shuffleWithSeed  === 'function') shuffleWithSeed(lifeImages[a.player], a.seed ?? 0); break;
       }
     });
 

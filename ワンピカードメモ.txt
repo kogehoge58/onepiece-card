@@ -8,5 +8,10 @@ To：デッキ（下）
 To：キャラエリア
 To：ステージエリア
 
+# 例）プレイヤー
+# http://localhost:3000/?room=table-1&name=A
+# http://localhost:3000/?room=table-1&name=B
+# 例）観戦
+# http://localhost:3000/?room=table-1&name=C&role=spec
+
 ■TODO
-・レストボタンは押下でメニュー非表示
