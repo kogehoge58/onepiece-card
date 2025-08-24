@@ -815,9 +815,9 @@
           }
         }
       } else if (zone === 'life') {
-        if (action === 'hand-plus')      { emitAction({ type: 'LIFE_TO_HAND',  player }); }
-        else if (action === 'life-plus') { drawToLife(player); }     // DECK→LIFE (+1)
-        else if (action === 'trash-plus'){ emitAction({ type: 'LIFE_TO_TRASH', player }); }
+        if (action === 'hand-plus')      { hideDeckMenu(); emitAction({ type: 'LIFE_TO_HAND',  player }); return; }
+        else if (action === 'life-plus') { drawToLife(player); }     // ※要望外なのでそのまま
+        else if (action === 'trash-plus'){ hideDeckMenu(); emitAction({ type: 'LIFE_TO_TRASH', player }); return; }
         else if (action === 'shuffle')   {
           hideDeckMenu();
           if (confirm('シャッフルしますか？')) {
