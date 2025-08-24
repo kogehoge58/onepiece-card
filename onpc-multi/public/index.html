@@ -553,27 +553,25 @@
       if (showReveal){
         revealAllBtn.onclick = () => {
           const key = galleryKey();
-          if (key){
-            if (!revealedFaces[key]) revealedFaces[key] = new Set();
-            // そのプレイヤーの該当リストを全部「公開済み」に
-            const listArr = areaLists[area][player] || [];
-            listArr.forEach(src => revealedFaces[key].add(src));
+          if (!key) return;
+          // ★ ライフ一覧は同期アクションに切替（デッキは従来のローカルのまま）
+          if (key.startsWith('life-')) {
+            const player = thumbsContext?.player;
+            emitAction({ type: 'LIFE_REVEAL_ALL', player });
+            return; // 受信側でUI反映
           }
-          // 画面上のサムネを即時表向きに更新
-          thumbs.querySelectorAll('img').forEach(img => {
-            if (img.dataset.src) img.src = img.dataset.src;
-            // ライフは「裏向きにする」ボタンを付ける
-            if (area === 'life'){
-              const wrap = img.closest('.thumb-wrap');
-              if (wrap && !wrap.querySelector('.thumb-flip')){
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'thumb-flip';
-                btn.textContent = '裏向き';
-                wrap.appendChild(btn);
-              }
-            }
-          });
+          // （デッキは従来処理）
+          const kset = (revealedFaces[key] ||= new Set());
+          kset.clear();
+          if (key.startsWith('deck-')) {
+            const player = thumbsContext?.player;
+            const list = deckImages[player] || [];
+            list.forEach(src => kset.add(src));
+            thumbs.querySelectorAll('img.thumb').forEach(img => {
+              const real = img.dataset.src;
+              if (real) { img.src = real; img.removeAttribute('data-src'); }
+            });
+          }
         };
       }
 
@@ -804,21 +802,17 @@
 
     /* ギャラリー内のサムネ（image (1)～(50)）クリックで拡大 */
     document.getElementById('thumbs').addEventListener('click', (e) => {
-      // ★「裏向き」ボタン
+      // ★「裏向き」ボタン（ライフだけ同期）
       const flipBtn = e.target.closest('.thumb-flip');
       if (flipBtn) {
         const wrap = flipBtn.closest('.thumb-wrap');
         const img  = wrap?.querySelector('img');
         const key  = galleryKey();
         if (img && key && key.startsWith('life-') && img.dataset.src) {
-          // 露出状態から除外 → 見た目を back.png へ
-          revealedFaces[key]?.delete(img.dataset.src);
-          img.src = 'component_images/back.png';
-          // ボタンは不要になるので外す
-          flipBtn.remove();
+          const player = thumbsContext?.player;
+          emitAction({ type: 'LIFE_HIDE_ONE', player, src: img.dataset.src }); // ★同期送信
         }
-        e.stopPropagation();
-        e.preventDefault();
+        e.stopPropagation(); e.preventDefault();
         return;
       }
 
@@ -827,24 +821,23 @@
       if (!img) return;
       const isDeckOrLife = (thumbsContext?.area === 'deck' || thumbsContext?.area === 'life');
       const isBackImage  = img.src.includes('component_images/back.png');
+
       if (isDeckOrLife && isBackImage) {
         const key = galleryKey();
+
+        // ★ライフは同期送信に変更
+        if (key?.startsWith('life-') && img.dataset.src) {
+          const player = thumbsContext?.player;
+          emitAction({ type: 'LIFE_REVEAL_ONE', player, src: img.dataset.src }); // ★同期送信
+          return; // UI反映は受信側で
+        }
+
+        // ★デッキは従来のローカル処理のまま
         if (key) {
           if (!revealedFaces[key]) revealedFaces[key] = new Set();
           if (img.dataset.src) {
             revealedFaces[key].add(img.dataset.src);
             img.src = img.dataset.src;
-            // ★ライフで表になったらボタンを付ける
-            if (key.startsWith('life-')) {
-              const wrap = img.closest('.thumb-wrap');
-              if (wrap && !wrap.querySelector('.thumb-flip')) {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'thumb-flip';
-                btn.textContent = '裏向き';
-                wrap.appendChild(btn);
-              }
-            }
           }
         }
         return;
@@ -1739,6 +1732,37 @@
       return window.__CLIENT_ID;
     }
 
+    // ★★★ ライフ表向き同期 受信適用 ★★★
+    function applyLifeRevealAll(a){
+      const player = a?.player; if (!player) return;
+      const key = `life-${player}`;
+      const list = lifeImages[player] || [];
+      revealedFaces[key] = new Set(list);      // 全部表
+      if (thumbsContext?.area === 'life' && thumbsContext?.player === player) {
+        refreshIfOpen('life', player);
+      }
+    }
+
+    function applyLifeRevealOne(a){
+      const { player, src } = a || {};
+      if (!player || !src) return;
+      const key = `life-${player}`;
+      (revealedFaces[key] ||= new Set()).add(src);
+      if (thumbsContext?.area === 'life' && thumbsContext?.player === player) {
+        refreshIfOpen('life', player);
+      }
+    }
+
+    function applyLifeHideOne(a){
+      const { player, src } = a || {};
+      if (!player || !src) return;
+      const key = `life-${player}`;
+      revealedFaces[key]?.delete(src);
+      if (thumbsContext?.area === 'life' && thumbsContext?.player === player) {
+        refreshIfOpen('life', player);
+      }
+    }
+
     // ====== socketの処理 ======
 
     // ====== 1) 接続（room/name/role=spec で観戦入室） ======
@@ -1770,19 +1794,22 @@
       window.__CURRENT_ACTOR = a?.actor || null;
 
       switch (a.type) {
-        case 'REFRESH':            if (typeof refreshPlayer    === 'function') refreshPlayer(a.player); break;
-        case 'DECK_TO_HAND':       if (typeof drawToHand       === 'function') drawToHand(a.player); break;
-        case 'DECK_TO_LIFE_TOP':   if (typeof drawToLifeTop    === 'function') drawToLifeTop(a.player); break;
-        case 'DECK_TO_TRASH':      if (typeof moveTopToTrash   === 'function') moveTopToTrash(a.player); break;
-        case 'DECK_SHUFFLE':       if (typeof shuffleWithSeed  === 'function') shuffleWithSeed(deckImages[a.player], a.seed ?? 0); break;
-        case 'LIFE_TO_HAND':       if (typeof lifeToHand       === 'function') lifeToHand(a.player); break;
-        case 'LIFE_TO_TRASH':      if (typeof lifeToTrash      === 'function') lifeToTrash(a.player); break;
-        case 'LIFE_SHUFFLE':       if (typeof shuffleWithSeed  === 'function') shuffleWithSeed(lifeImages[a.player], a.seed ?? 0); break;
-        case 'DON_SET':            if (typeof setCount         === 'function') setCount(a.scope, a.player, Math.min(10, Math.max(0, (a.value|0)))); break;
-        case 'PIECE_REST_SET':     if (typeof setRestState     === 'function') setRestState(getPieceCell(a.player, a.area, a.slot), !!a.on); break;
-        case 'PIECE_DON_SET':      if (typeof setDonCount      === 'function') setDonCount (getPieceCell(a.player, a.area, a.slot), a.value|0); break;
-        case 'LIST_MOVE':          if (typeof applyListMove    === 'function') applyListMove(a); break;
-        case 'PIECE_TO_LIST':     if (typeof applyPieceToList === 'function') applyPieceToList(a); break;
+        case 'REFRESH':            if (typeof refreshPlayer       === 'function') refreshPlayer(a.player); break;
+        case 'DECK_TO_HAND':       if (typeof drawToHand          === 'function') drawToHand(a.player); break;
+        case 'DECK_TO_LIFE_TOP':   if (typeof drawToLifeTop       === 'function') drawToLifeTop(a.player); break;
+        case 'DECK_TO_TRASH':      if (typeof moveTopToTrash      === 'function') moveTopToTrash(a.player); break;
+        case 'DECK_SHUFFLE':       if (typeof shuffleWithSeed     === 'function') shuffleWithSeed(deckImages[a.player], a.seed ?? 0); break;
+        case 'LIFE_TO_HAND':       if (typeof lifeToHand          === 'function') lifeToHand(a.player); break;
+        case 'LIFE_TO_TRASH':      if (typeof lifeToTrash         === 'function') lifeToTrash(a.player); break;
+        case 'LIFE_SHUFFLE':       if (typeof shuffleWithSeed     === 'function') shuffleWithSeed(lifeImages[a.player], a.seed ?? 0); break;
+        case 'DON_SET':            if (typeof setCount            === 'function') setCount(a.scope, a.player, Math.min(10, Math.max(0, (a.value|0)))); break;
+        case 'PIECE_REST_SET':     if (typeof setRestState        === 'function') setRestState(getPieceCell(a.player, a.area, a.slot), !!a.on); break;
+        case 'PIECE_DON_SET':      if (typeof setDonCount         === 'function') setDonCount (getPieceCell(a.player, a.area, a.slot), a.value|0); break;
+        case 'LIST_MOVE':          if (typeof applyListMove       === 'function') applyListMove(a); break;
+        case 'PIECE_TO_LIST':      if (typeof applyPieceToList    === 'function') applyPieceToList(a); break;
+        case 'LIFE_REVEAL_ALL':    if (typeof applyLifeRevealAll  === 'function') applyLifeRevealAll(a); break;
+        case 'LIFE_REVEAL_ONE':    if (typeof applyLifeRevealOne  === 'function') applyLifeRevealOne(a); break;
+        case 'LIFE_HIDE_ONE':      if (typeof applyLifeHideOne    === 'function') applyLifeHideOne(a); break;
       }
 
       window.__CURRENT_ACTOR = __prevActor;
