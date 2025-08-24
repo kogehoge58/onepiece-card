@@ -7,6 +7,9 @@ To：デッキ（下）
 To：キャラエリア
 To：ステージエリア
 
+
+node server.js
+
 # 例）プレイヤー
 # http://localhost:3000/?room=table-1&name=A
 # http://localhost:3000/?room=table-1&name=B
