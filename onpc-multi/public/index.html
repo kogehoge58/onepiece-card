@@ -207,7 +207,13 @@
     /* 画像のドラッグ（半透明ゴースト）を無効化 */
     img{
       -webkit-user-drag: none;
+      /* ★ホバー中だけ ふわっと拡大 */
+      transition: transform 180ms ease-in-out;
+      transform-origin: center center;
+      will-change: transform;
     }
+    /* ★ホバー中に拡大（全画像共通） */
+    img:hover { transform: scale(1.06); }
   </style>
 </head>
 <body>
