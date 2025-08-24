@@ -567,7 +567,7 @@
             const player = thumbsContext?.player;
             const list = deckImages[player] || [];
             list.forEach(src => kset.add(src));
-            thumbs.querySelectorAll('img.thumb').forEach(img => {
+            thumbs.querySelectorAll('img').forEach(img => {
               const real = img.dataset.src;
               if (real) { img.src = real; img.removeAttribute('data-src'); }
             });
