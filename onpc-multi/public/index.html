@@ -1395,57 +1395,54 @@
       openGalleryFromList(`${player} ${titleMap[area]}`, areaLists[area][player]);
     }
 
+    // ★★ 差し替え版：サーバー同期で実行（送信のみ、ローカルは何もしない）
     pieceSubMenu.addEventListener('click', (e) => {
       const btn = e.target.closest('button[role="menuitem"]');
       if (!btn) return;
 
-      const action = btn.dataset.action;
-      const player = pieceMenu.dataset.player;
-      const srcCellArea = pieceMenu.dataset.area; // 'leader' | 'chara' | 'stage' ← ★stageが来る
-      const slot = Number(pieceMenu.dataset.slot || 0);
-      const cell = getPieceCell(player, srcCellArea, slot);
-      const imgEl = cell?.querySelector('img');
+      const action      = btn.dataset.action;
+      const player      = pieceMenu.dataset.player;
+      const fromArea    = pieceMenu.dataset.area;                 // 'leader' | 'chara' | 'stage'
+      const fromSlot    = Number(pieceMenu.dataset.slot || 0);
+      const cell        = getPieceCell(player, fromArea, fromSlot);
+      const imgEl       = cell?.querySelector('img');
       if (!player || !cell || !imgEl) { hidePieceSubMenu(); return; }
 
-      const src = imgEl.getAttribute('src');
+      const src         = imgEl.getAttribute('src');
 
-      // まず元のピースを空にする
-      if (srcCellArea === 'chara') {
-        const m = cell.id.match(/^([ab])-chara-(\d)$/i);
-        if (m) { const idx = parseInt(m[2], 10) - 1; charaImages[player][idx] = null; }
-        cell.innerHTML = 'CHARACTER';
-      } else if (srcCellArea === 'leader') {
-        imgEl.remove(); // ラベル等は残す
-      } else if (srcCellArea === 'stage') { // ★追加
-        stageImage[player] = null;
-        cell.innerHTML = `${player}-STAGE`;
+      // ★ステージ/リーダー/キャラ → リスト系 6種だけを同期アクションに委譲
+      const toMap = {
+        'to-hand'        : { to:'hand' },
+        'to-trash'       : { to:'trash' },
+        'to-life-top'    : { to:'life', pos:'top' },
+        'to-life-bottom' : { to:'life', pos:'bottom' },
+        'to-deck-top'    : { to:'deck', pos:'top' },
+        'to-deck-bottom' : { to:'deck', pos:'bottom' },
+      };
+
+      const m = toMap[action];
+      if (m) {
+        emitAction({
+          type     : 'PIECE_TO_LIST',
+          player,
+          fromArea,
+          fromSlot,
+          to       : m.to,
+          pos      : m.pos || 'bottom',
+          src
+        });
+        hidePieceSubMenu();
+        hidePieceMenu();
+        return;
       }
 
-      // 目的地へ投入
-      if (action === 'to-hand') {
-        addToArea(player, 'hand', src);
-        refreshIfOpen('hand', player);
-      } else if (action === 'to-life-top') {
-        addToArea(player, 'life', src, 'top');      // ★先頭
-        refreshIfOpen('life', player);
-      } else if (action === 'to-life-bottom') {
-        addToArea(player, 'life', src, 'bottom');   // ★末尾
-        refreshIfOpen('life', player);
-      } else if (action === 'to-trash') {
-        addToArea(player, 'trash', src);
-        refreshIfOpen('trash', player);
-      } else if (action === 'to-deck-top') {
-        addToArea(player, 'deck', src, 'top');
-        refreshIfOpen('deck', player);
-      } else if (action === 'to-deck-bottom') {
-        addToArea(player, 'deck', src, 'bottom');
-        refreshIfOpen('deck', player);
-      } else if (action === 'to-stage') {
+      // それ以外（To：ステージ／To：キャラエリア等）は従来どおりローカル処理
+      if (action === 'to-stage') {
+        // 置けない時は元へ戻す等、元のロジックを維持
         if (!placeInStage(player, src)) {
-          // 置けなかった場合は元へ戻す
-          if (srcCellArea === 'chara') {
+          if (fromArea === 'chara') {
             placeInChara(player, src);
-          } else if (srcCellArea === 'leader') {
+          } else if (fromArea === 'leader') {
             const img = document.createElement('img');
             img.src = src; img.alt = `${player}-LEADER`;
             img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
@@ -1453,7 +1450,6 @@
           }
         }
       } else if (action === 'to-chara') {
-        // リーダー／どこからでも空きのキャラ枠へ
         placeInChara(player, src);
       }
 
@@ -1707,6 +1703,33 @@
       refreshIfOpen(from, player);
     }
 
+    // ★★ 受信適用：ステージ/リーダー/キャラ → リスト(手札/トラッシュ/ライフ/デッキ)
+    function applyPieceToList(a){
+      const { player, fromArea, fromSlot=0, to, pos='bottom', src } = a || {};
+      if (!player || !fromArea || !to || !src) return;
+
+      // 1) 送り元セルのクリア
+      const cell = getPieceCell(player, fromArea, fromSlot);
+      const imgEl = cell?.querySelector('img');
+
+      if (fromArea === 'chara') {
+        // スロット配列の実体も空に
+        const m = cell?.id?.match(/^([ab])-chara-(\d)$/i);
+        if (m) { const idx = parseInt(m[2], 10) - 1; charaImages[player][idx] = null; }
+        if (cell) cell.innerHTML = 'CHARACTER';
+      } else if (fromArea === 'leader') {
+        if (imgEl) imgEl.remove(); // ラベル(ドン×n等)は残す
+      } else if (fromArea === 'stage') {
+        // ステージの占有を明示的に解除（空なのに「埋まっています」対策）
+        stageImage[player] = null;
+        if (cell) cell.innerHTML = `${player}-STAGE`;
+      }
+
+      // 2) 受け側リストへ投入（内部でカウント/UI更新まで完結）
+      addToArea(player, to, src, pos);
+      refreshIfOpen(to, player); // 一覧を開いている場合は即時反映
+    }
+
     // ====== socketの処理 ======
 
     // ====== 1) 接続（room/name/role=spec で観戦入室） ======
@@ -1747,6 +1770,7 @@
         case 'PIECE_REST_SET':     if (typeof setRestState     === 'function') setRestState(getPieceCell(a.player, a.area, a.slot), !!a.on); break;
         case 'PIECE_DON_SET':      if (typeof setDonCount      === 'function') setDonCount (getPieceCell(a.player, a.area, a.slot), a.value|0); break;
         case 'LIST_MOVE':          if (typeof applyListMove    === 'function') applyListMove(a); break;
+        case 'PIECE_TO_LIST':     if (typeof applyPieceToList === 'function') applyPieceToList(a); break;
       }
     });
 
