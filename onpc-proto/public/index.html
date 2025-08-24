@@ -1575,43 +1575,7 @@
 
     // ★メニュー「リフレッシュ」：盤面を初期化（指定プレイヤーのみ）
     function refreshPlayer(player){
-      // 1) リーダー／キャラのレスト解除
-      const leaderCell = getPieceCell(player, 'leader');
-      setRestState(leaderCell, false);
-      setDonCount(leaderCell, 0);
-
-      // 1-a) ステージのレスト解除 ★追加
-      const stageCell = getPieceCell(player, 'stage');
-      setRestState(stageCell, false);
-
-      for (let i = 1; i <= 5; i++){
-        const cell = getPieceCell(player, 'chara', i);
-        if (!cell) continue;
-        setRestState(cell, false);
-        // 2) キャラのドン×n を 0に（カードがあるセルのみ）
-        if (cell.querySelector('img')) setDonCount(cell, 0);
-      }
-
-      // 3) ドンレスト を 0 に
-      donRestCounts[player] = 0;
-
-      // 4) ドンアクティブ = 10 - (ドンデッキ)
-      const deckN = Number(donDeckCounts[player]) || 0;
-      donActCounts[player] = Math.max(0, Math.min(10, 10 - deckN));
-
-      renderCounts();
-
-      // ▼ 既存のリフレッシュ処理が完了した後の追加処理
-      // ・ドンデッキ×n に -2（残が少ない場合はあるだけ）
-      // ・アクティブ×n に +2（上限10、ドンデッキから動かした分だけ加算）
-      {
-        const move = Math.min(2, donDeckCounts[player]);         // 実際に動かせる数
-        donDeckCounts[player] = Math.max(0, donDeckCounts[player] - move);
-        donActCounts[player]  = Math.min(10, donActCounts[player] + move);
-      }
-
-      // ・デッキの一番上のカードを手札へ
-      drawToHand(player);  // ※内部で deck/hand のカウント更新と renderCounts() を実行
+      emitAction({ type: 'REFRESH', player });
     }
 
     // ★マリガン：手札をすべてデッキに戻してシャッフル→上から5枚引く
