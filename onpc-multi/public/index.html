@@ -1363,7 +1363,13 @@
       if (area === 'trash') trashCounts[player] = Math.max(0, trashCounts[player] - 1);
       renderCounts();
       if (area === 'trash') updateTrashFace(player);
+      // ★ライフから出たら、そのカードの表向きフラグをクリア
+      if (area === 'life') {
+        const key = `life-${player}`;
+        revealedFaces[key]?.delete(src);
+      }
     }
+
     function addToArea(player, area, src, pos='bottom'){
       const list = areaLists[area]?.[player];
       if (!Array.isArray(list)) return;
