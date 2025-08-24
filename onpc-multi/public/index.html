@@ -217,6 +217,16 @@
     img{
       -webkit-user-drag: none;
     }
+
+    /* 既存: .thumbs .thumb-flip と同等の見た目で */
+    .thumbs .thumb-deckbtn{
+      position: absolute;
+      top: 4px; right: 4px;
+      padding: 6px 10px; border-radius: 8px; border: 0;
+      background: rgba(0,0,0,.6); color: #fff; font-weight: 700;
+      font-size: clamp(12px, 1.1vw, 16px); line-height: 1;
+      cursor: pointer; user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -578,9 +588,25 @@
             const player = thumbsContext?.player;
             const list = deckImages[player] || [];
             list.forEach(src => kset.add(src));
-            thumbs.querySelectorAll('img').forEach(img => {
-              const real = img.dataset.src;
-              if (real) { img.src = real; img.removeAttribute('data-src'); }
+
+            // ▼ 全サムネを「表」にしつつ data-src を残す（原因①の解消）
+            thumbs.querySelectorAll('.thumb-wrap').forEach(wrap => {
+              const img = wrap.querySelector('img');
+              if (!img) return;
+              const real = img.dataset?.src;
+              if (real) {
+                img.src = real;                 // 表にする
+                if (!img.dataset.src) img.dataset.src = real; // 念のため保持
+              }
+
+              // ▼ 「デッキ下」ボタンを未設置なら付与（原因②の解消）
+              if (!wrap.querySelector('.thumb-deckbtn')) {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'thumb-deckbtn';
+                b.textContent = 'デッキ下';
+                wrap.appendChild(b);
+              }
             });
           }
         };
@@ -605,6 +631,7 @@
 
       const frag = document.createDocumentFragment();
       const isLife = (thumbsContext?.area === 'life');
+      const isDeck = (thumbsContext?.area === 'deck');
 
       list.forEach(src => {
         const wrap = document.createElement('div');
@@ -623,6 +650,15 @@
           btn.type = 'button';
           btn.className = 'thumb-flip';
           btn.textContent = '裏向き';
+          wrap.appendChild(btn);
+        }
+
+        // ★デッキで表向きのとき「デッキ下」ボタン
+        if (isDeck && key && revealedFaces[key].has(src)) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'thumb-deckbtn';
+          btn.textContent = 'デッキ下';
           wrap.appendChild(btn);
         }
 
@@ -813,6 +849,27 @@
 
     /* ギャラリー内のサムネ（image (1)～(50)）クリックで拡大 */
     document.getElementById('thumbs').addEventListener('click', (e) => {
+      // ★追加：デッキ一覧サムネの「デッキ下」ボタン
+      const deckBtn = e.target.closest('.thumb-deckbtn');
+      if (deckBtn) {
+        const wrap = deckBtn.closest('.thumb-wrap');
+        const img = wrap?.querySelector('img');
+        const key = galleryKey();
+        if (img && key && key.startsWith('deck-') && img.dataset.src) {
+          const player = thumbsContext?.player;
+          emitAction({
+            type  : 'LIST_MOVE',
+            player,
+            from  : 'deck',
+            to    : 'deck',
+            pos   : 'bottom',
+            src   : img.dataset.src
+          });
+        }
+        e.stopPropagation(); e.preventDefault();
+        return;
+      }
+
       // ★「裏向き」ボタン（ライフだけ同期）
       const flipBtn = e.target.closest('.thumb-flip');
       if (flipBtn) {
@@ -849,6 +906,18 @@
           if (img.dataset.src) {
             revealedFaces[key].add(img.dataset.src);
             img.src = img.dataset.src;
+
+            // ★追加：表にした直後に「デッキ下」ボタンを付与
+            if (thumbsContext?.area === 'deck') {
+              const wrap = img.closest('.thumb-wrap');
+              if (wrap && !wrap.querySelector('.thumb-deckbtn')) {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'thumb-deckbtn';
+                b.textContent = 'デッキ下';
+                wrap.appendChild(b);
+              }
+            }
           }
         }
         return;
