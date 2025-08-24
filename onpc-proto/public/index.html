@@ -1616,35 +1616,7 @@
 
     // ★マリガン：手札をすべてデッキに戻してシャッフル→上から5枚引く
     function mulliganPlayer(player){
-      const deck = deckImages[player];
-      const hand = handImages[player];
-
-      // 手札→デッキ（戻す順は不問：この後シャッフル）
-      if (hand.length > 0) {
-        deck.push(...hand);
-        hand.length = 0;
-      }
-      // カウンタ一旦反映
-      deckCounts[player] = deck.length;
-      handCounts[player] = 0;
-
-      // デッキをシャッフル
-      shuffleInPlace(deck);
-
-      // 上から5枚（残枚数が少なければ取れるだけ）を手札へ
-      const drawN = Math.min(5, deck.length);
-      for (let i = 0; i < drawN; i++) {
-        hand.unshift(deck.shift()); // ★先頭に積む
-      }
-
-      // カウンタ反映
-      deckCounts[player] = deck.length;
-      handCounts[player] = hand.length;
-      renderCounts();
-
-      // 一覧を開いていたら更新
-      refreshIfOpen('deck', player);
-      refreshIfOpen('hand', player);
+      emitAction({ type: 'MULLIGAN', player });
     }
 
     /* ==== ルールPDF表示 ==== */
