@@ -1004,53 +1004,28 @@
         if (lastRightClickedThumb && lastRightClickedThumb.isConnected) lastRightClickedThumb.remove();
       };
 
-      if (action === 'to-chara') {
-        // 既存：キャラへ
-        const ok = placeInChara(player, src);
-        if (!ok) { hideThumbMenu(); return; }
-        removeFromArea(player, area, src);
-        doRemoveThumb();
-        refreshIfOpen(area, player);
+      const map = {
+        'to-hand':         { to: 'hand' },
+        'to-trash':        { to: 'trash' },
+        'to-life-top':     { to: 'life', pos: 'top' },
+        'to-life-bottom':  { to: 'life', pos: 'bottom' },
+        'to-deck-top':     { to: 'deck', pos: 'top' },
+        'to-deck-bottom':  { to: 'deck', pos: 'bottom' },
+        'to-chara':        { to: 'chara' },
+        'to-stage':        { to: 'stage' },
+      };
+      const m = map[action];
+      if (m) {
+        emitAction({
+          type: 'LIST_MOVE',
+          player,            // A / B
+          from: area,        // 元エリア: 'deck' | 'hand' | 'life' | 'trash'
+          to: m.to,          // 先エリア: 上記 map
+          pos: m.pos || 'bottom',
+          src,               // 対象カード画像のURL
+        });
         hideThumbMenu();
         return;
-      }
-
-      if (action === 'to-hand') {
-        removeFromArea(player, area, src);
-        addToArea(player, 'hand', src);
-        doRemoveThumb();
-        refreshIfOpen(area, player);
-      } else if (action === 'to-life-top') {
-        removeFromArea(player, area, src);
-        addToArea(player, 'life', src, 'top');      // ★先頭
-        doRemoveThumb();
-        refreshIfOpen(area, player);
-      } else if (action === 'to-life-bottom') {
-        removeFromArea(player, area, src);
-        addToArea(player, 'life', src, 'bottom');   // ★末尾
-        doRemoveThumb();
-        refreshIfOpen(area, player);
-      } else if (action === 'to-trash') {
-        removeFromArea(player, area, src);
-        addToArea(player, 'trash', src);
-        doRemoveThumb();
-        refreshIfOpen(area, player);
-      } else if (action === 'to-deck-top') {
-        removeFromArea(player, area, src);
-        addToArea(player, 'deck', src, 'top');
-        doRemoveThumb();
-        refreshIfOpen(area, player);
-      } else if (action === 'to-deck-bottom') {
-        removeFromArea(player, area, src);
-        addToArea(player, 'deck', src, 'bottom');
-        doRemoveThumb();
-        refreshIfOpen(area, player);
-      } else if (action === 'to-stage') {
-        const ok = placeInStage(player, src);
-        if (!ok) { hideThumbMenu(); return; }
-        removeFromArea(player, area, src);
-        doRemoveThumb();
-        refreshIfOpen(area, player);
       }
 
       hideThumbMenu();
@@ -1710,6 +1685,28 @@
       }
     }
 
+    function applyListMove(a){
+      const { player, from, to, pos='bottom', src } = a || {};
+      if (!player || !from || !to || !src) return;
+
+      if (to === 'chara') {
+        if (!placeInChara(player, src)) return;
+        removeFromArea(player, from, src);
+        refreshIfOpen(from, player);
+        return;
+      }
+      if (to === 'stage') {
+        if (!placeInStage(player, src)) return;
+        removeFromArea(player, from, src);
+        refreshIfOpen(from, player);
+        return;
+      }
+
+      removeFromArea(player, from, src);
+      addToArea(player, to, src, pos);
+      refreshIfOpen(from, player);
+    }
+
     // ====== socketの処理 ======
 
     // ====== 1) 接続（room/name/role=spec で観戦入室） ======
@@ -1749,6 +1746,7 @@
         case 'DON_SET':            if (typeof setCount         === 'function') setCount(a.scope, a.player, Math.min(10, Math.max(0, (a.value|0)))); break;
         case 'PIECE_REST_SET':     if (typeof setRestState     === 'function') setRestState(getPieceCell(a.player, a.area, a.slot), !!a.on); break;
         case 'PIECE_DON_SET':      if (typeof setDonCount      === 'function') setDonCount (getPieceCell(a.player, a.area, a.slot), a.value|0); break;
+        case 'LIST_MOVE':          if (typeof applyListMove    === 'function') applyListMove(a); break;
       }
     });
 

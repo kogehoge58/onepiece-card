@@ -1,5 +1,4 @@
 To：手札
-To：ライフ
 To：トラッシュ
 To：ライフ（上）
 To：ライフ（下）
@@ -15,3 +14,5 @@ To：ステージエリア
 # http://localhost:3000/?room=table-1&name=C&role=spec
 
 ■TODO
+・盤面リセット機能
+・デッキ/ルーム/役割選択画面
