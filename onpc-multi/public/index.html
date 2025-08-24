@@ -1305,26 +1305,14 @@
       const cell   = getPieceCell(player, area, slot);
       if (!cell) return;
 
-      if (action === 'rest'){
-        setRestState(cell, true);
-        btn.dataset.action = 'active';
-        btn.textContent    = 'アクティブ';
-        // ★押下時に右クリメニューを閉じる
-        hidePieceSubMenu();
-        hidePieceMenu();
-        return;
-      } else if (action === 'active'){
-        setRestState(cell, false);
-        btn.dataset.action = 'rest';
-        btn.textContent    = 'レスト';
-        // ★押下時に右クリメニューを閉じる
-        hidePieceSubMenu();
-        hidePieceMenu();
+      if (action === 'rest' || action === 'active'){
+        emitAction({ type:'PIECE_REST_SET', player, area, slot, on:(action==='rest') });
+        hidePieceSubMenu(); hidePieceMenu();
         return;
       } else if (action === 'don-plus' || action === 'don-minus'){
         const delta = (action === 'don-plus') ? 1 : -1;
-        const next  = getDonCount(cell) + delta;
-        setDonCount(cell, next); // 0〜10にクランプされる
+        const next  = Math.min(10, Math.max(0, getDonCount(cell) + delta));
+        emitAction({ type:'PIECE_DON_SET',  player, area, slot, value: next });
       }
     });
 
@@ -1759,6 +1747,8 @@
         case 'LIFE_TO_TRASH':      if (typeof lifeToTrash      === 'function') lifeToTrash(a.player); break;
         case 'LIFE_SHUFFLE':       if (typeof shuffleWithSeed  === 'function') shuffleWithSeed(lifeImages[a.player], a.seed ?? 0); break;
         case 'DON_SET':            if (typeof setCount         === 'function') setCount(a.scope, a.player, Math.min(10, Math.max(0, (a.value|0)))); break;
+        case 'PIECE_REST_SET':     if (typeof setRestState     === 'function') setRestState(getPieceCell(a.player, a.area, a.slot), !!a.on); break;
+        case 'PIECE_DON_SET':      if (typeof setDonCount      === 'function') setDonCount (getPieceCell(a.player, a.area, a.slot), a.value|0); break;
       }
     });
 
