@@ -1516,7 +1516,10 @@
       } else if (action === 'mulligan' && player) {
         hideMainMenu();
         requestAnimationFrame(() => {
-          if (confirm('マリガンを行いますか？')) mulliganPlayer(player);
+          if (confirm('マリガンを行いますか？')) {
+            const seed = (Date.now() ^ Math.floor(Math.random()*1e9)) >>> 0;
+            emitAction({ type: 'MULLIGAN', player, seed });
+          }
         });
       } else if (action === 'rules') {
         hideMainMenu();           // 先に閉じてから
@@ -1763,6 +1766,23 @@
       }
     }
 
+    // ★★ 受信適用：マリガン（手札→デッキ→シード付きシャッフル→5枚ドロー）
+    function applyMulligan(a){
+      const player = a?.player;
+      const seed   = (a?.seed >>> 0) || 0;
+      if (!player) return;
+      const deck = deckImages[player];
+      const hand = handImages[player];
+      if (!Array.isArray(deck) || !Array.isArray(hand)) return;
+      if (hand.length > 0) { deck.push(...hand); hand.length = 0; }
+      deckCounts[player] = deck.length; handCounts[player] = 0;
+      if (typeof shuffleWithSeed === 'function') shuffleWithSeed(deck, seed);
+      const drawN = Math.min(5, deck.length);
+      for (let i = 0; i < drawN; i++) hand.unshift(deck.shift());
+      deckCounts[player] = deck.length; handCounts[player] = hand.length;
+      renderCounts(); refreshIfOpen('deck', player); refreshIfOpen('hand', player);
+    }
+
     // ====== socketの処理 ======
 
     // ====== 1) 接続（room/name/role=spec で観戦入室） ======
@@ -1810,6 +1830,7 @@
         case 'LIFE_REVEAL_ALL':    if (typeof applyLifeRevealAll  === 'function') applyLifeRevealAll(a); break;
         case 'LIFE_REVEAL_ONE':    if (typeof applyLifeRevealOne  === 'function') applyLifeRevealOne(a); break;
         case 'LIFE_HIDE_ONE':      if (typeof applyLifeHideOne    === 'function') applyLifeHideOne(a); break;
+        case 'MULLIGAN':        if (typeof applyMulligan === 'function') applyMulligan(a); break;
       }
 
       window.__CURRENT_ACTOR = __prevActor;
