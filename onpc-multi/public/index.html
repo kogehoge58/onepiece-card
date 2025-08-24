@@ -958,7 +958,8 @@
     function placeInChara(player, src){
       const idx = charaImages[player].findIndex(v => !v);
       if (idx === -1) {
-        alert('キャラエリアが埋まっています。');
+        const actor = window.__CURRENT_ACTOR;
+        if (!actor || actor === myClientId()) alert('キャラエリアが埋まっています。');
         return false;
       }
       charaImages[player][idx] = src;
@@ -1346,7 +1347,8 @@
       const cell = document.getElementById(stageSlots[player]);
       if (!cell) return false;
       if (stageImage[player]) {
-        alert('ステージエリアが埋まっています。');
+        const actor = window.__CURRENT_ACTOR;
+        if (!actor || actor === myClientId()) alert('ステージエリアが埋まっています。');
         return false;
       }
       stageImage[player] = src;
@@ -1730,6 +1732,13 @@
       refreshIfOpen(to, player); // 一覧を開いている場合は即時反映
     }
 
+    function myClientId(){
+      if (!window.__CLIENT_ID) {
+        window.__CLIENT_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      }
+      return window.__CLIENT_ID;
+    }
+
     // ====== socketの処理 ======
 
     // ====== 1) 接続（room/name/role=spec で観戦入室） ======
@@ -1757,6 +1766,9 @@
 
     // ====== 2) 受信アクション → 既存関数に適用 ======
     socket.on('action', (a) => {
+      const __prevActor = window.__CURRENT_ACTOR;
+      window.__CURRENT_ACTOR = a?.actor || null;
+
       switch (a.type) {
         case 'REFRESH':            if (typeof refreshPlayer    === 'function') refreshPlayer(a.player); break;
         case 'DECK_TO_HAND':       if (typeof drawToHand       === 'function') drawToHand(a.player); break;
@@ -1772,12 +1784,15 @@
         case 'LIST_MOVE':          if (typeof applyListMove    === 'function') applyListMove(a); break;
         case 'PIECE_TO_LIST':     if (typeof applyPieceToList === 'function') applyPieceToList(a); break;
       }
+
+      window.__CURRENT_ACTOR = __prevActor;
     });
 
     // ====== 3) 送信APIの提供（観戦は送信禁止） ======
     if (!window.emitAction) {
       window.emitAction = function(action) {
         if (MY_ROLE !== 'PLAYER') { alert('観戦中は操作できません'); return; }
+        action.actor = myClientId();
         socket.emit('action', action, (res) => {
           if (res && res.ok === false) alert('観戦中は操作できません');
         });
