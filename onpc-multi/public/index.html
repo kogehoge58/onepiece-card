@@ -1510,7 +1510,7 @@
         hideMainMenu();
         requestAnimationFrame(() => {
           if (confirm('ターンを開始しますか？')) {
-            refreshPlayer(player);
+            emitAction({ type: 'REFRESH', player });
           }
         })
       } else if (action === 'mulligan' && player) {
