@@ -509,12 +509,11 @@
       const current = Number(table[player]) || 0;
       const min = 0;
       const max = maxByType[type] ?? Infinity;
-
       const next = Math.min(max, Math.max(min, current + delta));
       if (next === current) return;
 
-      table[player] = next;
-      renderCounts();
+      // ★ここでは送るだけ（観戦は server 側で拒否される）
+      emitAction({ type: 'DON_SET', scope: type, player, value: next });
     });
 
     renderCounts();
@@ -1755,11 +1754,11 @@
         case 'DECK_TO_HAND':       if (typeof drawToHand       === 'function') drawToHand(a.player); break;
         case 'DECK_TO_LIFE_TOP':   if (typeof drawToLifeTop    === 'function') drawToLifeTop(a.player); break;
         case 'DECK_TO_TRASH':      if (typeof moveTopToTrash   === 'function') moveTopToTrash(a.player); break;
-        // TODO: 必要に応じてここへ同期対象イベントを追加
         case 'DECK_SHUFFLE':       if (typeof shuffleWithSeed  === 'function') shuffleWithSeed(deckImages[a.player], a.seed ?? 0); break;
         case 'LIFE_TO_HAND':       if (typeof lifeToHand       === 'function') lifeToHand(a.player); break;
         case 'LIFE_TO_TRASH':      if (typeof lifeToTrash      === 'function') lifeToTrash(a.player); break;
         case 'LIFE_SHUFFLE':       if (typeof shuffleWithSeed  === 'function') shuffleWithSeed(lifeImages[a.player], a.seed ?? 0); break;
+        case 'DON_SET':            if (typeof setCount         === 'function') setCount(a.scope, a.player, Math.min(10, Math.max(0, (a.value|0)))); break;
       }
     });
 
