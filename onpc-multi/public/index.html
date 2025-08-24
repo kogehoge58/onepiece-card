@@ -442,6 +442,7 @@
     </div>
   </div>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script>
     /* ===== 画像スタック ===== */
     const deckImages = {
@@ -1696,6 +1697,63 @@
 
     // 念のため：文字選択の開始もイベント側で抑止（CSSが効かないケースの保険）
     document.addEventListener('selectstart', (e) => e.preventDefault(), true);
+
+    // ====== 1) 接続（room/name/role=spec で観戦入室） ======
+    const qs   = new URLSearchParams(location.search);
+    const room = qs.get('room') || 'dev';
+    const name = qs.get('name') || `guest-${Math.floor(Math.random()*1000)}`;
+    const role = qs.get('role') || ''; // 'spec' を指定すると観戦で入室
+
+    const socket = io({ query: { room, name, role } });
+
+    let MY_ROLE = 'PLAYER';
+    let MY_SEAT = 'P1';
+
+    socket.on('room:hello', ({ role, seat }) => {
+      MY_ROLE = role;
+      MY_SEAT = seat;
+      console.log(`[you] role=${role} seat=${seat} room=${room}`);
+      // 途中参加や観戦参加でも最新盤面を要求
+      socket.emit('snapshot:pull');
+    });
+
+    socket.on('room:roster', (list) => {
+      console.table(list); // UIに出したければここで反映
+    });
+
+    // ====== 2) 受信アクション → 既存関数に適用 ======
+    socket.on('action', (a) => {
+      switch (a.type) {
+        case 'REFRESH':            if (typeof refreshPlayer    === 'function') refreshPlayer(a.player); break;
+        case 'DECK_TO_HAND':       if (typeof drawToHand       === 'function') drawToHand(a.player); break;
+        case 'DECK_TO_LIFE_TOP':   if (typeof drawToLifeTop    === 'function') drawToLifeTop(a.player); break;
+        case 'DECK_TO_TRASH':      if (typeof moveTopToTrash   === 'function') moveTopToTrash(a.player); break;
+        // TODO: 必要に応じてここへ同期対象イベントを追加
+      }
+    });
+
+    // ====== 3) 送信APIの提供（観戦は送信禁止） ======
+    if (!window.emitAction) {
+      window.emitAction = function(action) {
+        if (MY_ROLE !== 'PLAYER') { alert('観戦中は操作できません'); return; }
+        socket.emit('action', action, (res) => {
+          if (res && res.ok === false) alert('観戦中は操作できません');
+        });
+      };
+    }
+
+    // 任意：盤面スナップショットの送出（プレイヤーのみ）
+    if (!window.pushSnapshot) {
+      window.pushSnapshot = function(state) {
+        if (MY_ROLE !== 'PLAYER') return;
+        socket.emit('snapshot:push', state);
+      };
+    }
+
+    // 任意：観戦枠が満員のとき
+    socket.on('room:spectators_full', ({ room }) => {
+      alert(`観戦枠が満員のため、部屋「${room}」に入れませんでした`);
+    });
   </script>
 </body>
 </html>
