@@ -223,6 +223,10 @@
     }
     /* ★ホバー中に拡大（全画像共通） */
     img:hover { transform: scale(1.06); }
+    /* モーダルの拡大プレビュー画像は対象外にする */
+    #preview-backdrop img:hover {
+      transform: none !important;
+    }
   </style>
 </head>
 <body>
