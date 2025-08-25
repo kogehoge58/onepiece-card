@@ -8,6 +8,10 @@ To：キャラエリア
 To：ステージエリア
 
 
+npm init -y
+npm i express socket.io
+
+
 node server.js
 
 # 例）プレイヤー
