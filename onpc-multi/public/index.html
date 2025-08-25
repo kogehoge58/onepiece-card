@@ -1792,11 +1792,19 @@
       const { player, fromArea, fromSlot=0, to, pos='bottom', src } = a || {};
       if (!player || !fromArea || !to || !src) return;
 
-      // 1) 送り元セルのクリア
+      // 1) 送り元セルの処理
       const cell = getPieceCell(player, fromArea, fromSlot);
       const imgEl = cell?.querySelector('img');
 
       if (fromArea === 'chara') {
+        // ★追加：キャラの「ドン×n」をドンレストに加算（上限10）
+        const add = (typeof getDonCount === 'function') ? (getDonCount(cell) || 0) : 0;
+        if (add > 0) {
+          const curr = Number(donRestCounts[player]) || 0;
+          donRestCounts[player] = Math.min(10, curr + add);
+          if (typeof renderCounts === 'function') renderCounts();
+        }
+
         // スロット配列の実体も空に
         const m = cell?.id?.match(/^([ab])-chara-(\d)$/i);
         if (m) { const idx = parseInt(m[2], 10) - 1; charaImages[player][idx] = null; }
