@@ -17,7 +17,7 @@ node server.js
 # http://localhost:3000/?room=table-1&name=C&role=spec
 
 ■TODO
-・キャラエリアとステージエリアのアラートは本人だけにでるように
+・キャラエリアからの移動はドンレスト自動追加
 
 ・操作ログ実装
 ・盤面リセット機能
