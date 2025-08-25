@@ -16,6 +16,10 @@ node server.js
 # 例）観戦
 # http://localhost:3000/?room=table-1&name=C&role=spec
 
+http://160.248.24.216:3000/?room=table-1&name=A
+http://160.248.24.216:3000/?room=table-1&name=B
+
+
 ■TODO
 ・キャラエリアからの移動はドンレスト自動追加
 
