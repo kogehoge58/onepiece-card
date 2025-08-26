@@ -512,6 +512,12 @@
     let donActCounts  = { A: 0,  B: 0 };
     let donRestCounts = { A: 0,  B: 0 };
 
+    renderCounts();
+
+    // ★起動時はalert.pngを非表示
+    document.querySelectorAll('.card.don-deck .alert-icon').forEach(el => el.style.display = 'none');
+
+
     function renderCounts(){
       document.getElementById('a-deck-label').textContent  = `デッキ×${deckCounts.A}`;
       document.getElementById('b-deck-label').textContent  = `デッキ×${deckCounts.B}`;
@@ -564,8 +570,6 @@
       // ★ここでは送るだけ（観戦は server 側で拒否される）
       emitAction({ type: 'DON_SET', scope: type, player, value: next });
     });
-
-    renderCounts();
 
     /* ===== ギャラリー（配列から表示） ===== */
     const backdrop = document.getElementById('gallery-backdrop');
@@ -1688,6 +1692,8 @@
 
       // ・デッキの一番上のカードを手札へ
       drawToHand(player);  // ※内部で deck/hand のカウント更新と renderCounts() を実行
+
+      updateDonDeckAlert(player);
     }
 
     // ★マリガン：手札をすべてデッキに戻してシャッフル→上から5枚引く
@@ -1905,6 +1911,29 @@
       renderCounts(); refreshIfOpen('deck', player); refreshIfOpen('hand', player);
     }
 
+    // ★追加：ドン整合チェック & アラート表示/非表示
+    function updateDonDeckAlert(player){
+      const deck = Number(donDeckCounts[player]) || 0;
+      const act  = Number(donActCounts[player])  || 0;
+      const rest = Number(donRestCounts[player]) || 0;
+
+      // 場のドン＝リーダー＋キャラ5枠の合計
+      let field = 0;
+      const leaderCell = getPieceCell(player, 'leader');
+      field += getDonCount(leaderCell);
+      for (let i = 1; i <= 5; i++){
+        field += getDonCount(getPieceCell(player, 'chara', i));
+      }
+
+      const ok = (10 - deck) === (act + rest + field);
+
+      const labId   = `${player.toLowerCase()}-don-deck-label`;
+      const labEl   = document.getElementById(labId);
+      const cardEl  = labEl ? labEl.closest('.don-deck') : null;
+      const alertEl = cardEl ? cardEl.querySelector('.alert-icon') : null;
+      if (alertEl) alertEl.style.display = ok ? 'none' : '';
+    }
+
     // ====== socketの処理 ======
 
     // ====== 1) 接続（room/name/role=spec で観戦入室） ======
@@ -1944,9 +1973,25 @@
         case 'LIFE_TO_HAND':       if (typeof lifeToHand          === 'function') lifeToHand(a.player); break;
         case 'LIFE_TO_TRASH':      if (typeof lifeToTrash         === 'function') lifeToTrash(a.player); break;
         case 'LIFE_SHUFFLE':       if (typeof shuffleWithSeed     === 'function') shuffleWithSeed(lifeImages[a.player], a.seed ?? 0); break;
-        case 'DON_SET':            if (typeof setCount            === 'function') setCount(a.scope, a.player, Math.min(10, Math.max(0, (a.value|0)))); break;
+        case 'DON_SET': {
+          if (typeof setCount === 'function') {
+            setCount(a.scope, a.player, Math.min(10, Math.max(0, (a.value|0))));
+          }
+          // ★追加：ドン系の時だけ判定を更新
+          if (a.scope === 'donDeck' || a.scope === 'donAct' || a.scope === 'donRest') {
+            updateDonDeckAlert(a.player);
+          }
+          break;
+        }
         case 'PIECE_REST_SET':     if (typeof setRestState        === 'function') setRestState(getPieceCell(a.player, a.area, a.slot), !!a.on); break;
-        case 'PIECE_DON_SET':      if (typeof setDonCount         === 'function') setDonCount (getPieceCell(a.player, a.area, a.slot), a.value|0); break;
+        case 'PIECE_DON_SET': {
+          if (typeof setDonCount === 'function') {
+            setDonCount(getPieceCell(a.player, a.area, a.slot), a.value|0);
+          }
+          // ★追加：場のドンが変わるので毎回更新
+          updateDonDeckAlert(a.player);
+          break;
+        }
         case 'LIST_MOVE':          if (typeof applyListMove       === 'function') applyListMove(a); break;
         case 'PIECE_TO_LIST':      if (typeof applyPieceToList    === 'function') applyPieceToList(a); break;
         case 'LIFE_REVEAL_ALL':    if (typeof applyLifeRevealAll  === 'function') applyLifeRevealAll(a); break;
