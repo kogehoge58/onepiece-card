@@ -67,8 +67,12 @@
     /* 右上カウンタボタン（-1 / +1） */
     .counter-controls{
       position: absolute;
-      top: 6px; right: 6px;
-      display: flex; gap: 8px;     /* ← 少し広めに */
+      top: 6px;
+      left: 6px;
+      right: 6px;           /* ← ビタビタ回避のマージン */
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px;             /* ← ボタン間も少し余白 */
       z-index: 2;
     }
     .btn-counter{
@@ -81,6 +85,7 @@
       border: none;
       cursor: pointer;
       user-select: none;
+      width: 100%;
     }
 
     /* ===== モーダル ===== */
