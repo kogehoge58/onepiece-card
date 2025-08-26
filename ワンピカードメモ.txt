@@ -23,6 +23,7 @@ node server.js
 http://160.248.24.216:3000/?room=table-1&name=A
 http://160.248.24.216:3000/?room=table-1&name=B
 
+git rm -r --cached .
 
 ■TODO
 
