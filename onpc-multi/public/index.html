@@ -227,6 +227,30 @@
       font-size: clamp(12px, 1.1vw, 16px); line-height: 1;
       cursor: pointer; user-select: none;
     }
+
+    /* --- ドンデッキ中央アラート --- */
+    .card.don-deck {
+      /* 上：カウンター／下：×n ラベルの安全余白（必要なら微調整） */
+      --safe-top: 52px;
+      --safe-bottom: 34px;
+    }
+
+    /* 中央に重ねるアラート画像。安全余白を差し引いた最大高さで自動調整 */
+    .card.don-deck .alert-icon {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      /* 横幅はカード幅の最大40%か140pxの小さい方 */
+      max-width: min(40%, 140px);
+      /* 縦は上部ボタン＋下部ラベルを避ける */
+      max-height: calc(100% - (var(--safe-top) + var(--safe-bottom)));
+      width: auto;
+      height: auto;
+      pointer-events: none; /* クリック透過 */
+      z-index: 1;           /* ラベル/カウンター(=2)の下に置く */
+      opacity: 0.95;        /* 視認性よく、主張しすぎない */
+    }
   </style>
 </head>
 <body>
@@ -273,8 +297,10 @@
         </div>
 
         <!-- A-DON-DECK -->
-        <div class="card">
+        <div class="card don-deck">
           <img src="component_images/don_back.png" alt="A-DON-DECK">
+          <!-- ↓ 追加：中央アラート -->
+          <img class="alert-icon" src="component_images/alert.png" alt="alert">
           <span id="a-don-deck-label" class="don-label">ドンデッキ×10</span>
           <div class="counter-controls">
             <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="-1" aria-label="A ドンデッキ -1">-1</button>
@@ -355,8 +381,10 @@
         </div>
 
         <!-- B-DON-DECK -->
-        <div class="card">
+        <div class="card don-deck">
           <img src="component_images/don_back.png" alt="B-DON-DECK">
+          <!-- ↓ 追加：中央アラート -->
+          <img class="alert-icon" src="component_images/alert.png" alt="alert">
           <span id="b-don-deck-label" class="don-label">ドンデッキ×10</span>
           <div class="counter-controls">
             <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="-1" aria-label="B ドンデッキ -1">-1</button>
