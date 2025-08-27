@@ -751,6 +751,9 @@
       deckCounts[player] = Math.max(0, deckCounts[player] - 1);
       handCounts[player] = (handCounts[player] || 0) + 1;
       renderCounts();
+      // ★追加：モーダルが開いていれば両方更新
+      refreshIfOpen('deck', player);
+      refreshIfOpen('hand', player);
     }
 
     /* ===== デッキ → ライフ（ライフ+1） ===== */
@@ -763,6 +766,8 @@
       deckCounts[player] = Math.max(0, deckCounts[player] - 1);
       lifeCounts[player] = (lifeCounts[player] || 0) + 1;
       renderCounts();
+      refreshIfOpen('deck', player);
+      refreshIfOpen('life', player);
     }
 
     // デッキ → ライフ（トップに積む版：ライフの先頭へ）
@@ -775,6 +780,8 @@
       deckCounts[player] = Math.max(0, deckCounts[player] - 1);
       lifeCounts[player] = (lifeCounts[player] || 0) + 1;
       renderCounts();
+      refreshIfOpen('deck', player);
+      refreshIfOpen('life', player);
     }
 
     /* ===== デッキ → トラッシュ（トラッシュ+1） ===== */
@@ -788,6 +795,8 @@
       trashCounts[player] = (trashCounts[player] || 0) + 1;
       renderCounts();
       updateTrashFace(player);
+      refreshIfOpen('deck',  player);
+      refreshIfOpen('trash', player);
     }
 
     /* ==== DECK右クリック用コンテキストメニュー ==== */
@@ -1435,6 +1444,8 @@
       lifeCounts[player] = Math.max(0, lifeCounts[player] - 1);
       handCounts[player] = (handCounts[player] || 0) + 1;
       renderCounts();
+      refreshIfOpen('life', player);
+      refreshIfOpen('hand', player);
     }
 
     function lifeToTrash(player){
@@ -1447,6 +1458,8 @@
       trashCounts[player] = (trashCounts[player] || 0) + 1;
       renderCounts();
       updateTrashFace(player);
+      refreshIfOpen('life',  player);
+      refreshIfOpen('trash', player);
     }
 
     // ===== STAGE（各陣営1枠） =====
@@ -1812,18 +1825,24 @@
         if (!placeInChara(player, src)) return;
         removeFromArea(player, from, src);
         refreshIfOpen(from, player);
+        // ★追加：一覧に入ってきた側（to）が開かれていたら即時再描画
+        refreshIfOpen(to,   player);
         return;
       }
       if (to === 'stage') {
         if (!placeInStage(player, src)) return;
         removeFromArea(player, from, src);
         refreshIfOpen(from, player);
+        // ★追加
+        refreshIfOpen(to,   player);
         return;
       }
 
       removeFromArea(player, from, src);
       addToArea(player, to, src, pos);
+      // ★追加：from と to の両方をケア
       refreshIfOpen(from, player);
+      refreshIfOpen(to,   player);
     }
 
     // ★★ 受信適用：ステージ/リーダー/キャラ → リスト(手札/トラッシュ/ライフ/デッキ)
