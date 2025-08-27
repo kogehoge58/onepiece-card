@@ -256,6 +256,11 @@
       z-index: 1;           /* ラベル/カウンター(=2)の下に置く */
       opacity: 0.95;        /* 視認性よく、主張しすぎない */
     }
+
+    /* === ターン中ハイライト === */
+    .player-field.turn-active .card{
+      border-color: #39FF14; /* 蛍光グリーン */
+    }
   </style>
 </head>
 <body>
@@ -1958,6 +1963,15 @@
       if (alertEl) alertEl.style.display = ok ? 'none' : '';
     }
 
+    // ターン中のUIハイライト切替
+    function setActiveTurnUI(player){
+      const fields = document.querySelectorAll('.player-field');
+      const fieldA = fields[0], fieldB = fields[1];
+      if (!fieldA || !fieldB) return;
+      fieldA.classList.toggle('turn-active', player === 'A');
+      fieldB.classList.toggle('turn-active', player === 'B');
+    }
+
     // ====== socketの処理 ======
 
     // ====== 1) 接続（room/name/role=spec で観戦入室） ======
@@ -1989,7 +2003,10 @@
       window.__CURRENT_ACTOR = a?.actor || null;
 
       switch (a.type) {
-        case 'REFRESH':            if (typeof refreshPlayer       === 'function') refreshPlayer(a.player); break;
+        case 'REFRESH':
+          if (typeof setActiveTurnUI === 'function') setActiveTurnUI(a.player); // ← 追加
+          if (typeof refreshPlayer   === 'function') refreshPlayer(a.player);
+          break;
         case 'DECK_TO_HAND':       if (typeof drawToHand          === 'function') drawToHand(a.player); break;
         case 'DECK_TO_LIFE_TOP':   if (typeof drawToLifeTop       === 'function') drawToLifeTop(a.player); break;
         case 'DECK_TO_TRASH':      if (typeof moveTopToTrash      === 'function') moveTopToTrash(a.player); break;
