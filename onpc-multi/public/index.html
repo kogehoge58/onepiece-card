@@ -522,6 +522,9 @@
     let donActCounts  = { A: 0,  B: 0 };
     let donRestCounts = { A: 0,  B: 0 };
 
+    // ★初回ターン開始のドン移動を済ませたか
+    let FIRST_TURN_DON_BOOTSTRAP = false;
+
     renderCounts();
 
     // ★起動時はalert.pngを非表示
@@ -2003,10 +2006,30 @@
       window.__CURRENT_ACTOR = a?.actor || null;
 
       switch (a.type) {
-        case 'REFRESH':
-          if (typeof setActiveTurnUI === 'function') setActiveTurnUI(a.player); // ← 追加
+        case 'REFRESH': {
+          // ★初回だけ：押下プレイヤーのドンデッキ-1 / アクティブ+1 のみ実行して他はスキップ
+          if (!FIRST_TURN_DON_BOOTSTRAP) {
+            FIRST_TURN_DON_BOOTSTRAP = true;
+            const p = a.player;
+
+            const deckNext = Math.max(0, (Number(donDeckCounts[p]) || 0) - 1);
+            const actNext  = Math.min(10, (Number(donActCounts[p])  || 0) + 1);
+
+            if (typeof setCount === 'function') {
+              setCount('donDeck', p, deckNext);
+              setCount('donAct',  p, actNext);
+            }
+            if (typeof updateDonDeckAlert === 'function') updateDonDeckAlert(p);
+            if (typeof setActiveTurnUI === 'function') setActiveTurnUI(p);
+
+            break; // ★初回はここで終了（＝他のリフレッシュ処理は行わない）
+          }
+
+          // ★2回目以降は従来どおり
+          if (typeof setActiveTurnUI === 'function') setActiveTurnUI(a.player);
           if (typeof refreshPlayer   === 'function') refreshPlayer(a.player);
           break;
+        }
         case 'DECK_TO_HAND':       if (typeof drawToHand          === 'function') drawToHand(a.player); break;
         case 'DECK_TO_LIFE_TOP':   if (typeof drawToLifeTop       === 'function') drawToLifeTop(a.player); break;
         case 'DECK_TO_TRASH':      if (typeof moveTopToTrash      === 'function') moveTopToTrash(a.player); break;
