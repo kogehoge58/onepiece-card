@@ -273,6 +273,27 @@
       pointer-events: none; /* クリック透過 */
       z-index: 2;           /* ラベルより上 */
     }
+
+    /* ==== ドン系カウンター：色分け ==== */
+    /* －1／－2 → 薄い赤 */
+    .btn-counter[data-type="donDeck"][data-delta="-1"],
+    .btn-counter[data-type="donDeck"][data-delta="-2"],
+    .btn-counter[data-type="donAct"][data-delta="-1"],
+    .btn-counter[data-type="donAct"][data-delta="-2"],
+    .btn-counter[data-type="donRest"][data-delta="-1"],
+    .btn-counter[data-type="donRest"][data-delta="-2"]{
+      background: rgba(64, 160, 255, .70);
+    }
+
+    /* ＋1／＋2 → 薄い青 */
+    .btn-counter[data-type="donDeck"][data-delta="1"],
+    .btn-counter[data-type="donDeck"][data-delta="2"],
+    .btn-counter[data-type="donAct"][data-delta="1"],
+    .btn-counter[data-type="donAct"][data-delta="2"],
+    .btn-counter[data-type="donRest"][data-delta="1"],
+    .btn-counter[data-type="donRest"][data-delta="2"]{
+      background: rgba(255, 64, 64, .70);
+    }
   </style>
 </head>
 <body>
@@ -327,6 +348,8 @@
           <div class="counter-controls">
             <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="-1" aria-label="A ドンデッキ -1">- 1</button>
             <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="1"  aria-label="A ドンデッキ +1">+ 1</button>
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="-2" aria-label="A ドンデッキ -2">- 2</button>
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="2"  aria-label="A ドンデッキ +2">+ 2</button>
           </div>
         </div>
 
@@ -337,6 +360,8 @@
           <div class="counter-controls">
             <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="-1" aria-label="A アクティブ -1">- 1</button>
             <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="1"  aria-label="A アクティブ +1">+ 1</button>
+            <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="-2" aria-label="A アクティブ -2">- 2</button>
+            <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="2"  aria-label="A アクティブ +2">+ 2</button>
           </div>
         </div>
 
@@ -347,6 +372,8 @@
           <div class="counter-controls">
             <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="-1" aria-label="A レスト -1">- 1</button>
             <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="1"  aria-label="A レスト +1">+ 1</button>
+            <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="-2" aria-label="A レスト -2">- 2</button>
+            <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="2"  aria-label="A レスト +2">+ 2</button>
           </div>
         </div>
 
@@ -411,6 +438,8 @@
           <div class="counter-controls">
             <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="-1" aria-label="B ドンデッキ -1">- 1</button>
             <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="1"  aria-label="B ドンデッキ +1">+ 1</button>
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="-2" aria-label="B ドンデッキ -2">- 2</button>
+            <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="2"  aria-label="B ドンデッキ +2">+ 2</button>
           </div>
         </div>
 
@@ -421,6 +450,8 @@
           <div class="counter-controls">
             <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="-1" aria-label="B アクティブ -1">- 1</button>
             <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="1"  aria-label="B アクティブ +1">+ 1</button>
+            <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="-2" aria-label="B アクティブ -2">- 2</button>
+            <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="2"  aria-label="B アクティブ +2">+ 2</button>
           </div>
         </div>
 
@@ -431,6 +462,8 @@
           <div class="counter-controls">
             <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="-1" aria-label="B レスト -1">- 1</button>
             <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="1"  aria-label="B レスト +1">+ 1</button>
+            <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="-2" aria-label="B レスト -2">- 2</button>
+            <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="2"  aria-label="B レスト +2">+ 2</button>
           </div>
         </div>
 
