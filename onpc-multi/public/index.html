@@ -261,6 +261,18 @@
     .player-field.turn-active .card{
       border-color: #39FF14; /* 蛍光グリーン */
     }
+
+    /* 攻撃不可アイコン（キャラカード右下・小さめ） */
+    .card .no-attack-icon{
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      max-width: min(26%, 56px); /* 小さく表示 */
+      width: auto;
+      height: auto;
+      pointer-events: none; /* クリック透過 */
+      z-index: 2;           /* ラベルより上 */
+    }
   </style>
 </head>
 <body>
@@ -1105,6 +1117,13 @@
       don.id = `${player.toLowerCase()}-chara-${idx+1}-don-label`; // 例: a-chara-1-don-label
       don.textContent = 'ドン×0';
       cell.appendChild(don);
+
+      // 右下に「攻撃不可」アイコンを重ねる
+      const na = document.createElement('img');
+      na.className = 'no-attack-icon';
+      na.src = 'component_images/no_attack.png'; // ※スラッシュ表記
+      na.alt = 'no-attack';
+      cell.appendChild(na);
 
       return true;
     }
@@ -1975,7 +1994,20 @@
       fieldB.classList.toggle('turn-active', player === 'B');
     }
 
+    function clearNoAttackIcons(player){
+      // 対象プレイヤーのキャラ5枠だけ消せばOK
+      const scope = player.toLowerCase(); // 'a' or 'b'
+      for (let i = 1; i <= 5; i++){
+        const cell = document.getElementById(`${scope}-chara-${i}`);
+        cell?.querySelectorAll('.no-attack-icon').forEach(el => el.remove());
+      }
+    }
+
+
+
     // ====== socketの処理 ======
+
+
 
     // ====== 1) 接続（room/name/role=spec で観戦入室） ======
     const qs   = new URLSearchParams(location.search);
@@ -2021,12 +2053,14 @@
             }
             if (typeof updateDonDeckAlert === 'function') updateDonDeckAlert(p);
             if (typeof setActiveTurnUI === 'function') setActiveTurnUI(p);
+            if (typeof clearNoAttackIcons === 'function') clearNoAttackIcons(p);
 
             break; // ★初回はここで終了（＝他のリフレッシュ処理は行わない）
           }
 
           // ★2回目以降は従来どおり
           if (typeof setActiveTurnUI === 'function') setActiveTurnUI(a.player);
+          if (typeof clearNoAttackIcons === 'function') clearNoAttackIcons(a.player);
           if (typeof refreshPlayer   === 'function') refreshPlayer(a.player);
           break;
         }
