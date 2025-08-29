@@ -584,7 +584,6 @@
     <div class="modal deckselect-modal">
       <div class="modal-header">
         <div class="modal-title">デッキ選択</div>
-        <button id="deckselect-close" type="button" class="header-btn">閉じる</button>
       </div>
       <div id="deckselect-list" class="deckselect-list" role="list"></div>
     </div>
@@ -2122,7 +2121,6 @@
 
     const deckSelBackdrop = document.getElementById('deckselect-backdrop');
     const deckSelList     = document.getElementById('deckselect-list');
-    const deckSelCloseBtn = document.getElementById('deckselect-close');
 
     function renderDeckSelectList(){
       // ローディング表示
@@ -2179,7 +2177,6 @@
       deckSelList.innerHTML = '';
     }
     deckSelBackdrop.addEventListener('click', (e) => { if (e.target === deckSelBackdrop) closeDeckSelect(); });
-    deckSelCloseBtn.addEventListener('click', closeDeckSelect);
 
     mainMenu.addEventListener('click', (e) => {
       const btn = e.target.closest('button[role="menuitem"]');
