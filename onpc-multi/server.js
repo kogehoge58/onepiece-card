@@ -26,6 +26,8 @@ const io = new Server(server, {
   },
 });
 
+app.use(express.json());
+
 const fs   = require('fs');
 
 // 既存の app = express() の後あたりに
@@ -40,6 +42,90 @@ app.get('/api/deckbuilt', (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.json({ folders });
   });
+});
+
+// デッキ適用（完全非同期）: { player: 'A'|'B', folder: 'フォルダ名' }
+app.post('/api/deck/apply', async (req, res) => {
+  try {
+    const { player, folder } = req.body || {};
+    if (player !== 'A' && player !== 'B') {
+      return res.status(400).json({ ok:false, error:'bad player' });
+    }
+    if (!folder || typeof folder !== 'string') {
+      return res.status(400).json({ ok:false, error:'bad folder' });
+    }
+    // ディレクトリトラバーサル対策
+    if (folder.includes('..') || folder.includes('/') || folder.includes('\\')) {
+      return res.status(400).json({ ok:false, error:'invalid folder' });
+    }
+
+    const base = path.join(__dirname, 'public');
+    const srcDir = path.join(base, 'deck_built', folder);
+    const srcLeader = path.join(srcDir, 'leader.png');
+    const srcImages = path.join(srcDir, 'images');
+
+    if (!fs.existsSync(srcLeader) || !fs.existsSync(srcImages)) {
+      return res.status(404).json({ ok:false, error:'source not found' });
+    }
+
+    const dstDir = path.join(base, 'deck', player === 'A' ? 'player_A' : 'player_B');
+    const dstLeader = path.join(dstDir, 'leader.png');
+    const dstImages = path.join(dstDir, 'images');
+
+    const fsp = fs.promises;
+    const rmrf = async (p) => {
+      try {
+        await fsp.rm(p, { recursive: true, force: true });
+      } catch (_) {
+        // Nodeが古くrm未対応なら手動削除
+        const rmManual = async (pp) => {
+          if (!fs.existsSync(pp)) return;
+          const st = await fsp.lstat(pp);
+          if (st.isDirectory()) {
+            const ents = await fsp.readdir(pp);
+            for (const name of ents) await rmManual(path.join(pp, name));
+            await fsp.rmdir(pp).catch(()=>{});
+          } else {
+            await fsp.unlink(pp).catch(()=>{});
+          }
+        };
+        await rmManual(p);
+      }
+    };
+    const cpdir = async (src, dst) => {
+      if (fsp.cp) { // Node 16.7+
+        await fsp.cp(src, dst, { recursive: true });
+        return;
+      }
+      // 互換コピー
+      const st = await fsp.stat(src);
+      if (st.isDirectory()) {
+        await fsp.mkdir(dst, { recursive: true });
+        const ents = await fsp.readdir(src, { withFileTypes: true });
+        for (const ent of ents) {
+          await cpdir(path.join(src, ent.name), path.join(dst, ent.name));
+        }
+      } else {
+        await fsp.mkdir(path.dirname(dst), { recursive: true });
+        await fsp.copyFile(src, dst);
+      }
+    };
+
+    // 1) 既存削除
+    await rmrf(dstImages);
+    await fsp.unlink(dstLeader).catch(()=>{});
+
+    // 2) コピー配備
+    await fsp.mkdir(dstDir, { recursive: true });
+    await cpdir(srcImages, dstImages);
+    await fsp.copyFile(srcLeader, dstLeader);
+
+    // 3) 完了
+    res.set('Cache-Control','no-store');
+    res.json({ ok:true });
+  } catch (e) {
+    res.status(500).json({ ok:false, error:String(e && e.message || e) });
+  }
 });
 
 // 静的配信: /public をドキュメントルートに

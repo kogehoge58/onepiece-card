@@ -1766,6 +1766,13 @@
       const action = btn.dataset.action;
       const player = mainMenu.dataset.player;
 
+      if (action === 'deck-select') {
+        DECK_SELECT_PLAYER = player || null;
+        hideMainMenu();               // メニューを閉じる前に格納しておく
+        requestAnimationFrame(openDeckSelect);
+        return;
+      }
+
       if (action === 'refresh' && player) {
         hideMainMenu();
         requestAnimationFrame(() => {
@@ -2140,6 +2147,8 @@
       return deckBuiltFolders;
     }
 
+    let DECK_SELECT_PLAYER = null; // 'A' または 'B'
+
     const deckSelBackdrop = document.getElementById('deckselect-backdrop');
     const deckSelList     = document.getElementById('deckselect-list');
 
@@ -2179,7 +2188,31 @@
           const btnPick = document.createElement('button');
           btnPick.type = 'button';
           btnPick.className = 'ds-btn';
-          btnPick.textContent = '選択';      // 処理は未実装のまま
+          btnPick.textContent = '選択';
+
+          btnPick.addEventListener('click', async () => {
+            if (!DECK_SELECT_PLAYER) { alert('プレイヤーが特定できません'); return; }
+            btnPick.disabled = true;
+            const orig = btnPick.textContent;
+            btnPick.textContent = '適用中…';
+            try {
+              const r = await fetch('/api/deck/apply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ player: DECK_SELECT_PLAYER, folder: name })
+              });
+              const j = await r.json().catch(()=>({ ok:false, error:'invalid response' }));
+              if (r.ok && j.ok) {
+                location.reload(); // 3. ブラウザ更新
+              } else {
+                alert('適用に失敗：' + (j.error || r.statusText));
+                btnPick.disabled = false; btnPick.textContent = orig;
+              }
+            } catch (e) {
+              alert('適用に失敗：' + e);
+              btnPick.disabled = false; btnPick.textContent = orig;
+            }
+          });
 
           item.append(img, nm, btnSee, btnPick);
           frag.appendChild(item);
@@ -2203,15 +2236,6 @@
       deckSelList.innerHTML = '';
     }
     deckSelBackdrop.addEventListener('click', (e) => { if (e.target === deckSelBackdrop) closeDeckSelect(); });
-
-    mainMenu.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[role="menuitem"]');
-      if (!btn) return;
-      if (btn.dataset.action === 'deck-select') {
-        hideMainMenu();
-        requestAnimationFrame(openDeckSelect);
-      }
-    });
 
     // === デッキ名→色 ===
     const COLOR_RGB = {
