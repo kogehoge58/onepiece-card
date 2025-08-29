@@ -311,11 +311,16 @@
     }
     .deckselect-item{
       display: flex; align-items: center; gap: 16px;
-      border: 1px solid #bbb; border-radius: 8px; padding: 14px 12px;
+      border: 1px solid #bbb; border-radius: 8px;
+      padding: 20px 16px;                /* 余白も少し増量 */
+      min-height: 100px;                 /* ★縦幅：およそ倍に */
       background: #fff;
+      position: relative; overflow: hidden; /* 背景グラデ維持 */
     }
     .deckselect-item img{
-      width: 60px; height: 60px; object-fit: cover; border: 1px solid #aaa;
+      width: 80px; height: 80px;       /* ★画像サイズも倍に */
+      object-fit: cover;
+      border: 1px solid #aaa;
     }
     .deckselect-name{ flex: 1; font-weight: 700; }
 
@@ -2138,6 +2143,8 @@
           const item = document.createElement('div');
           item.className = 'deckselect-item';
 
+          paintDeckBg(item, name); // ★ 先頭2文字の色で背景を塗る
+
           const img = document.createElement('img');
           img.loading = 'lazy';
           img.src = `deck_built/${encodeURIComponent(name)}/leader.png`; // 例: /deck_built/黒イム/leader.png
@@ -2186,6 +2193,37 @@
         requestAnimationFrame(openDeckSelect);
       }
     });
+
+    // === デッキ名→色 ===
+    const COLOR_RGB = {
+      '赤': '255, 64,  64',   // red
+      '緑': '64,  200, 120',  // green
+      '青': '64,  180, 255',  // blue
+      '紫': '160, 80,  200',  // purple
+      '黒': '34,  34,  34',   // black-ish
+      '黄': '255, 210, 0'     // yellow
+    };
+
+    // 先頭2文字から色を最大2つ取り出す
+    function pickColorsFromName(name){
+      const chars = Array.from(name).slice(0, 2);
+      return chars.map(ch => COLOR_RGB[ch]).filter(Boolean);
+    }
+
+    // 背景を塗る（1色=単色、2色=斜めグラデ）
+    function paintDeckBg(el, deckName){
+      const cols = pickColorsFromName(deckName);
+      const a = 0.65; // 透過（文字を読みやすく）
+      if (cols.length >= 2){
+        el.style.background = `linear-gradient(135deg,
+          rgba(${cols[0]}, ${a}) 0 50%,
+          rgba(${cols[1]}, ${a}) 50% 100%)`;
+      } else if (cols.length === 1){
+        el.style.background = `rgba(${cols[0]}, ${a})`;
+      } else {
+        el.style.background = 'rgba(255,255,255,0.9)'; // フォールバック
+      }
+    }
 
 
 
