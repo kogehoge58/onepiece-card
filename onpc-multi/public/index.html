@@ -330,6 +330,10 @@
       background: rgba(0,0,0,.6); color: #fff; font-weight: 700;
       font-size: 14px; line-height: 1; cursor: pointer;
     }
+
+    /* カード一覧モーダル（DeckSelect > 見る） */
+    #cardlist-backdrop { z-index: 10002; } /* 既存モーダルと同等の前面レイヤ */
+    #preview-backdrop { z-index: 10003; }
   </style>
 </head>
 <body>
@@ -591,6 +595,17 @@
         <div class="modal-title">デッキ選択</div>
       </div>
       <div id="deckselect-list" class="deckselect-list" role="list"></div>
+    </div>
+  </div>
+
+  <!-- カード一覧モーダル（DeckSelect > 見る） -->
+  <div id="cardlist-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">カード一覧</div>
+        <!-- 閉じるボタンは置かない（外側クリック/Escで閉じる） -->
+      </div>
+      <div id="cardlist-thumbs" class="thumbs" role="list"></div>
     </div>
   </div>
 
@@ -2157,7 +2172,8 @@
           const btnSee = document.createElement('button');
           btnSee.type = 'button';
           btnSee.className = 'ds-btn';
-          btnSee.textContent = '見る';       // 処理は未実装のまま
+          btnSee.textContent = '見る';
+          btnSee.addEventListener('click', () => { openCardListModal(name); });
 
           const btnPick = document.createElement('button');
           btnPick.type = 'button';
@@ -2224,6 +2240,59 @@
         el.style.background = 'rgba(255,255,255,0.9)'; // フォールバック
       }
     }
+
+    /* ==== DeckSelect > 見る：カード一覧モーダル ==== */
+    const cardListBackdrop = document.getElementById('cardlist-backdrop');
+    const cardListThumbs   = document.getElementById('cardlist-thumbs');
+
+    function buildCardListPaths(folder){
+      // フォルダは未エンコードで組んでから、セグメント単位で1回だけエンコード
+      const base = encodeURI(`deck_built/${folder}`);
+
+      const list = [
+        `${base}/leader.png`,
+        ...Array.from({ length: 50 }, (_, i) =>
+          `${base}/images/${encodeURIComponent(`image (${i + 1}).png`)}`
+        ),
+      ];
+      // ここで追加の encodeURI は不要（= 二重エンコードを避ける）
+      return list;
+    }
+
+    function openCardListModal(folder){
+      cardListThumbs.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      buildCardListPaths(folder).forEach(src => {
+        const img = document.createElement('img');
+        img.src = src;              // 最初から表向き
+        img.alt = folder;
+        frag.appendChild(img);      // wrap不要：右クリ/デッキ下ボタンは非対応
+      });
+      cardListThumbs.appendChild(frag);
+      cardListBackdrop.style.display = 'flex';
+      cardListBackdrop.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeCardListModal(){
+      cardListBackdrop.style.display = 'none';
+      cardListBackdrop.setAttribute('aria-hidden', 'true');
+      cardListThumbs.innerHTML = '';
+    }
+
+    // 左クリックで拡大（既存プレビューを流用）
+    cardListThumbs.addEventListener('click', (e)=>{
+      const img = e.target.closest('img');
+      if (!img) return;
+      openImagePreview(img.src, img.alt || '');
+    });
+
+    // 背景クリック/Escで閉じる（閉じるボタンは置かない仕様）
+    cardListBackdrop.addEventListener('click', (e)=>{
+      if (e.target === cardListBackdrop) closeCardListModal();
+    });
+    document.addEventListener('keydown', (e)=>{
+      if (cardListBackdrop.style.display === 'flex' && e.key === 'Escape') closeCardListModal();
+    });
 
 
 
