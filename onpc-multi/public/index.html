@@ -299,6 +299,32 @@
     .btn-counter[data-type="donRest"][data-delta="2"]{
       background: rgba(255, 64, 64, .70);
     }
+
+    /* デッキ選択（2カラムの一覧） */
+    #deckselect-backdrop { z-index: 10001; }  /* メニューより前面（既存ルールPDFと同様） */
+    .deckselect-modal { width: min(900px, 90vw); height: min(80vh, 90vh); }
+
+    .deckselect-list{
+      flex: 1; overflow: auto;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+      padding-inline-end: 20px; /* スクロールバー溝の調整は既存モーダルと同様 */
+    }
+    .deckselect-item{
+      display: flex; align-items: center; gap: 16px;
+      border: 1px solid #bbb; border-radius: 8px; padding: 14px 12px;
+      background: #fff;
+    }
+    .deckselect-item img{
+      width: 60px; height: 60px; object-fit: cover; border: 1px solid #aaa;
+    }
+    .deckselect-name{ flex: 1; font-weight: 700; }
+
+    /* ボタンの見た目は「裏向き」「デッキ下」と同系（色/角/太字） */
+    .ds-btn{
+      padding: 6px 10px; border-radius: 8px; border: 0;
+      background: rgba(0,0,0,.6); color: #fff; font-weight: 700;
+      font-size: 14px; line-height: 1; cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -543,12 +569,24 @@
     <button type="button" role="menuitem" data-action="mulligan">マリガン</button>
     <button type="button" role="menuitem" data-action="rules">ルール確認</button>
     <button type="button" role="menuitem" data-action="janken">ジャンケン</button>
+    <button type="button" role="menuitem" data-action="deck-select">デッキ選択</button>
   </div>
 
   <!-- ルール確認用PDFモーダル -->
   <div id="rules-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
     <div id="rules-content" style="background:#fff; border-radius:10px; padding:8px; max-width:90vw; max-height:90vh; display:flex; align-items:center; justify-content:center;">
       <embed id="rules-embed" src="" type="application/pdf" style="width:88vw; height:88vh; border:0;">
+    </div>
+  </div>
+
+  <!-- デッキ選択モーダル -->
+  <div id="deckselect-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div class="modal deckselect-modal">
+      <div class="modal-header">
+        <div class="modal-title">デッキ選択</div>
+        <button id="deckselect-close" type="button" class="header-btn">閉じる</button>
+      </div>
+      <div id="deckselect-list" class="deckselect-list" role="list"></div>
     </div>
   </div>
 
@@ -2046,6 +2084,111 @@
         cell?.querySelectorAll('.no-attack-icon').forEach(el => el.remove());
       }
     }
+
+    /* ===== デッキ選択モーダル ===== */
+    // 動的に deck_built 配下のフォルダ名を取得（API→静的JSONの順にフォールバック）
+    let deckBuiltFolders = [];
+    let deckFoldersLoaded = false;
+
+    async function fetchDeckBuiltFolders(){
+      if (deckFoldersLoaded) return deckBuiltFolders;
+
+      // 1) API（後述の /api/deckbuilt）
+      try{
+        const r = await fetch('/api/deckbuilt', { cache:'no-store' });
+        if (r.ok){
+          const j = await r.json();
+          deckBuiltFolders = Array.isArray(j) ? j : (j.folders || []);
+          deckFoldersLoaded = true;
+          return deckBuiltFolders;
+        }
+      }catch(_){}
+
+      // 2) 静的JSON（public/deck_built/_list.json）
+      try{
+        const r2 = await fetch('deck_built/_list.json', { cache:'no-store' });
+        if (r2.ok){
+          const j2 = await r2.json();
+          deckBuiltFolders = Array.isArray(j2) ? j2 : (j2.folders || []);
+          deckFoldersLoaded = true;
+          return deckBuiltFolders;
+        }
+      }catch(_){}
+
+      deckBuiltFolders = [];
+      deckFoldersLoaded = true;
+      return deckBuiltFolders;
+    }
+
+    const deckSelBackdrop = document.getElementById('deckselect-backdrop');
+    const deckSelList     = document.getElementById('deckselect-list');
+    const deckSelCloseBtn = document.getElementById('deckselect-close');
+
+    function renderDeckSelectList(){
+      // ローディング表示
+      deckSelList.innerHTML = '<div style="grid-column:1/-1;padding:12px;">読み込み中…</div>';
+
+      fetchDeckBuiltFolders().then(list => {
+        deckSelList.innerHTML = '';
+        if (!list || list.length === 0){
+          deckSelList.innerHTML = '<div style="grid-column:1/-1;padding:12px;">デッキが見つかりません</div>';
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        list.forEach(name => {
+          const item = document.createElement('div');
+          item.className = 'deckselect-item';
+
+          const img = document.createElement('img');
+          img.loading = 'lazy';
+          img.src = `deck_built/${encodeURIComponent(name)}/leader.png`; // 例: /deck_built/黒イム/leader.png
+          img.alt = name;
+
+          const nm  = document.createElement('div');
+          nm.className = 'deckselect-name';
+          nm.textContent = name; // フォルダ名そのまま表示
+
+          const btnSee = document.createElement('button');
+          btnSee.type = 'button';
+          btnSee.className = 'ds-btn';
+          btnSee.textContent = '見る';       // 処理は未実装のまま
+
+          const btnPick = document.createElement('button');
+          btnPick.type = 'button';
+          btnPick.className = 'ds-btn';
+          btnPick.textContent = '選択';      // 処理は未実装のまま
+
+          item.append(img, nm, btnSee, btnPick);
+          frag.appendChild(item);
+        });
+        deckSelList.appendChild(frag);
+      }).catch(() => {
+        deckSelList.innerHTML = '<div style="grid-column:1/-1;padding:12px;">読み込みに失敗しました</div>';
+      });
+    }
+
+    function openDeckSelect(){
+      renderDeckSelectList();                      // ← 非同期で一覧を埋める
+      deckSelBackdrop.style.display = 'flex';
+      deckSelBackdrop.setAttribute('aria-hidden', 'false');
+    }
+    function closeDeckSelect(){
+      deckSelBackdrop.style.display = 'none';
+      deckSelBackdrop.setAttribute('aria-hidden', 'true');
+      deckSelList.innerHTML = '';
+    }
+    deckSelBackdrop.addEventListener('click', (e) => { if (e.target === deckSelBackdrop) closeDeckSelect(); });
+    deckSelCloseBtn.addEventListener('click', closeDeckSelect);
+
+    mainMenu.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[role="menuitem"]');
+      if (!btn) return;
+      if (btn.dataset.action === 'deck-select') {
+        hideMainMenu();
+        requestAnimationFrame(openDeckSelect);
+      }
+    });
 
 
 

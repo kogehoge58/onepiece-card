@@ -26,6 +26,22 @@ const io = new Server(server, {
   },
 });
 
+const fs   = require('fs');
+
+// 既存の app = express() の後あたりに
+app.get('/api/deckbuilt', (req, res) => {
+  const base = path.join(__dirname, 'public', 'deck_built');
+  fs.readdir(base, { withFileTypes: true }, (err, entries) => {
+    if (err) return res.status(500).json({ error: String(err) });
+    const folders = entries
+      .filter(e => e.isDirectory())
+      .map(e => e.name)
+      .filter(name => fs.existsSync(path.join(base, name, 'leader.png')));
+    res.set('Cache-Control', 'no-store');
+    res.json({ folders });
+  });
+});
+
 // 静的配信: /public をドキュメントルートに
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_, res) => res.type('text').send('ok'));
