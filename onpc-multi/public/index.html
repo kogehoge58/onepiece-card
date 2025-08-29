@@ -542,6 +542,7 @@
     <button type="button" role="menuitem" data-action="refresh">ターン開始</button>
     <button type="button" role="menuitem" data-action="mulligan">マリガン</button>
     <button type="button" role="menuitem" data-action="rules">ルール確認</button>
+    <button type="button" role="menuitem" data-action="janken">ジャンケン</button>
   </div>
 
   <!-- ルール確認用PDFモーダル -->
@@ -1725,6 +1726,11 @@
       } else if (action === 'rules') {
         hideMainMenu();           // 先に閉じてから
         requestAnimationFrame(openRules); // 次フレームでPDFモーダルを開く
+      } else if (action === 'janken') {             // ★追加
+        hideMainMenu();
+        // 1/2でA/Bのどちらかを勝者に決定（発火クライアントで一度だけ乱数→全員に同期）
+        const winner = (Math.random() < 0.5) ? 'A' : 'B';
+        emitAction({ type: 'JANKEN', winner });
       } else {
         hideMainMenu();
       }
@@ -2058,6 +2064,11 @@
     let MY_ROLE = 'PLAYER';
     let MY_SEAT = 'P1';
 
+    // room:hello で MY_ROLE / MY_SEAT が入る箇所の直後に追加
+    function myPlayerLetter(){
+      return (MY_SEAT === 'P1') ? 'A' : 'B';
+    }
+
     socket.on('room:hello', ({ role, seat }) => {
       MY_ROLE = role;
       MY_SEAT = seat;
@@ -2134,6 +2145,12 @@
         case 'LIFE_REVEAL_ONE':    if (typeof applyLifeRevealOne  === 'function') applyLifeRevealOne(a); break;
         case 'LIFE_HIDE_ONE':      if (typeof applyLifeHideOne    === 'function') applyLifeHideOne(a); break;
         case 'MULLIGAN':        if (typeof applyMulligan === 'function') applyMulligan(a); break;
+        case 'JANKEN': {                               // ★追加
+          if (MY_ROLE !== 'PLAYER') break;             // 観戦は表示なし
+          const me = myPlayerLetter();                  // 'A' or 'B'
+          alert(me === a.winner ? '勝ちました！' : '負けました！');
+          break;
+        }
       }
 
       window.__CURRENT_ACTOR = __prevActor;
