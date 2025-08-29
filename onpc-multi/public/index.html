@@ -821,6 +821,7 @@
       thumbs.appendChild(frag);
       backdrop.style.display = 'flex';
       backdrop.setAttribute('aria-hidden', 'false');
+      requestAnimationFrame(() => forceScrollTop(thumbs));
     }
 
     // デッキ・手札・ライフ・トラッシュ クリックで一覧（文脈セット）
@@ -2184,6 +2185,7 @@
           frag.appendChild(item);
         });
         deckSelList.appendChild(frag);
+        forceScrollTop(deckSelList);
       }).catch(() => {
         deckSelList.innerHTML = '<div style="grid-column:1/-1;padding:12px;">読み込みに失敗しました</div>';
       });
@@ -2193,6 +2195,7 @@
       renderDeckSelectList();                      // ← 非同期で一覧を埋める
       deckSelBackdrop.style.display = 'flex';
       deckSelBackdrop.setAttribute('aria-hidden', 'false');
+      requestAnimationFrame(() => forceScrollTop(deckSelList));
     }
     function closeDeckSelect(){
       deckSelBackdrop.style.display = 'none';
@@ -2271,6 +2274,7 @@
       cardListThumbs.appendChild(frag);
       cardListBackdrop.style.display = 'flex';
       cardListBackdrop.setAttribute('aria-hidden', 'false');
+      requestAnimationFrame(() => forceScrollTop(cardListThumbs));
     }
 
     function closeCardListModal(){
@@ -2293,6 +2297,17 @@
     document.addEventListener('keydown', (e)=>{
       if (cardListBackdrop.style.display === 'flex' && e.key === 'Escape') closeCardListModal();
     });
+
+    // ★最上部へ強制スクロール（scrollTopを使わない）
+    function forceScrollTop(scroller){
+      if (!scroller) return;
+      const s = document.createElement('div');
+      s.style.cssText = 'height:0;margin:0;padding:0;';
+      // 先頭に一瞬だけ置いて、その要素を「先頭へ」スクロールさせる
+      scroller.prepend(s);
+      s.scrollIntoView({ block: 'start', inline: 'nearest' });
+      s.remove();
+    }
 
 
 
