@@ -355,7 +355,7 @@
       padding: 8px 10px; border:1px solid #999; border-radius:4px; font-size:14px;
     }
     .room-error{ color:#e11; font-size:14px; }
-    .req{ color:#e11; margin-right:4px; }
+    .req{ color:#e11; }
     .room-actions{ display:flex; justify-content:center; margin-top: 10px; }
 
     /* 「デッキ下」「裏向き」と同系の主ボタン */
@@ -363,6 +363,45 @@
       padding: 10px 24px; border:0; border-radius:8px; cursor:pointer; font-weight:700;
       background: rgba(0,0,0,.8); color:#fff; font-size:16px; line-height:1;
     }
+
+    /* ラジオの見た目をカスタム（外黒丸 + ONで中黒丸） */
+    .room-radio { cursor: pointer; }
+
+    .room-radio input[type="radio"]{
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;               /* ← 直径UP（お好みで 22～28px 程度に） */
+      height: 20px;
+      border: 2px solid #000;    /* 外側の黒丸（枠） */
+      border-radius: 50%;
+      display: inline-grid;
+      place-content: center;
+      background: #fff;          /* 内側は白 */
+      margin: 0;                 /* ブラウザ既定の余白を消す */
+    }
+
+    .room-radio input[type="radio"]::before{
+      content: "";
+      width: 12px;               /* 中黒の直径（外径の約1/2が目安） */
+      height: 12px;
+      border-radius: 50%;
+      background: #000;          /* 中黒 */
+      transform: scale(0);       /* OFF時は非表示 */
+      transition: transform 120ms ease-in-out;
+    }
+
+    .room-radio input[type="radio"]:checked::before{
+      transform: scale(1);       /* ONで中黒を表示 */
+    }
+
+    /* キーボード操作時のフォーカスリング（見やすさ向上） */
+    .room-radio input[type="radio"]:focus-visible{
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    /* 万一のフォールバック（appearance未対応時） */
+    .room-radio input[type="radio"]{ accent-color: #000; }
   </style>
 </head>
 <body>
