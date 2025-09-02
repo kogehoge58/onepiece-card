@@ -25,6 +25,8 @@ http://210.165.130.216:3000/?room=table-1&name=A
 
 git rm -r --cached .
 
+cloudflared tunnel run merrydesk
+
 ■TODO
 
 ・操作ログ実装
