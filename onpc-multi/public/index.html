@@ -593,7 +593,7 @@
   <div id="deckselect-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
     <div class="modal deckselect-modal">
       <div class="modal-header">
-        <div class="modal-title">※ゲーム開始前、両プレイヤーはブラウザを更新してください。</div>
+        <div class="modal-title">デッキ選択</div>
       </div>
       <div id="deckselect-list" class="deckselect-list" role="list"></div>
     </div>
@@ -1098,7 +1098,7 @@
     });
 
     /* 画面上の leader.png をクリックで拡大（A/B両方） */
-    document.querySelectorAll('img[src$="leader.png"]').forEach(img => {
+    document.querySelectorAll('#a-leader-img, #b-leader-img').forEach(img => {
       img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
     });
 
@@ -1150,7 +1150,7 @@
     // 右クリック（contextmenu）を全体で禁止。ただし個別に許可している要素のみ通す
     document.addEventListener('contextmenu', (e) => {
       const allowed = e.target.closest(
-        '#thumbs img, #a-deck, #b-deck, #a-life, #b-life, img[src$="leader.png"],' +
+        '#thumbs img, #a-deck, #b-deck, #a-life, #b-life, #a-leader-img, #b-leader-img,' +
         ' #a-chara-1 img, #a-chara-2 img, #a-chara-3 img, #a-chara-4 img, #a-chara-5 img,' +
         ' #b-chara-1 img, #b-chara-2 img, #b-chara-3 img, #b-chara-4 img, #b-chara-5 img,' +
         ' #a-stage img, #b-stage img, img[src$="menu.png"]' // ★追加
@@ -1352,7 +1352,7 @@
     }
 
     // リーダー画像（A/B）右クリック
-    document.querySelectorAll('img[src$="leader.png"]').forEach(img => {
+    document.querySelectorAll('#a-leader-img, #b-leader-img').forEach(img => {
       img.addEventListener('contextmenu', (e) => {
         const alt = img.alt || '';
         const player = alt.startsWith('A-') ? 'A' : alt.startsWith('B-') ? 'B' : '';
