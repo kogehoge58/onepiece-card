@@ -723,11 +723,17 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
+    const ROOM = new URLSearchParams(location.search).get('room') || 'dev';
+    const withRoom = (url) => url + (url.includes('?') ? '&' : '?') +
+                      'room=' + encodeURIComponent(ROOM);
+
     /* ===== 画像スタック ===== */
     const CACHE_BUSTER = Date.now();
     const deckImages = {
-      A: Array.from({length:50}, (_,i) => encodeURI(`deck/player_A/images/image (${i+1}).png?v=${CACHE_BUSTER}`)),
-      B: Array.from({length:50}, (_,i) => encodeURI(`deck/player_B/images/image (${i+1}).png?v=${CACHE_BUSTER}`)),
+      A: Array.from({length:50}, (_,i) =>
+          encodeURI(withRoom(`deck/player_A/images/image (${i+1}).png?v=${CACHE_BUSTER}`))),
+      B: Array.from({length:50}, (_,i) =>
+          encodeURI(withRoom(`deck/player_B/images/image (${i+1}).png?v=${CACHE_BUSTER}`))),
     };
     const handImages  = { A: [], B: [] };
     const lifeImages  = { A: [], B: [] };
@@ -751,8 +757,8 @@
     // ★ リーダー画像もキャッシュ回避
     const aLeader = document.getElementById('a-leader-img');
     const bLeader = document.getElementById('b-leader-img');
-    if (aLeader) aLeader.src = `deck/player_A/leader.png?v=${CACHE_BUSTER}`;
-    if (bLeader) bLeader.src = `deck/player_B/leader.png?v=${CACHE_BUSTER}`;
+    if (aLeader) aLeader.src = withRoom(`deck/player_A/leader.png?v=${CACHE_BUSTER}`);
+    if (bLeader) bLeader.src = withRoom(`deck/player_B/leader.png?v=${CACHE_BUSTER}`);
 
     // ★起動時はalert.pngを非表示
     document.querySelectorAll('.card.don-deck .alert-icon').forEach(el => el.style.display = 'none');
@@ -2321,7 +2327,7 @@
             const orig = btnPick.textContent;
             btnPick.textContent = '適用中…';
             try {
-              const r = await fetch('/api/deck/apply', {
+              const r = await fetch('/api/deck/apply?room='+encodeURIComponent(ROOM), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ player: DECK_SELECT_PLAYER, folder: name })
@@ -2335,10 +2341,10 @@
 
                 // 1) ローカルUI更新（リーダー画像）
                 const leaderEl = document.getElementById(player === 'A' ? 'a-leader-img' : 'b-leader-img');
-                if (leaderEl) leaderEl.src = `${base}/leader.png?v=${v}`;
+                if (leaderEl) leaderEl.src = withRoom(`${base}/leader.png?v=${v}`);
 
                 // 2) ローカルUI更新（デッキ50枚の配列を差し替え）
-                const imgs = Array.from({ length: 50 }, (_, i) => `${base}/images/image (${i+1}).png?v=${v}`);
+                const imgs = Array.from({ length: 50 }, (_, i) => withRoom(`${base}/images/image (${i+1}).png?v=${v}`));
                 deckImages[player] = imgs;     // 既存の deckImages を上書き
                 deckCounts[player] = imgs.length; // カウントも50にリセット
                 renderCounts();                   // ラベル更新
@@ -2672,10 +2678,10 @@
 
           // リーダー画像の差し替え（キャッシュバスター付）
           const leaderEl = document.getElementById(player === 'A' ? 'a-leader-img' : 'b-leader-img');
-          if (leaderEl) leaderEl.src = `${base}/leader.png?v=${v}`;
+          if (leaderEl) leaderEl.src = withRoom(`${base}/leader.png?v=${v}`);
 
           // デッキ50枚を差し替え（配列とカウント）
-          const imgs = Array.from({ length: 50 }, (_, i) => `${base}/images/image (${i+1}).png?v=${v}`);
+          const imgs = Array.from({ length: 50 }, (_, i) => withRoom(`${base}/images/image (${i+1}).png?v=${v}`));
           deckImages[player]  = imgs;
           deckCounts[player]  = imgs.length;
           renderCounts();

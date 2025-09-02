@@ -27,6 +27,8 @@ git rm -r --cached .
 
 cloudflared tunnel run merrydesk
 
+https://merrydesk-onpc.com/?room=table-1&name=A
+
 ■TODO
 
 ・操作ログ実装

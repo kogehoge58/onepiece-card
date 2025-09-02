@@ -68,7 +68,8 @@ app.post('/api/deck/apply', async (req, res) => {
       return res.status(404).json({ ok:false, error:'source not found' });
     }
 
-    const dstDir = path.join(base, 'deck', player === 'A' ? 'player_A' : 'player_B');
+    const room = pickRoom(req);
+    const dstDir    = path.join(base, 'rooms', room, 'deck', player === 'A' ? 'player_A' : 'player_B');
     const dstLeader = path.join(dstDir, 'leader.png');
     const dstImages = path.join(dstDir, 'images');
 
@@ -126,6 +127,28 @@ app.post('/api/deck/apply', async (req, res) => {
   } catch (e) {
     res.status(500).json({ ok:false, error:String(e && e.message || e) });
   }
+});
+
+function pickRoom(req){
+  // ?room= があればそれ、無ければ Referer のクエリから拾う
+  const url = new URL(req.headers.referer || 'http://x/?room=dev');
+  const fromRef = url.searchParams.get('room');
+  const q = (req.query && req.query.room) || fromRef || 'dev';
+  // ルーム名をサニタイズ（英数-_のみ）
+  return String(q).replace(/[^\w-]/g, '_');
+}
+
+app.get(/^\/deck\/(.+)$/, (req, res) => {
+  const rel = req.params[0];              // player_A/leader.png など
+  const room = pickRoom(req);
+  const base = path.join(__dirname, 'public');
+
+  const roomFile = path.join(base, 'rooms', room, 'deck', rel);
+  const globalFile = path.join(base, 'deck', rel); // フォールバック（従来）
+
+  res.set('Cache-Control','no-store');
+  if (fs.existsSync(roomFile)) return res.sendFile(roomFile);
+  return res.sendFile(globalFile);
 });
 
 // 静的配信: /public をドキュメントルートに
