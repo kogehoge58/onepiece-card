@@ -335,6 +335,34 @@
     /* カード一覧モーダル（DeckSelect > 見る） */
     #cardlist-backdrop { z-index: 10002; } /* 既存モーダルと同等の前面レイヤ */
     #preview-backdrop { z-index: 10003; }
+
+    /* ===== ルーム設定モーダル ===== */
+    .room-modal{
+      width: min(720px, 92vw);
+      height: auto;
+      border: 1px solid #000;      /* 枠線（添付イメージ準拠） */
+    }
+    .room-form{ padding: 16px 20px 22px; }
+    .room-row{ display: flex; align-items: center; gap: 24px; padding: 12px 4px; }
+    .room-label{
+      width: 110px; text-align: left; color:#333; font-weight:700; letter-spacing:.05em;
+    }
+    .room-field{ flex: 1; display:flex; align-items:center; gap: 26px; flex-wrap: wrap; }
+    .room-radio{ display:flex; align-items:center; gap:8px; }
+    .room-name-field{ gap: 12px; }
+    .room-name-field input{
+      width: 360px; max-width: 100%;
+      padding: 8px 10px; border:1px solid #999; border-radius:4px; font-size:14px;
+    }
+    .room-error{ color:#e11; font-size:14px; }
+    .req{ color:#e11; margin-right:4px; }
+    .room-actions{ display:flex; justify-content:center; margin-top: 10px; }
+
+    /* 「デッキ下」「裏向き」と同系の主ボタン */
+    .btn-primary{
+      padding: 10px 24px; border:0; border-radius:8px; cursor:pointer; font-weight:700;
+      background: rgba(0,0,0,.8); color:#fff; font-size:16px; line-height:1;
+    }
   </style>
 </head>
 <body>
@@ -578,6 +606,7 @@
     <button type="button" role="menuitem" data-action="refresh">ターン開始</button>
     <button type="button" role="menuitem" data-action="mulligan">マリガン</button>
     <button type="button" role="menuitem" data-action="janken">ジャンケン</button>
+    <button type="button" role="menuitem" data-action="room-settings">ルーム設定</button>
     <button type="button" role="menuitem" data-action="deck-select">デッキ選択</button>
     <button type="button" role="menuitem" data-action="rules">ルール確認</button>
   </div>
@@ -607,6 +636,49 @@
         <!-- 閉じるボタンは置かない（外側クリック/Escで閉じる） -->
       </div>
       <div id="cardlist-thumbs" class="thumbs" role="list"></div>
+    </div>
+  </div>
+
+  <!-- ルーム設定モーダル -->
+  <div id="room-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div class="modal room-modal" role="document">
+      <div class="modal-header">
+        <div class="modal-title">ルーム設定</div>
+      </div>
+
+      <form id="room-form" class="room-form" onsubmit="return false;">
+        <!-- ロール -->
+        <div class="room-row">
+          <div class="room-label">ロール</div>
+          <div class="room-field">
+            <label class="room-radio"><input type="radio" name="role" value="player" checked> プレイヤー</label>
+            <label class="room-radio"><input type="radio" name="role" value="spec"> 観戦</label>
+            <label class="room-radio"><input type="radio" name="role" value="practice"> 練習（ひとりまわし）</label>
+          </div>
+        </div>
+
+        <!-- サイド -->
+        <div id="room-side-row" class="room-row">
+          <div class="room-label">サイド</div>
+          <div class="room-field">
+            <label class="room-radio"><input type="radio" name="side" value="A" checked> A</label>
+            <label class="room-radio"><input type="radio" name="side" value="B"> B</label>
+          </div>
+        </div>
+
+        <!-- ルーム名 -->
+        <div id="room-name-row" class="room-row">
+          <div class="room-label"><span class="req">*</span>ルーム名</div>
+          <div class="room-field room-name-field">
+            <input id="room-name-input" type="text" placeholder="例：room01（半角英数のみ）" pattern="[0-9A-Za-z]+">
+            <span id="room-name-error" class="room-error" style="display:none;">※入力必須です。</span>
+          </div>
+        </div>
+
+        <div class="room-actions">
+          <button id="room-enter-btn" type="button" class="btn-primary">入室</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1781,6 +1853,12 @@
         return;
       }
 
+      if (action === 'room-settings') {
+        hideMainMenu();
+        openRoomSettings();
+        return;
+      }
+
       if (action === 'refresh' && player) {
         hideMainMenu();
         requestAnimationFrame(() => {
@@ -2364,6 +2442,84 @@
       s.scrollIntoView({ block: 'start', inline: 'nearest' });
       s.remove();
     }
+
+    // ===== ルーム設定 =====
+    const roomBackdrop   = document.getElementById('room-backdrop');
+    const roomForm       = document.getElementById('room-form');
+    const roomSideRow    = document.getElementById('room-side-row');
+    const roomNameRow    = document.getElementById('room-name-row');
+    const roomNameInput  = document.getElementById('room-name-input');
+    const roomNameError  = document.getElementById('room-name-error');
+    const roomEnterBtn   = document.getElementById('room-enter-btn');
+
+    function openRoomSettings(){
+      // 初期状態：プレイヤー / サイドA / ルーム名空
+      roomForm.role.value = 'player';
+      roomForm.side.value = 'A';
+      roomNameInput.value = '';
+      roomNameError.style.display = 'none';
+      roomSideRow.style.display = '';
+      roomNameRow.style.display = '';
+
+      roomBackdrop.style.display = 'flex';
+      roomBackdrop.setAttribute('aria-hidden', 'false');
+    }
+    function hideRoomSettings(){
+      roomBackdrop.style.display = 'none';
+      roomBackdrop.setAttribute('aria-hidden', 'true');
+    }
+
+    roomBackdrop.addEventListener('click', (e) => { if (e.target === roomBackdrop) hideRoomSettings(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideRoomSettings(); });
+
+    // ロール切替で表示ブロックを制御
+    roomForm.addEventListener('change', (e) => {
+      if (e.target.name !== 'role') return;
+      const role = roomForm.role.value;
+      if (role === 'player') {
+        roomSideRow.style.display = '';
+        roomNameRow.style.display = '';
+      } else if (role === 'spec') {
+        roomSideRow.style.display = 'none';
+        roomNameRow.style.display = '';
+      } else { // practice
+        roomSideRow.style.display = 'none';
+        roomNameRow.style.display = 'none';
+        roomNameError.style.display = 'none';
+      }
+    });
+
+    // 10桁の半角数字ランダム
+    function randomDigits(n=10){
+      let s = '';
+      for (let i=0;i<n;i++) s += Math.floor(Math.random()*10);
+      return s;
+    }
+
+    // 入室
+    roomEnterBtn.addEventListener('click', () => {
+      const role = roomForm.role.value;             // 'player' | 'spec' | 'practice'
+      const side = roomForm.side.value || 'A';      // 'A' | 'B'
+      const base = location.origin;                 // 実行中のドメインを利用
+
+      let url = '';
+      if (role === 'player') {
+        const room = (roomNameInput.value || '').trim();
+        if (!room) { roomNameError.style.display = 'inline'; return; }
+        roomNameError.style.display = 'none';
+        url = `${base}/?room=${encodeURIComponent(room)}&name=${encodeURIComponent(side)}`;
+      } else if (role === 'spec') {
+        const room = (roomNameInput.value || '').trim(); // 仕様上エラーは出さない
+        if (!room) { roomNameError.style.display = 'inline'; return; }
+        url = `${base}/?room=${encodeURIComponent(room)}&name=C&role=spec`;
+      } else {
+        const room = randomDigits(10);
+        url = `${base}/?room=${room}&name=D`;
+      }
+
+      // 遷移（※非同期通信なし）
+      location.href = url;
+    });
 
 
 
