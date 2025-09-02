@@ -367,7 +367,7 @@
 
         <!-- A-LEADER -->
         <div class="card">
-          <img src="deck/player_A/leader.png" alt="A-LEADER">
+          <img id="a-leader-img" src="deck/player_A/leader.png" alt="A-LEADER">
           <span id="a-leader-don-label" class="don-label">ドン×0</span>
         </div>
 
@@ -457,7 +457,7 @@
 
         <!-- B-LEADER -->
         <div class="card">
-          <img src="deck/player_B/leader.png" alt="B-LEADER">
+          <img id="b-leader-img" src="deck/player_B/leader.png" alt="B-LEADER">
           <span id="b-leader-don-label" class="don-label">ドン×0</span>
         </div>
 
@@ -613,9 +613,10 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     /* ===== 画像スタック ===== */
+    const CACHE_BUSTER = Date.now();
     const deckImages = {
-      A: Array.from({length:50}, (_,i) => encodeURI(`deck/player_A/images/image (${i+1}).png`)),
-      B: Array.from({length:50}, (_,i) => encodeURI(`deck/player_B/images/image (${i+1}).png`)),
+      A: Array.from({length:50}, (_,i) => encodeURI(`deck/player_A/images/image (${i+1}).png?v=${CACHE_BUSTER}`)),
+      B: Array.from({length:50}, (_,i) => encodeURI(`deck/player_B/images/image (${i+1}).png?v=${CACHE_BUSTER}`)),
     };
     const handImages  = { A: [], B: [] };
     const lifeImages  = { A: [], B: [] };
@@ -635,6 +636,12 @@
     let FIRST_TURN_DON_BOOTSTRAP = false;
 
     renderCounts();
+
+    // ★ リーダー画像もキャッシュ回避
+    const aLeader = document.getElementById('a-leader-img');
+    const bLeader = document.getElementById('b-leader-img');
+    if (aLeader) aLeader.src = `deck/player_A/leader.png?v=${CACHE_BUSTER}`;
+    if (bLeader) bLeader.src = `deck/player_B/leader.png?v=${CACHE_BUSTER}`;
 
     // ★起動時はalert.pngを非表示
     document.querySelectorAll('.card.don-deck .alert-icon').forEach(el => el.style.display = 'none');
