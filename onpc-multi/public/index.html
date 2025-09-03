@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>MerryDesk</title>
   <link rel="icon" type="image/png" sizes="32x32" href="component_images/icon.png">
+  <!-- <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"> -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -402,6 +403,38 @@
 
     /* 万一のフォールバック（appearance未対応時） */
     .room-radio input[type="radio"]{ accent-color: #000; }
+
+    /* === Mobile: disable image callout & double-tap zoom (preserve pinch) === */
+    html, body { touch-action: manipulation; }
+    img { -webkit-touch-callout: none; }        /* iOSの長押しメニュー無効 */
+    a, img, button, .card, .card * { -webkit-tap-highlight-color: rgba(0,0,0,0); }
+
+    /* === Mobile: hide ±2 buttons on Don counters === */
+    @media (pointer: coarse) {
+      .btn-counter[data-type="donDeck"][data-delta="2"],
+      .btn-counter[data-type="donDeck"][data-delta="-2"],
+      .btn-counter[data-type="donAct"][data-delta="2"],
+      .btn-counter[data-type="donAct"][data-delta="-2"],
+      .btn-counter[data-type="donRest"][data-delta="2"],
+      .btn-counter[data-type="donRest"][data-delta="-2"]{
+        display: none !important;
+      }
+      /* ±2の行が消えるので、中央アラートの安全余白を1行分に */
+      .card.don-deck { --safe-top: 52px; }
+    }
+
+    /* Fallback（pointer未対応ブラウザ向け） */
+    @media (max-width: 640px) {
+      .btn-counter[data-type="donDeck"][data-delta="2"],
+      .btn-counter[data-type="donDeck"][data-delta="-2"],
+      .btn-counter[data-type="donAct"][data-delta="2"],
+      .btn-counter[data-type="donAct"][data-delta="-2"],
+      .btn-counter[data-type="donRest"][data-delta="2"],
+      .btn-counter[data-type="donRest"][data-delta="-2"]{
+        display: none !important;
+      }
+      .card.don-deck { --safe-top: 52px; }
+    }
   </style>
 </head>
 <body>
@@ -2566,6 +2599,71 @@
       location.href = url;
     });
 
+   // === 起動時にルーム設定モーダルを開く ===
+    window.addEventListener('load', () => {
+      const qp = new URLSearchParams(location.search);
+      // ▼「room と name が未指定のときだけ」開く（常に開きたい場合は if を削除）
+      if (!qp.get('room') || !qp.get('name')) {
+        if (typeof openRoomSettings === 'function') {
+          requestAnimationFrame(openRoomSettings);
+        }
+      }
+    });
+
+    /* === Mobile: long-press => contextmenu, and disable double-tap zoom === */
+    (() => {
+      const isTouchCapable = matchMedia("(pointer: coarse)").matches || 'ontouchstart' in window;
+
+      // 長押しで既存の右クリック処理を発火させる対象
+      const TARGET_SELECTOR = [
+        '#thumbs img', '#a-deck', '#b-deck', '#a-life', '#b-life',
+        '#a-leader-img', '#b-leader-img',
+        '#a-chara-1 img','#a-chara-2 img','#a-chara-3 img','#a-chara-4 img','#a-chara-5 img',
+        '#b-chara-1 img','#b-chara-2 img','#b-chara-3 img','#b-chara-4 img','#b-chara-5 img',
+        '#a-stage img', '#b-stage img', 'img[src$="menu.png"]'
+      ].join(', ');
+
+      if (isTouchCapable) {
+        let tId, sx, sy;
+        const clear = () => { if (tId) clearTimeout(tId); tId = null; };
+
+        document.addEventListener('pointerdown', e => {
+          if (e.pointerType === 'mouse') return;
+          const el = e.target.closest(TARGET_SELECTOR);
+          if (!el) return;
+          sx = e.clientX; sy = e.clientY;
+          clear();
+          tId = setTimeout(() => {
+            el.dispatchEvent(new MouseEvent('contextmenu', {bubbles:true, cancelable:true, clientX:sx, clientY:sy}));
+          }, 550);
+        }, {passive:true});
+
+        document.addEventListener('pointermove', e => {
+          if (!tId) return;
+          if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) clear();
+        }, {passive:true});
+
+        ['pointerup','pointercancel','pointerleave'].forEach(type =>
+          document.addEventListener(type, clear, {passive:true})
+        );
+
+        // ブラウザ既定の長押しメニューを抑止（アプリ側のメニューだけ出す）
+        document.addEventListener('contextmenu', e => {
+          if (e.target.closest(TARGET_SELECTOR)) e.preventDefault();
+        }, true);
+      }
+
+      // ダブルタップ拡大の抑止（ピンチは可）
+      document.addEventListener('dblclick', e => { if (isTouchCapable) e.preventDefault(); }, {passive:false, capture:true});
+      let last = 0, lx = 0, ly = 0;
+      document.addEventListener('touchend', e => {
+        const now = Date.now(), t = e.changedTouches && e.changedTouches[0];
+        const dx = Math.abs((t?.clientX||0) - lx), dy = Math.abs((t?.clientY||0) - ly);
+        if (now - last < 350 && dx < 30 && dy < 30) e.preventDefault();
+        last = now; lx = t?.clientX||0; ly = t?.clientY||0;
+      }, {passive:false, capture:true});
+    })();
+
 
 
     // ====== socketの処理 ======
@@ -2715,17 +2813,6 @@
     // 任意：観戦枠が満員のとき
     socket.on('room:spectators_full', ({ room }) => {
       alert(`観戦枠が満員のため、部屋「${room}」に入れませんでした`);
-    });
-
-    // === 起動時にルーム設定モーダルを開く ===
-    window.addEventListener('load', () => {
-      const qp = new URLSearchParams(location.search);
-      // ▼「room と name が未指定のときだけ」開く（常に開きたい場合は if を削除）
-      if (!qp.get('room') || !qp.get('name')) {
-        if (typeof openRoomSettings === 'function') {
-          requestAnimationFrame(openRoomSettings);
-        }
-      }
     });
   </script>
 </body>
