@@ -2716,6 +2716,17 @@
     socket.on('room:spectators_full', ({ room }) => {
       alert(`観戦枠が満員のため、部屋「${room}」に入れませんでした`);
     });
+
+    // === 起動時にルーム設定モーダルを開く ===
+    window.addEventListener('load', () => {
+      const qp = new URLSearchParams(location.search);
+      // ▼「room と name が未指定のときだけ」開く（常に開きたい場合は if を削除）
+      if (!qp.get('room') || !qp.get('name')) {
+        if (typeof openRoomSettings === 'function') {
+          requestAnimationFrame(openRoomSettings);
+        }
+      }
+    });
   </script>
 </body>
 </html>
