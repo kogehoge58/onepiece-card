@@ -761,12 +761,11 @@
                       'room=' + encodeURIComponent(ROOM);
 
     /* ===== 画像スタック ===== */
-    const CACHE_BUSTER = Date.now();
     const deckImages = {
       A: Array.from({length:50}, (_,i) =>
-          encodeURI(withRoom(`deck/player_A/images/image (${i+1}).png?v=${CACHE_BUSTER}`))),
+          encodeURI(withRoom(`deck/player_A/images/image (${i+1}).png`))),
       B: Array.from({length:50}, (_,i) =>
-          encodeURI(withRoom(`deck/player_B/images/image (${i+1}).png?v=${CACHE_BUSTER}`))),
+          encodeURI(withRoom(`deck/player_B/images/image (${i+1}).png`))),
     };
     const handImages  = { A: [], B: [] };
     const lifeImages  = { A: [], B: [] };
@@ -790,8 +789,8 @@
     // ★ リーダー画像もキャッシュ回避
     const aLeader = document.getElementById('a-leader-img');
     const bLeader = document.getElementById('b-leader-img');
-    if (aLeader) aLeader.src = withRoom(`deck/player_A/leader.png?v=${CACHE_BUSTER}`);
-    if (bLeader) bLeader.src = withRoom(`deck/player_B/leader.png?v=${CACHE_BUSTER}`);
+    if (aLeader) aLeader.src = withRoom(`deck/player_A/leader.png`);
+    if (bLeader) bLeader.src = withRoom(`deck/player_B/leader.png`);
 
     // ★起動時はalert.pngを非表示
     document.querySelectorAll('.card.don-deck .alert-icon').forEach(el => el.style.display = 'none');
