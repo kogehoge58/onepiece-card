@@ -155,6 +155,13 @@ app.get(/^\/deck\/(.+)$/, (req, res) => {
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_, res) => res.type('text').send('ok'));
 
+// 例: /public の配信を超強めキャッシュ
+app.use('/public', express.static('public', {
+  maxAge: '365d',
+  immutable: true,
+  etag: false, // ETag を外して If-None-Match の往復をなくす（運用方針次第）
+}));
+
 // roomId -> { roster: Map<socketId,{name,role,seat}>, state:any|null, nextSpecNo:number }
 const roomState = new Map();
 
