@@ -725,6 +725,7 @@
           <div class="room-field">
             <label class="room-radio"><input type="radio" name="side" value="A" checked> A</label>
             <label class="room-radio"><input type="radio" name="side" value="B"> B</label>
+            <label class="room-radio"><input type="radio" name="side" value="C"> C（観戦/練習）</label>
           </div>
         </div>
 
@@ -750,13 +751,17 @@
     const withRoom = (url) => url + (url.includes('?') ? '&' : '?') +
                       'room=' + encodeURIComponent(ROOM);
 
+    // 追加：このページロード共通のキャッシュバスター
+    const __V = Date.now();
+
     /* ===== 画像スタック ===== */
     const deckImages = {
       A: Array.from({length:50}, (_,i) =>
-          encodeURI(withRoom(`deck/player_A/images/image (${i+1}).png`))),
+        encodeURI(withRoom(`deck/player_A/images/image (${i+1}).png?v=${__V}`))),
       B: Array.from({length:50}, (_,i) =>
-          encodeURI(withRoom(`deck/player_B/images/image (${i+1}).png`))),
+        encodeURI(withRoom(`deck/player_B/images/image (${i+1}).png?v=${__V}`))),
     };
+
     const handImages  = { A: [], B: [] };
     const lifeImages  = { A: [], B: [] };
     const trashImages = { A: [], B: [] };
@@ -779,8 +784,8 @@
     // ★ リーダー画像もキャッシュ回避
     const aLeader = document.getElementById('a-leader-img');
     const bLeader = document.getElementById('b-leader-img');
-    if (aLeader) aLeader.src = withRoom(`deck/player_A/leader.png`);
-    if (bLeader) bLeader.src = withRoom(`deck/player_B/leader.png`);
+    if (aLeader) aLeader.src = withRoom(`deck/player_A/leader.png?v=${__V}`);
+    if (bLeader) bLeader.src = withRoom(`deck/player_B/leader.png?v=${__V}`);
 
     // ★起動時はalert.pngを非表示
     document.querySelectorAll('.card.don-deck .alert-icon').forEach(el => el.style.display = 'none');
