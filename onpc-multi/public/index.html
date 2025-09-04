@@ -947,13 +947,30 @@
         const wrap = document.createElement('div');
         wrap.className = 'thumb-wrap';
 
-        const shown = (isMasked && key && !revealedFaces[key].has(src)) ? 'component_images/back.png' : src;
         const img = document.createElement('img');
-        img.loading = 'lazy';          // ★画面内に入るまでネットワーク＆デコードを遅延
-        img.decoding = 'async';        // ★メインスレッドをブロックしない
-        img.src = shown;
-        img.dataset.src = src;
+        img.loading = 'lazy';          // ★遅延ロード
+        img.decoding = 'async';        // ★非同期デコード
+        img.dataset.src = src;         // 実画像は data-src に保持
         img.alt = '';
+
+        // ★ ローディング表示：手札 / ライフ / トラッシュ は最初は back.png
+        const area = thumbsContext?.area;              // 'hand' | 'life' | 'trash' | 'deck'
+        const needLoader = (area === 'hand' || area === 'life' || area === 'trash');
+        const isLifeRevealed = (area === 'life' && key && revealedFaces[key]?.has(src));
+        const shouldShowFront = (area === 'hand' || area === 'trash' || isLifeRevealed);
+
+        if (needLoader && shouldShowFront) {
+          // まず背面を表示して「読み込み中」感を出す
+          img.src = 'component_images/back.png';
+          // 実画像をプリロードして、完了したら差し替え
+          const pre = new Image();
+          pre.onload = () => { img.src = img.dataset.src; };
+          pre.src = src;
+        } else {
+          // ライフ未公開 or デッキの裏向きはそのまま back
+          const showBack = (isMasked && key && !revealedFaces[key]?.has(src));
+          img.src = showBack ? 'component_images/back.png' : src;
+        }
         wrap.appendChild(img);
 
         // ★ライフで「表向き」＝revealed に入っているときだけボタン表示
@@ -1155,10 +1172,19 @@
     const previewImg      = document.getElementById('preview-img');
 
     function openImagePreview(src, alt=''){
-      previewImg.src = src;
+      // 1) まずは背面画像でプレースホルダー表示
+      previewImg.src = 'component_images/back.png';
       previewImg.alt = alt || '';
+      previewImg.decoding = 'async';
       previewBackdrop.style.display = 'flex';
       previewBackdrop.setAttribute('aria-hidden', 'false');
+
+      // 2) 実画像をプリロードして、読み込み完了後に差し替え
+      const real = new Image();
+      real.decoding = 'async';
+      real.onload = () => { previewImg.src = src; };
+      real.onerror = () => { previewImg.src = src; }; // 失敗時も一応差し替え
+      real.src = src;
     }
     function hidePreview(){
       previewBackdrop.style.display = 'none';
@@ -1362,9 +1388,7 @@
       const cell = document.getElementById(charaSlots[player][idx]);
       if (!cell) return false;
       cell.innerHTML = '';                        // 何か入っていたらクリア
-      const img = document.createElement('img');  // 盤面カード表示
-      img.src = src;
-      img.alt = `${player}-CHARA-${idx+1}`;
+      const img = createImgWithBack(src, `${player}-CHARA-${idx+1}`);
       img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
       cell.appendChild(img);
 
@@ -1759,9 +1783,7 @@
       }
       stageImage[player] = src;
       cell.innerHTML = '';
-      const img = document.createElement('img');
-      img.src = src;
-      img.alt = `${player}-STAGE`;
+      const img = createImgWithBack(src, `${player}-STAGE`);
       img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
       cell.appendChild(img);
       return true;
@@ -2479,12 +2501,21 @@
       cardListThumbs.innerHTML = '';
       const frag = document.createDocumentFragment();
       buildCardListPaths(folder).forEach(src => {
-      const img = document.createElement('img');
-      img.loading = 'lazy';
-      img.decoding = 'async';
-      img.src = src;              // 最初から表向き（lazyで見える分だけ読み込む）
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.dataset.src = src;            // 実画像パスは data-src に保持
+        img.src = 'component_images/back.png'; // ★まずは背面画像でローディング感
         img.alt = folder;
-        frag.appendChild(img);      // wrap不要：右クリ/デッキ下ボタンは非対応
+
+        // 実画像をプリロードして、読み込み完了後に差し替え
+        const real = new Image();
+        real.decoding = 'async';
+        real.onload = () => { img.src = img.dataset.src; };
+        real.onerror = () => { img.src = img.dataset.src; }; // 失敗時も一応差し替え
+        real.src = src;
+
+        frag.appendChild(img); // wrap不要：右クリ/デッキ下ボタンは非対応
       });
       cardListThumbs.appendChild(frag);
       cardListBackdrop.style.display = 'flex';
@@ -2666,6 +2697,20 @@
         last = now; lx = t?.clientX||0; ly = t?.clientY||0;
       }, {passive:false, capture:true});
     })();
+
+    // 本体画像の読み込みが終わるまで back.png を表示する img を返す
+    function createImgWithBack(src, alt = '', onLoaded){
+      const img = document.createElement('img');
+      img.src = 'component_images/back.png'; // プレースホルダー
+      img.alt = alt;
+
+      const real = new Image();
+      real.onload = () => { img.src = src; if (onLoaded) onLoaded(img); };
+      real.onerror = () => { img.src = src; if (onLoaded) onLoaded(img); }; // 失敗しても差し替えておく
+      real.src = src;
+
+      return img;
+    }
 
 
 
