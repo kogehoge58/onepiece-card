@@ -719,16 +719,6 @@
       </div>
 
       <form id="room-form" class="room-form" onsubmit="return false;">
-        <!-- ロール -->
-        <div class="room-row">
-          <div class="room-label">ロール</div>
-          <div class="room-field">
-            <label class="room-radio"><input type="radio" name="role" value="player" checked> プレイヤー</label>
-            <label class="room-radio"><input type="radio" name="role" value="spec"> 観戦</label>
-            <label class="room-radio"><input type="radio" name="role" value="practice"> 練習（ひとりまわし）</label>
-          </div>
-        </div>
-
         <!-- サイド -->
         <div id="room-side-row" class="room-row">
           <div class="room-label">サイド</div>
@@ -2565,8 +2555,7 @@
     const roomEnterBtn   = document.getElementById('room-enter-btn');
 
     function openRoomSettings(){
-      // 初期状態：プレイヤー / サイドA / ルーム名空
-      roomForm.role.value = 'player';
+      // 初期状態：サイドA / ルーム名空
       roomForm.side.value = 'A';
       roomNameInput.value = '';
       roomNameError.style.display = 'none';
@@ -2587,18 +2576,9 @@
     // ロール切替で表示ブロックを制御
     roomForm.addEventListener('change', (e) => {
       if (e.target.name !== 'role') return;
-      const role = roomForm.role.value;
-      if (role === 'player') {
-        roomSideRow.style.display = '';
-        roomNameRow.style.display = '';
-      } else if (role === 'spec') {
-        roomSideRow.style.display = 'none';
-        roomNameRow.style.display = '';
-      } else { // practice
-        roomSideRow.style.display = 'none';
-        roomNameRow.style.display = 'none';
-        roomNameError.style.display = 'none';
-      }
+
+      roomSideRow.style.display = '';
+      roomNameRow.style.display = '';
     });
 
     // 10桁の半角数字ランダム
@@ -2610,24 +2590,13 @@
 
     // 入室
     roomEnterBtn.addEventListener('click', () => {
-      const role = roomForm.role.value;             // 'player' | 'spec' | 'practice'
       const side = roomForm.side.value || 'A';      // 'A' | 'B'
       const base = location.origin;                 // 実行中のドメインを利用
 
-      let url = '';
-      if (role === 'player') {
-        const room = (roomNameInput.value || '').trim();
-        if (!room) { roomNameError.style.display = 'inline'; return; }
-        roomNameError.style.display = 'none';
-        url = `${base}/?room=${encodeURIComponent(room)}&name=${encodeURIComponent(side)}`;
-      } else if (role === 'spec') {
-        const room = (roomNameInput.value || '').trim(); // 仕様上エラーは出さない
-        if (!room) { roomNameError.style.display = 'inline'; return; }
-        url = `${base}/?room=${encodeURIComponent(room)}&name=C&role=spec`;
-      } else {
-        const room = randomDigits(10);
-        url = `${base}/?room=${room}&name=D`;
-      }
+      const room = (roomNameInput.value || '').trim();
+      if (!room) { roomNameError.style.display = 'inline'; return; }
+      roomNameError.style.display = 'none';
+      const url = `${base}/?room=${encodeURIComponent(room)}&name=${encodeURIComponent(side)}`;
 
       // 遷移（※非同期通信なし）
       location.href = url;
@@ -2722,11 +2691,8 @@
     const qs   = new URLSearchParams(location.search);
     const room = qs.get('room') || 'dev';
     const name = qs.get('name') || `guest-${Math.floor(Math.random()*1000)}`;
-    const role = qs.get('role') || ''; // 'spec' を指定すると観戦で入室
+    const socket = io({ query: { room, name } });
 
-    const socket = io({ query: { room, name, role } });
-
-    let MY_ROLE = 'PLAYER';
     let MY_SEAT = 'P1';
 
     // room:hello で MY_ROLE / MY_SEAT が入る箇所の直後に追加
@@ -2735,9 +2701,8 @@
     }
 
     socket.on('room:hello', ({ role, seat }) => {
-      MY_ROLE = role;
       MY_SEAT = seat;
-      console.log(`[you] role=${role} seat=${seat} room=${room}`);
+      console.log(`[you] seat=${seat} room=${room}`);
       // 途中参加や観戦参加でも最新盤面を要求
       socket.emit('snapshot:pull');
     });
@@ -2810,8 +2775,7 @@
         case 'LIFE_REVEAL_ONE':    if (typeof applyLifeRevealOne  === 'function') applyLifeRevealOne(a); break;
         case 'LIFE_HIDE_ONE':      if (typeof applyLifeHideOne    === 'function') applyLifeHideOne(a); break;
         case 'MULLIGAN':        if (typeof applyMulligan === 'function') applyMulligan(a); break;
-        case 'JANKEN': {                               // ★追加
-          if (MY_ROLE !== 'PLAYER') break;             // 観戦は表示なし
+        case 'JANKEN': {
           const me = myPlayerLetter();                  // 'A' or 'B'
           alert(me === a.winner ? '勝ちました！' : '負けました！');
           break;
@@ -2839,29 +2803,20 @@
       window.__CURRENT_ACTOR = __prevActor;
     });
 
-    // ====== 3) 送信APIの提供（観戦は送信禁止） ======
+    // ====== 3) 送信APIの提供 ======
     if (!window.emitAction) {
       window.emitAction = function(action) {
-        if (MY_ROLE !== 'PLAYER') { alert('観戦中は操作できません'); return; }
         action.actor = myClientId();
-        socket.emit('action', action, (res) => {
-          if (res && res.ok === false) alert('観戦中は操作できません');
-        });
+        socket.emit('action', action);
       };
     }
 
-    // 任意：盤面スナップショットの送出（プレイヤーのみ）
+    // 任意：盤面スナップショットの送出
     if (!window.pushSnapshot) {
       window.pushSnapshot = function(state) {
-        if (MY_ROLE !== 'PLAYER') return;
         socket.emit('snapshot:push', state);
       };
     }
-
-    // 任意：観戦枠が満員のとき
-    socket.on('room:spectators_full', ({ room }) => {
-      alert(`観戦枠が満員のため、部屋「${room}」に入れませんでした`);
-    });
   </script>
 </body>
 </html>

@@ -1,11 +1,10 @@
 'use strict';
 
 /**
- * 2人対戦（P1/P2）＋観戦(SPEC*)に対応した Socket.IO サーバ
- * - ルーム分離: ?room=XXXX で同卓を分ける
- * - 観戦: ?role=spec で観戦入室 / プレイヤー満席時は自動で観戦にフォールバック
- * - 操作: PLAYER のみ 'action' を送信可能（SPEC は拒否）
- * - 途中参加: サーバ保持の snapshot を 'snapshot:apply' で即配布
+ * 複数人で同卓できる Socket.IO サーバ（人数無制限・全員操作可）
+ * - ルーム分離: ?room=XXXX で卓を分ける
+ * - 初回2名に P1/P2 を割当、それ以降は P3, P4, ... を付番
+ * - 途中参加には最新 snapshot を配布
  */
 
 const path = require('path');
@@ -14,8 +13,6 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const PORT = normalizePort(process.env.PORT || '3000');
-const MAX_PLAYERS = 2;
-const MAX_SPECTATORS = process.env.MAX_SPECTATORS ? Number(process.env.MAX_SPECTATORS) : Infinity;
 
 const app = express();
 const server = http.createServer(app);
@@ -162,37 +159,20 @@ app.use('/public', express.static('public', {
   etag: false, // ETag を外して If-None-Match の往復をなくす（運用方針次第）
 }));
 
-// roomId -> { roster: Map<socketId,{name,role,seat}>, state:any|null, nextSpecNo:number }
+// roomId -> { roster: Map<socketId,{name,role,seat}>, state:any|null }
 const roomState = new Map();
 
 io.on('connection', (socket) => {
-  const { room = 'dev', name = 'anon', role: requestedRole } = socket.handshake.query || {};
+  const { room = 'dev', name = 'anon' } = socket.handshake.query || {};
   const roomId = String(room);
 
   if (!roomState.has(roomId)) roomState.set(roomId, createRoomInfo());
   const info = roomState.get(roomId);
 
-  // --- 役割決定 ---
-  const currentPlayers = getPlayers(info);
-  let role = 'PLAYER';
-  if (requestedRole === 'spec' || currentPlayers.length >= MAX_PLAYERS) {
-    role = 'SPEC';
-  }
-
-  // 観戦上限
-  if (role === 'SPEC' && countSpectators(info) >= MAX_SPECTATORS) {
-    socket.emit('room:spectators_full', { room: roomId });
-    return socket.disconnect(true);
-  }
-
-  // --- 席割り ---
-  let seat;
-  if (role === 'PLAYER') {
-    const used = new Set(currentPlayers.map(p => p.seat));
-    seat = used.has('P1') ? 'P2' : 'P1';
-  } else {
-    seat = `SPEC${info.nextSpecNo++}`;
-  }
+  // --- 席割り（P1/P2 以降は P3, P4, ...） ---
+  const used = new Set(Array.from(info.roster.values()).map(p => p.seat));
+  let seat = !used.has('P1') ? 'P1' : (!used.has('P2') ? 'P2' : `P${info.roster.size + 1}`);
+  const role = 'PLAYER'; // 全員プレイヤー扱い
 
   // --- 入室 & 名簿 ---
   socket.join(roomId);
@@ -204,22 +184,15 @@ io.on('connection', (socket) => {
   // --- 途中参加にスナップショットを配布 ---
   if (info.state) socket.emit('snapshot:apply', info.state);
 
-  // --- 操作（アクション）: 観戦は拒否 ---
+  // --- 操作（アクション）: 全員許可 ---
   socket.on('action', (payload = {}, ack) => {
-    const me = info.roster.get(socket.id);
-    if (!me || me.role !== 'PLAYER') {
-      if (ack) ack({ ok: false, reason: 'spectator' });
-      return;
-    }
     const enriched = { ...payload, _from: socket.id, _ts: Date.now() };
     io.to(roomId).emit('action', enriched);
     if (ack) ack({ ok: true });
   });
 
-  // --- 盤面スナップショット: PLAYERのみ受け付け、保持＆配信 ---
+  // --- 盤面スナップショット: 全員から受け付け、保持＆配信 ---
   socket.on('snapshot:push', (state) => {
-    const me = info.roster.get(socket.id);
-    if (!me || me.role !== 'PLAYER') return; // 観戦からのpushは無視
     info.state = state;
     socket.to(roomId).emit('snapshot:apply', state);
   });
@@ -245,13 +218,7 @@ server.listen(PORT, () => {
 
 /* ================= ヘルパ ================= */
 function createRoomInfo() {
-  return { roster: new Map(), state: null, nextSpecNo: 1 };
-}
-function getPlayers(info) {
-  return [...info.roster.values()].filter(p => p.role === 'PLAYER');
-}
-function countSpectators(info) {
-  return [...info.roster.values()].filter(p => p.role === 'SPEC').length;
+  return { roster: new Map(), state: null };
 }
 function publishRoster(roomId, info) {
   const list = [...info.roster.entries()].map(([id, p]) => ({ id, name: p.name, role: p.role, seat: p.seat }));
