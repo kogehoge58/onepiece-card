@@ -146,7 +146,7 @@ app.get(/^\/deck\/(.+)$/, (req, res) => {
   const roomFile = path.join(base, 'rooms', room, 'deck', rel);
   const globalFile = path.join(base, 'deck', rel); // フォールバック（従来）
 
-  res.set('Cache-Control','no-store');
+  res.set('Cache-Control','public, max-age=31536000, immutable');
   if (fs.existsSync(roomFile)) return res.sendFile(roomFile);
   return res.sendFile(globalFile);
 });
