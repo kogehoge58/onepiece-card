@@ -23,7 +23,8 @@ const io = new Server(server, {
   },
 });
 
-app.use(express.json());
+// 画像をBase64でまとめて受けるので上限を拡張
+app.use(express.json({ limit: '200mb' }));
 
 const fs   = require('fs');
 
@@ -119,6 +120,76 @@ app.post('/api/deck/apply', async (req, res) => {
     await fsp.copyFile(srcLeader, dstLeader);
 
     // 3) 完了
+    res.set('Cache-Control','no-store');
+    res.json({ ok:true });
+  } catch (e) {
+    res.status(500).json({ ok:false, error:String(e && e.message || e) });
+  }
+});
+
+// ★カスタムアップロード＆即時適用
+// 受信: { player:'A'|'B', files:[{path:'leader.png' or 'images/xxx', contentBase64:'...'}] }
+app.post('/api/deck/upload-and-apply', async (req, res) => {
+  try {
+    const { player, files } = req.body || {};
+    if (player !== 'A' && player !== 'B') {
+      return res.status(400).json({ ok:false, error:'bad player' });
+    }
+    if (!Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ ok:false, error:'no files' });
+    }
+
+    const fsp = fs.promises;
+    const base = path.join(__dirname, 'public');
+    const tmpDir = path.join(base, 'uploads', String(Date.now()));
+    const rmrf = async (p) => {
+      try { await fsp.rm(p, { recursive:true, force:true }); }
+      catch { /* ignore */ }
+    };
+    const cpdir = async (src, dst) => {
+      if (fsp.cp) return fsp.cp(src, dst, { recursive:true });
+      const st = await fsp.stat(src);
+      if (st.isDirectory()){
+        await fsp.mkdir(dst, { recursive:true });
+        for (const ent of await fsp.readdir(src, { withFileTypes:true })){
+          await cpdir(path.join(src, ent.name), path.join(dst, ent.name));
+        }
+      } else {
+        await fsp.mkdir(path.dirname(dst), { recursive:true });
+        await fsp.copyFile(src, dst);
+      }
+    };
+
+    // 1) 一時領域へ書き出し（leader.png と images/ のみ許可）
+    let hasLeader = false, imgCount = 0;
+    for (const it of files){
+      let rel = String(it.path || '').replace(/\\/g,'/').replace(/^\/+/, '');
+      const low = rel.toLowerCase();
+      if (low !== 'leader.png' && !low.startsWith('images/')) continue; // ホワイトリスト
+      const buf = Buffer.from(String(it.contentBase64 || ''), 'base64');
+      const out = path.join(tmpDir, rel);
+      await fsp.mkdir(path.dirname(out), { recursive:true });
+      await fsp.writeFile(out, buf);
+      if (low === 'leader.png') hasLeader = true; else imgCount++;
+    }
+    if (!hasLeader || imgCount === 0) {
+      await rmrf(tmpDir);
+      return res.status(400).json({ ok:false, error:'invalid structure (need leader.png and images/*)' });
+    }
+
+    // 2) 既存プレイヤーデッキを掃除→配備（/api/deck/apply と同等）
+    const room = pickRoom(req);
+    const dstDir    = path.join(base, 'rooms', room, 'deck', player === 'A' ? 'player_A' : 'player_B');
+    const dstLeader = path.join(dstDir, 'leader.png');
+    const dstImages = path.join(dstDir, 'images');
+    await rmrf(dstImages);
+    await fsp.unlink(dstLeader).catch(()=>{});
+    await fsp.mkdir(dstDir, { recursive:true });
+    await cpdir(path.join(tmpDir, 'images'), dstImages);
+    await fsp.copyFile(path.join(tmpDir, 'leader.png'), dstLeader);
+
+    // 3) 掃除して完了
+    await rmrf(tmpDir);
     res.set('Cache-Control','no-store');
     res.json({ ok:true });
   } catch (e) {

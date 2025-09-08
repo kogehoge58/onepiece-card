@@ -435,6 +435,18 @@
       }
       .card.don-deck { --safe-top: 52px; }
     }
+
+    /* カスタムブロックの中央説明 */
+    .deckselect-item.custom .custom-desc{
+      flex: 1;
+      text-align: left;   /* 左ぞろえに変更 */
+      line-height: 1.6;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .deckselect-item.custom .custom-desc p{
+      margin: 0;
+    }
   </style>
 </head>
 <body>
@@ -2334,12 +2346,119 @@
     const deckSelBackdrop = document.getElementById('deckselect-backdrop');
     const deckSelList     = document.getElementById('deckselect-list');
 
+    // ★カスタムアップロード（フォルダ） → 即時適用
+    async function handleCustomUpload(fileList, btn){
+      if (!DECK_SELECT_PLAYER) { alert('プレイヤーが特定できません'); return; }
+      const player = DECK_SELECT_PLAYER;
+      btn.disabled = true; const orig = btn.textContent; btn.textContent = 'アップロード中…';
+      try{
+        const raw = Array.from(fileList || []);
+        if (raw.length === 0) throw new Error('ファイルが選択されていません');
+
+        // webkitRelativePathからトップフォルダ名を除去し、'leader.png'と'images/'配下だけ許可
+        const top = (raw[0].webkitRelativePath || '').split('/')[0] || '';
+        const accepted = [];
+        let hasLeader = false, imgCount = 0;
+        for (const f of raw){
+          let rel = (f.webkitRelativePath || f.name).replace(/\\/g,'/');
+          if (top && rel.startsWith(top + '/')) rel = rel.slice(top.length + 1);
+          const low = rel.toLowerCase();
+          if (low === 'leader.png'){
+            hasLeader = true; accepted.push({ rel: 'leader.png', file: f });
+          } else if (low.startsWith('images/')){
+            imgCount++; accepted.push({ rel, file: f });
+          }
+        }
+        if (!hasLeader) throw new Error('leader.png が見つかりません（フォルダ直下に配置してください）');
+        if (imgCount === 0) throw new Error('images フォルダ内のファイルが見つかりません');
+
+        // Base64化してまとめて送信
+        const toBase64 = (file) => new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || '');
+          r.onerror = rej; r.readAsDataURL(file);
+        });
+        const filesPayload = [];
+        for (const {rel, file} of accepted){
+          filesPayload.push({ path: rel, contentBase64: await toBase64(file) });
+        }
+
+        const r = await fetch('/api/deck/upload-and-apply?room=' + encodeURIComponent(ROOM), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player, files: filesPayload })
+        });
+        const j = await r.json().catch(()=>({ ok:false }));
+        if (!r.ok || !j.ok) throw new Error(j.error || r.statusText);
+
+        // ← 既存の「選択」適用と同じUI更新（リーダー/50枚/ラベル/同期/モーダル閉じ）
+        const v = Date.now();
+        const base = (player === 'A') ? 'deck/player_A' : 'deck/player_B';
+        const leaderEl = document.getElementById(player === 'A' ? 'a-leader-img' : 'b-leader-img');
+        if (leaderEl) leaderEl.src = withRoom(`${base}/leader.png?v=${v}`);
+        const imgs = Array.from({ length: 50 }, (_, i) => withRoom(`${base}/images/image (${i+1}).png?v=${v}`));
+        deckImages[player] = imgs;
+        deckCounts[player] = imgs.length;
+        renderCounts();
+        refreshIfOpen('deck', player);
+        closeDeckSelect();
+        emitAction({ type: 'DECK_APPLIED', player, v });
+        btn.textContent = '適用しました';
+      } catch(e){
+        alert('アップロードに失敗：' + (e && e.message || e));
+        btn.textContent = orig;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     function renderDeckSelectList(){
       // ローディング表示
       deckSelList.innerHTML = '<div style="grid-column:1/-1;padding:12px;">読み込み中…</div>';
 
       fetchDeckBuiltFolders().then(list => {
         deckSelList.innerHTML = '';
+
+        // ★最上段：カスタム（全幅・右隣にブロックが来ない）
+        {
+          const item = document.createElement('div');
+          item.className = 'deckselect-item custom';
+          item.style.gridColumn = '1 / -1'; // ← フル幅
+          paintCustomBg(item); // ★6色ストライプ背景
+
+          const nm = document.createElement('div');
+          nm.className = 'deckselect-name';
+          nm.textContent = 'カスタム';
+
+          // ★中央の説明文
+          const desc = document.createElement('div');
+          desc.className = 'custom-desc';
+          const line1 = document.createElement('p');
+          line1.textContent = '・事前にデッキフォルダを作成してください。';
+          const line2 = document.createElement('p');
+          line2.textContent = '・構成は leader.png、\\images\\image (1).png～image (50).png の計51ファイルです。';
+          desc.append(line1, line2);
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'ds-btn';
+          btn.textContent = 'アップロード';
+
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.setAttribute('webkitdirectory','');
+          input.setAttribute('multiple','');
+          input.style.display = 'none';
+
+          btn.addEventListener('click', () => input.click());
+          input.addEventListener('change', () => {
+            if (input.files && input.files.length) handleCustomUpload(input.files, btn);
+            input.value = ''; // 次回も同じフォルダを選べるように
+          });
+
+          item.append(nm, desc, btn, input);
+          deckSelList.appendChild(item);
+        }
+
         if (!list || list.length === 0){
           deckSelList.innerHTML = '<div style="grid-column:1/-1;padding:12px;">デッキが見つかりません</div>';
           return;
@@ -2452,6 +2571,26 @@
       '黒': '34,  34,  34',   // black-ish
       '黄': '255, 210, 0'     // yellow
     };
+
+    // …既存 COLOR_RGB / paintDeckBg の下あたりに追記
+    function paintCustomBg(el){
+      // 左から: 赤, 青, 緑, 紫, 黒, 黄
+      const cols = [
+        '255, 64,  64',   // 赤
+        '64,  180, 255',  // 青
+        '64,  200, 120',  // 緑
+        '160, 80,  200',  // 紫
+        '34,  34,  34',   // 黒
+        '255, 210, 0'     // 黄
+      ];
+      const a = 0.65;
+      const stops = cols.map((c,i) => {
+        const p0 = Math.round(i * 100 / cols.length);
+        const p1 = Math.round((i+1) * 100 / cols.length);
+        return `rgba(${c}, ${a}) ${p0}% ${p1}%`;
+      }).join(', ');
+      el.style.background = `linear-gradient(135deg, ${stops})`;
+    }
 
     // 先頭2文字から色を最大2つ取り出す
     function pickColorsFromName(name){
