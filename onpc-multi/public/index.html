@@ -2422,7 +2422,7 @@
         {
           const item = document.createElement('div');
           item.className = 'deckselect-item custom';
-          item.style.gridColumn = '1 / -1'; // ← フル幅
+          // item.style.gridColumn = '1 / -1'; // ← フル幅
           paintCustomBg(item); // ★6色ストライプ背景
 
           const nm = document.createElement('div');
@@ -2433,9 +2433,7 @@
           const desc = document.createElement('div');
           desc.className = 'custom-desc';
           const line1 = document.createElement('p');
-          line1.textContent = '・事前にデッキフォルダを作成してください。';
           const line2 = document.createElement('p');
-          line2.textContent = '・構成は leader.png、\\images\\image (1).png～image (50).png の計51ファイルです。';
           desc.append(line1, line2);
 
           const btn = document.createElement('button');
