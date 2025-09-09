@@ -447,6 +447,22 @@
     .deckselect-item.custom .custom-desc p{
       margin: 0;
     }
+
+    /* === 画像プリロード中の全画面オーバーレイ === */
+    #preload-overlay{
+      position: fixed;
+      inset: 0;
+      display: none;                 /* 初期は非表示 */
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.6);    /* 薄い黒 */
+      color: #fff;                   /* 白文字 */
+      font-weight: 800;
+      font-size: clamp(18px, 3.2vw, 32px);
+      letter-spacing: .08em;
+      z-index: 2147483647;           /* ぜったい最前面 */
+      pointer-events: auto;
+    }
   </style>
 </head>
 <body>
@@ -756,6 +772,9 @@
       </form>
     </div>
   </div>
+
+  <!-- プリロード中オーバーレイ -->
+  <div id="preload-overlay" aria-hidden="true">画像データ読み込み中…</div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -2834,55 +2853,54 @@
       return img;
     }
 
-    // ==== デッキ画像プリロード（A/B 計100枚） ====
+    // ==== デッキ画像プリロード（A/B 計100枚）＋オーバーレイ制御 ====
     let __preloadToken = 0;
-
     function preloadImages(urls, { concurrency = 8 } = {}) {
       return new Promise((resolve) => {
         let i = 0, done = 0;
         const total = urls.length;
-
-        function kick() {
+        function kick(){
           if (i >= total) return;
           const src = urls[i++];
           const img = new Image();
-          const fin = () => {
-            done++;
-            if (done === total) resolve();
-            else kick();
-          };
-          img.onload = fin;
-          img.onerror = fin;           // 失敗しても先へ
-          img.decoding = 'async';
-          img.src = src;               // これでブラウザキャッシュに乗る
+          const fin = () => { if (++done === total) resolve(); else kick(); };
+          img.onload = fin; img.onerror = fin; img.decoding = 'async';
+          img.src = src;
         }
-
         const n = Math.min(concurrency, total);
-        for (let k = 0; k < n; k++) kick();
+        for (let k=0; k<n; k++) kick();
       });
     }
-
-    async function runDeckPreload({ shouldAlert } = { shouldAlert: false }) {
-      const token = ++__preloadToken;  // 競合時に古いタスクのアラートを抑止
-      const urls = [...(deckImages?.A || []), ...(deckImages?.B || [])];
-
-      try {
-        await preloadImages(urls, { concurrency: 8 }); // ネットに余裕があれば 12〜16 も可
+    function showPreloadOverlay(text='画像データ読み込み中…'){
+      const el = document.getElementById('preload-overlay');
+      if (!el) return;
+      el.textContent = text;
+      el.style.display = 'flex';
+      el.setAttribute('aria-hidden','false');
+    }
+    function hidePreloadOverlay(){
+      const el = document.getElementById('preload-overlay');
+      if (!el) return;
+      el.style.display = 'none';
+      el.setAttribute('aria-hidden','true');
+    }
+    async function runDeckPreload({ showOverlay=false } = {}){
+      const token = ++__preloadToken;
+      if (showOverlay) showPreloadOverlay();
+      try{
+        const urls = [...(deckImages?.A||[]), ...(deckImages?.B||[])];
+        await preloadImages(urls, { concurrency: 8 });
       } finally {
-        if (token === __preloadToken && shouldAlert) {
-          alert('デッキ画像の読み込みが完了しました。');
-        }
+        if (token === __preloadToken && showOverlay) hidePreloadOverlay();
       }
     }
 
-    // 初期表示：requestIdleCallback があれば options 付きで、なければ setTimeout
+    // 画面初期表示：オーバーレイでプリロード→完了で自動的に消す
     window.addEventListener('load', () => {
       const schedule = ('requestIdleCallback' in window)
         ? (cb) => window.requestIdleCallback(cb, { timeout: 1200 })
         : (cb) => setTimeout(cb, 0);
-      if (typeof runDeckPreload === 'function') {
-        schedule(() => runDeckPreload({ shouldAlert: true }));
-      }
+      schedule(() => runDeckPreload({ showOverlay: true }));
     });
 
 
@@ -3002,13 +3020,8 @@
           renderCounts();
           refreshIfOpen('deck', player);
 
-          // ★A/B 合計100枚を裏でプリロード
-          // アラートは「この操作を実行したクライアント」にだけ出す
-          const actor = window.__CURRENT_ACTOR; // 直近アクションの発行者ID
-          const isMine = !actor || (typeof myClientId === 'function' && actor === myClientId());
-          if (typeof runDeckPreload === 'function') {
-            runDeckPreload({ shouldAlert: isMine });
-          }
+          // ★A/B 合計100枚を裏でプリロード（完了までオーバーレイ表示）
+          if (typeof runDeckPreload === 'function') runDeckPreload({ showOverlay: true });
 
           break;
         }
