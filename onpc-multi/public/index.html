@@ -2834,6 +2834,58 @@
       return img;
     }
 
+    // ==== デッキ画像プリロード（A/B 計100枚） ====
+    let __preloadToken = 0;
+
+    function preloadImages(urls, { concurrency = 8 } = {}) {
+      return new Promise((resolve) => {
+        let i = 0, done = 0;
+        const total = urls.length;
+
+        function kick() {
+          if (i >= total) return;
+          const src = urls[i++];
+          const img = new Image();
+          const fin = () => {
+            done++;
+            if (done === total) resolve();
+            else kick();
+          };
+          img.onload = fin;
+          img.onerror = fin;           // 失敗しても先へ
+          img.decoding = 'async';
+          img.src = src;               // これでブラウザキャッシュに乗る
+        }
+
+        const n = Math.min(concurrency, total);
+        for (let k = 0; k < n; k++) kick();
+      });
+    }
+
+    async function runDeckPreload({ shouldAlert } = { shouldAlert: false }) {
+      const token = ++__preloadToken;  // 競合時に古いタスクのアラートを抑止
+      const urls = [...(deckImages?.A || []), ...(deckImages?.B || [])];
+
+      try {
+        await preloadImages(urls, { concurrency: 8 }); // ネットに余裕があれば 12〜16 も可
+      } finally {
+        if (token === __preloadToken && shouldAlert) {
+          alert('デッキ画像の読み込みが完了しました。');
+        }
+      }
+    }
+
+    // 初期表示：requestIdleCallback があれば options 付きで、なければ setTimeout
+    window.addEventListener('load', () => {
+      const schedule = ('requestIdleCallback' in window)
+        ? (cb) => window.requestIdleCallback(cb, { timeout: 1200 })
+        : (cb) => setTimeout(cb, 0);
+      if (typeof runDeckPreload === 'function') {
+        schedule(() => runDeckPreload({ shouldAlert: true }));
+      }
+    });
+
+
 
 
     // ====== socketの処理 ======
@@ -2949,6 +3001,15 @@
           deckCounts[player]  = imgs.length;
           renderCounts();
           refreshIfOpen('deck', player);
+
+          // ★A/B 合計100枚を裏でプリロード
+          // アラートは「この操作を実行したクライアント」にだけ出す
+          const actor = window.__CURRENT_ACTOR; // 直近アクションの発行者ID
+          const isMine = !actor || (typeof myClientId === 'function' && actor === myClientId());
+          if (typeof runDeckPreload === 'function') {
+            runDeckPreload({ shouldAlert: isMine });
+          }
+
           break;
         }
       }
