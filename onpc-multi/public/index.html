@@ -1415,9 +1415,20 @@
       return true;
     }
 
-    // 汎用：配列から該当srcを1件だけ削除
+    // 汎用：配列から該当srcを1件だけ削除（URL正規化して一致判定）
+    function normalizeSrc(s) {
+      try {
+        const u = new URL(String(s), location.origin);
+        // クエリは捨て、デコードした pathname だけで比較（エンコード差/ホスト差/roomやvの違いを吸収）
+        return decodeURIComponent(u.pathname.replace(/\\/g, '/'));
+      } catch (_) {
+        const noQuery = String(s).split('?')[0];
+        try { return decodeURIComponent(noQuery); } catch { return noQuery; }
+      }
+    }
     function removeOne(list, src){
-      const i = list.indexOf(src);
+      const target = normalizeSrc(src);
+      const i = list.findIndex(v => normalizeSrc(v) === target);
       if (i >= 0) list.splice(i, 1);
     }
 
