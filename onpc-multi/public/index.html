@@ -1488,6 +1488,12 @@
           pos: m.pos || 'bottom',
           src,               // 対象カード画像のURL
         });
+
+        // ★追加：手札一覧→キャラ/ステージならモーダルを閉じる
+        if (area === 'hand' && (m.to === 'chara' || m.to === 'stage')) {
+          hideModal();
+        }
+
         hideThumbMenu();
         return;
       }
