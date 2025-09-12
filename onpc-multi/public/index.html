@@ -649,7 +649,7 @@
   <div id="main-menu" class="context-menu" role="menu" aria-hidden="true">
     <button type="button" role="menuitem" data-action="refresh">ターン開始</button>
     <button type="button" role="menuitem" data-action="mulligan">マリガン</button>
-    <button type="button" role="menuitem" data-action="janken">ジャンケン</button>
+    <button type="button" role="menuitem" data-action="coin-toss">コイントス</button>
     <button type="button" role="menuitem" data-action="room-settings">ルーム設定</button>
     <button type="button" role="menuitem" data-action="deck-select">デッキ選択</button>
     <button type="button" role="menuitem" data-action="rules">ルール確認</button>
@@ -2102,11 +2102,11 @@
       } else if (action === 'rules') {
         hideMainMenu();           // 先に閉じてから
         requestAnimationFrame(openRules); // 次フレームでPDFモーダルを開く
-      } else if (action === 'janken') {             // ★追加
+      } else if (action === 'coin-toss') {          // ★ コイントス
         hideMainMenu();
-        // 1/2でA/Bのどちらかを勝者に決定（発火クライアントで一度だけ乱数→全員に同期）
-        const winner = (Math.random() < 0.5) ? 'A' : 'B';
-        emitAction({ type: 'JANKEN', winner });
+        // 発火クライアントで一度だけ乱数 → 全員へ同結果を配信
+        const result = (Math.random() < 0.5) ? 'heads' : 'tails'; // heads=オモテ, tails=ウラ
+        emitAction({ type: 'COIN_TOSS', result });
       } else {
         hideMainMenu();
       }
@@ -3243,9 +3243,9 @@
         case 'LIFE_REVEAL_ONE':    if (typeof applyLifeRevealOne  === 'function') applyLifeRevealOne(a); break;
         case 'LIFE_HIDE_ONE':      if (typeof applyLifeHideOne    === 'function') applyLifeHideOne(a); break;
         case 'MULLIGAN':        if (typeof applyMulligan === 'function') applyMulligan(a); break;
-        case 'JANKEN': {
-          const me = myPlayerLetter();                  // 'A' or 'B'
-          alert(me === a.winner ? '勝ちました！' : '負けました！');
+        case 'COIN_TOSS': {
+          const isHeads = (a?.result === 'heads');
+          alert(isHeads ? 'オモテ！' : 'ウラ！');
           break;
         }
         case 'DECK_APPLIED': {
