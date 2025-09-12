@@ -365,6 +365,9 @@
     img { -webkit-touch-callout: none; }        /* iOSの長押しメニュー無効 */
     a, img, button, .card, .card * { -webkit-tap-highlight-color: rgba(0,0,0,0); }
 
+    /* iOS: 長押しのコールアウト/ルーペを全体で無効化 */
+    * { -webkit-touch-callout: none; }
+
     /* カスタムブロックの中央説明 */
     .deckselect-item.custom .custom-desc{
       flex: 1;
@@ -2767,6 +2770,26 @@
         if (now - last < 350 && dx < 30 && dy < 30) e.preventDefault();
         last = now; lx = t?.clientX||0; ly = t?.clientY||0;
       }, {passive:false, capture:true});
+    })();
+
+    /* iOS対策：意図しないテキスト選択を即クリアしてルーペ出現を防止 */
+    (function(){
+      const clearSelection = () => {
+        const sel = window.getSelection && window.getSelection();
+        if (!sel) return;
+        // 入力系は除外（将来フォームを置く可能性に配慮）
+        const a = document.activeElement;
+        const keep =
+          a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable);
+        if (keep) return;
+        if (sel.rangeCount) sel.removeAllRanges();
+      };
+      // テキスト選択の発火を検知したらクリア
+      document.addEventListener('selectionchange', clearSelection, true);
+      // 長押し・ドラッグ中も随時クリア（軽量・パッシブ）
+      ['touchstart','touchmove','pointerdown'].forEach(ev =>
+        document.addEventListener(ev, clearSelection, { passive:true, capture:true })
+      );
     })();
 
     // 本体画像の読み込みが終わるまで back.png を表示する img を返す
