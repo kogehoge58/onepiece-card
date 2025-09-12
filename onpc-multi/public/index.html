@@ -609,9 +609,10 @@
 
   <!-- ==== DECKメニュー（共通） ==== -->
   <div id="deck-menu" class="context-menu" role="menu" aria-hidden="true">
-    <button type="button" role="menuitem" data-action="hand-plus">手札+1</button>
-    <button type="button" role="menuitem" data-action="life-plus">ライフ+1</button>
-    <button type="button" role="menuitem" data-action="trash-plus">トラッシュ+1</button>
+    <!-- デッキ右クリック時は「＋」表示（全角）。ライフ右クリック時はJSで元文言に戻す -->
+    <button type="button" role="menuitem" data-action="hand-plus">手札+</button>
+    <button type="button" role="menuitem" data-action="life-plus">ライフ+</button>
+    <button type="button" role="menuitem" data-action="trash-plus">トラッシュ+</button>
     <button type="button" role="menuitem" data-action="shuffle">シャッフルする</button>
   </div>
 
@@ -724,12 +725,21 @@
     <div class="modal don-modal">
       <div class="modal-header">
         <div id="don-modal-title" class="modal-title">ドン増減（現在：0枚）</div>
-        <div id="rest-toggle-wrap" class="don-toggle" style="display:none;"><label class="switch"><input id="rest-toggle" type="checkbox"><span class="slider"></span></label><span class="label">レスト調整</span></div>
+        <div id="rest-toggle-wrap" class="don-toggle" style="display:none;"><label class="switch"><input id="rest-toggle" type="checkbox"><span class="slider"></span></label><span class="label">レスト連動</span></div>
       </div>
       <div class="don-box">
         <div id="don-buttons" class="don-grid" role="group" aria-label="ドン増減ボタン"></div>
       </div>
     </div>
+  </div>
+
+  <!-- デッキ用の数値サブメニュー（1〜5） -->
+  <div id="deck-submenu" class="context-menu" role="menu" aria-hidden="true">
+    <button type="button" role="menuitem" data-n="1">1</button>
+    <button type="button" role="menuitem" data-n="2">2</button>
+    <button type="button" role="menuitem" data-n="3">3</button>
+    <button type="button" role="menuitem" data-n="4">4</button>
+    <button type="button" role="menuitem" data-n="5">5</button>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -1051,6 +1061,8 @@
 
     /* ==== DECK右クリック用コンテキストメニュー ==== */
     const deckMenu = document.getElementById('deck-menu');
+    const deckSubMenu = document.getElementById('deck-submenu');
+    let overDeckMenu = false, overDeckSub = false, deckSubTimer = null;
     const aDeckEl  = document.getElementById('a-deck');
     const bDeckEl  = document.getElementById('b-deck');
 
@@ -1059,9 +1071,37 @@
       deckMenu.dataset.player = player;
       deckMenu.dataset.zone   = zone;
 
+      // 文言をゾーンに応じて切替（ライフ右クリは既存のまま）
+      const handBtn  = deckMenu.querySelector('button[data-action="hand-plus"]');
+      const lifeBtn  = deckMenu.querySelector('button[data-action="life-plus"]');
+      const trashBtn = deckMenu.querySelector('button[data-action="trash-plus"]');
+      const shuffleBtn = deckMenu.querySelector('button[data-action="shuffle"]');
+      if (zone === 'deck') {
+        if (handBtn)  handBtn.textContent  = '手札+';
+        if (lifeBtn)  lifeBtn.textContent  = 'ライフ+';
+        if (trashBtn) trashBtn.textContent = 'トラッシュ+';
+      } else {
+        if (handBtn)  handBtn.textContent  = '手札+1';
+        if (lifeBtn)  lifeBtn.textContent  = 'ライフ+1';
+        if (trashBtn) trashBtn.textContent = 'トラッシュ+1';
+      }
       // ★ライフを右クリしたときは「ライフ+1」を隠す（デッキ時は表示に戻す）
-      const lifePlusBtn = deckMenu.querySelector('button[data-action="life-plus"]');
-      if (lifePlusBtn) lifePlusBtn.style.display = (zone === 'life') ? 'none' : 'block';
+      if (lifeBtn) lifeBtn.style.display = (zone === 'life') ? 'none' : 'block';
+
+      // デッキ時のみ：ホバーで数値サブメニューを出す
+      if (zone === 'deck') {
+        const show = (btn, kind) => btn && btn.addEventListener('mouseenter', () => showDeckSubMenu(btn, kind), { once:false });
+        show(handBtn,  'hand');
+        show(lifeBtn,  'life');
+        show(trashBtn, 'trash');
+        // ★「シャッフル」にオンカーソル（またはキーボードフォーカス）したら派生(1〜5)を隠す
+        if (shuffleBtn) {
+          shuffleBtn.addEventListener('mouseenter', hideDeckSubMenu, { once:false });
+          shuffleBtn.addEventListener('focus',      hideDeckSubMenu, { once:false });
+        }
+      } else {
+        hideDeckSubMenu();
+      }
 
       deckMenu.style.display = 'block';
       deckMenu.setAttribute('aria-hidden', 'false');
@@ -1072,12 +1112,16 @@
       if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
       deckMenu.style.left = `${x}px`;
       deckMenu.style.top  = `${y}px`;
+
+      // ブリッジ用：メニュー↔サブメニューの閉じる挙動
+      wireDeckSubHoverBridge();
     }
     function hideDeckMenu(){
       deckMenu.style.display = 'none';
       deckMenu.setAttribute('aria-hidden', 'true');
       delete deckMenu.dataset.player;
       delete deckMenu.dataset.zone;
+      hideDeckSubMenu();
     }
 
     aDeckEl.addEventListener('contextmenu', (e) => showDeckMenu(e, 'A'));
@@ -1086,11 +1130,84 @@
     document.addEventListener('click', (e) => {
       if (!deckMenu.contains(e.target)) hideDeckMenu();
     });
+
+    // ===== デッキ用 数値サブメニュー =====
+    function showDeckSubMenu(nextToBtn, kind){
+      if (deckMenu.dataset.zone !== 'deck') return; // デッキ以外では出さない
+      deckSubMenu.dataset.kind = kind;              // hand | life | trash
+      deckSubMenu.style.display = 'block';
+      deckSubMenu.setAttribute('aria-hidden', 'false');
+
+      const btnRect  = nextToBtn.getBoundingClientRect();
+      const menuRect = deckMenu.getBoundingClientRect();
+      const pad = 8;
+      const subW = deckSubMenu.offsetWidth;
+      const subH = deckSubMenu.offsetHeight;
+
+      // デフォルトは右側
+      let left = menuRect.right + pad;
+      let top  = btnRect.top;
+      // 右にはみ出すなら左へ
+      if (left + subW + pad > window.innerWidth) left = menuRect.left - pad - subW;
+      // 画面外クランプ
+      if (left < 8) left = 8;
+      if (top + subH + pad > window.innerHeight) top = Math.max(8, window.innerHeight - subH - pad);
+      if (top < 8) top = 8;
+
+      deckSubMenu.style.left = `${left}px`;
+      deckSubMenu.style.top  = `${top}px`;
+    }
+    function hideDeckSubMenu(){
+      deckSubMenu.style.display = 'none';
+      deckSubMenu.setAttribute('aria-hidden', 'true');
+      delete deckSubMenu.dataset.kind;
+    }
+    function clearDeckSubTimer(){ if (deckSubTimer) { clearTimeout(deckSubTimer); deckSubTimer = null; } }
+    function scheduleHideDeckSub(){
+      clearDeckSubTimer();
+      deckSubTimer = setTimeout(() => {
+        if (!overDeckMenu && !overDeckSub) hideDeckSubMenu();
+      }, 180);
+    }
+    function wireDeckSubHoverBridge(){
+      deckMenu.addEventListener('mouseenter', () => { overDeckMenu = true;  clearDeckSubTimer(); }, { once:false });
+      deckMenu.addEventListener('mouseleave', () => { overDeckMenu = false; scheduleHideDeckSub(); }, { once:false });
+      deckSubMenu.addEventListener('mouseenter', () => { overDeckSub = true;  clearDeckSubTimer(); }, { once:false });
+      deckSubMenu.addEventListener('mouseleave', () => { overDeckSub = false; scheduleHideDeckSub(); }, { once:false });
+    }
+    // サブメニュークリック（1〜5）
+    deckSubMenu.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-n]');
+      if (!b) return;
+      // 他のグローバル閉じ処理に先んじて自身で処理する
+      e.stopPropagation();
+      e.preventDefault();
+      const n = Math.max(1, Math.min(5, parseInt(b.dataset.n, 10) || 1));
+      const player = deckMenu.dataset.player;
+      const kind   = deckSubMenu.dataset.kind; // hand / life / trash
+      hideDeckSubMenu();
+      hideDeckMenu();
+      if (!player || !kind) return;
+      const TYPE_MAP = {
+        hand : 'DECK_TO_HAND',
+        life : 'DECK_TO_LIFE_TOP',
+        trash: 'DECK_TO_TRASH'
+      };
+      const type = TYPE_MAP[kind];
+      if (!type) return;
+      for (let i=0;i<n;i++) emitAction({ type, player });
+    });
+    // 外側クリックでも閉じる
+    document.addEventListener('click', (e) => { if (!deckSubMenu.contains(e.target)) hideDeckSubMenu(); });
+    window.addEventListener('scroll', hideDeckSubMenu, true);
+    window.addEventListener('resize', hideDeckSubMenu);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideDeckSubMenu(); });
+
     window.addEventListener('scroll', hideDeckMenu, true);
     window.addEventListener('resize', hideDeckMenu);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideDeckMenu(); });
 
-    // ★ メニュークリック：手札+1 / ライフ+1 / トラッシュ+1
+    // ★ メニュークリック：デッキでは親項目クリックで数量サブメニューを開く
     deckMenu.addEventListener('click', (e) => {
       const btn = e.target.closest('button');
       if (!btn) return;
@@ -1100,16 +1217,20 @@
       if (!player) return;
 
       if (zone === 'deck') {
-        if (action === 'hand-plus')      { emitAction({ type: 'DECK_TO_HAND', player }); }
-        else if (action === 'life-plus') { emitAction({ type: 'DECK_TO_LIFE_TOP', player }); }
-        else if (action === 'trash-plus'){ emitAction({ type: 'DECK_TO_TRASH', player }); }
-        else if (action === 'shuffle')   {
+        // 親項目クリック→サブメニュー（1〜5）を表示。+1は即実行しない
+        const kindMap = { 'hand-plus':'hand', 'life-plus':'life', 'trash-plus':'trash' };
+        if (kindMap[action]) {
+          showDeckSubMenu(btn, kindMap[action]);
+          return;
+        }
+        if (action === 'shuffle') {
           hideDeckMenu(); // メニューはローカルで閉じるだけ
           if (confirm('シャッフルしますか？')) {
             const seed = (Date.now() ^ Math.floor(Math.random()*1e9)) >>> 0;
             emitAction({ type: 'DECK_SHUFFLE', player, seed });
           }
         }
+        return;
       } else if (zone === 'life') {
         if (action === 'hand-plus')      { hideDeckMenu(); emitAction({ type: 'LIFE_TO_HAND',  player }); return; }
         else if (action === 'life-plus') { drawToLife(player); }     // ※要望外なのでそのまま
@@ -1303,6 +1424,7 @@
       const menuOpen =
         (typeof thumbMenu !== 'undefined' && thumbMenu?.style.display === 'block') ||
         (typeof deckMenu  !== 'undefined' && deckMenu?.style.display  === 'block') ||
+        (typeof deckSubMenu !== 'undefined' && deckSubMenu?.style.display === 'block') ||
         (typeof pieceMenu !== 'undefined' && pieceMenu?.style.display === 'block') ||
         (typeof pieceSubMenu !== 'undefined' && pieceSubMenu?.style.display === 'block') ||
         (typeof mainMenu !== 'undefined' && mainMenu?.style.display === 'block');   // ★追加
@@ -1311,6 +1433,7 @@
 
       // メニュー自身のクリックは通す
       if (thumbMenu?.contains(e.target) || deckMenu?.contains(e.target) ||
+          deckSubMenu?.contains(e.target) ||
           pieceMenu?.contains(e.target) || pieceSubMenu?.contains(e.target) ||
           mainMenu?.contains(e.target)) return; // ★追加
 
