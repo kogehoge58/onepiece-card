@@ -32,10 +32,12 @@
     }
 
     .card-grid {
-      flex: 1; display: grid;
+      flex: 1;
+      display: grid;
       grid-template-columns: repeat(5, 1fr);
-      grid-template-rows: repeat(3, 1fr);
+      grid-template-rows: repeat(3, auto); /* 各行の高さ＝カード実寸 */
       gap: 5px;
+      align-content: center;               /* 余白は上下に逃がす（行間に入れない） */
     }
 
     .card {
