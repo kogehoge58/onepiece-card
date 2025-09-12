@@ -920,7 +920,13 @@
       const labelMap = { hand: '手札', deck: 'デッキ', life: 'ライフ', trash: 'トラッシュ' };
       if (galleryLabel) {
         if (labelMap[area]) {
-          galleryLabel.textContent = labelMap[area];
+          // 手札だけ「現在のアクティブドン n枚」を付ける
+          if (area === 'hand') {
+            const n = (donActCounts?.[player] | 0);
+            galleryLabel.textContent = `手札（アクティブドン×${n}枚）`;
+          } else {
+            galleryLabel.textContent = labelMap[area];
+          }
           galleryLabel.parentElement.style.display = '';   // ヘッダーを表示
         } else {
           galleryLabel.textContent = '';
@@ -3293,6 +3299,15 @@
             if (typeof updateDonDeckAlert === 'function') updateDonDeckAlert(player);
             // モーダルを開いている場合はタイトルの現在枚数も更新
             setDonTitle();
+            // ★手札一覧を表示中で、該当プレイヤーならタイトルを同期更新
+            if (scope === 'donAct'
+                && backdrop?.style.display === 'flex'
+                && thumbsContext?.area === 'hand'
+                && thumbsContext?.player === player
+                && galleryLabel) {
+              const n = (donActCounts?.[player] | 0);
+              galleryLabel.textContent = `手札（アクティブドン×${n}枚）`;
+            }
           }
           break;
         }
