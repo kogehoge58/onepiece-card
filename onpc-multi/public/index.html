@@ -995,39 +995,30 @@
       requestAnimationFrame(() => forceScrollTop(thumbs));
     }
 
-    // デッキ・手札・ライフ・トラッシュ クリックで一覧（文脈セット）
-    document.getElementById('a-deck').addEventListener('click', () => {
-      thumbsContext = { area: 'deck', player: 'A' };
-      openGalleryFromList('A デッキ', deckImages.A);
-    });
-    document.getElementById('b-deck').addEventListener('click', () => {
-      thumbsContext = { area: 'deck', player: 'B' };
-      openGalleryFromList('B デッキ', deckImages.B);
-    });
-    document.getElementById('a-hand').addEventListener('click', () => {
-      thumbsContext = { area: 'hand', player: 'A' };
-      openGalleryFromList('A 手札', handImages.A);
-    });
-    document.getElementById('b-hand').addEventListener('click', () => {
-      thumbsContext = { area: 'hand', player: 'B' };
-      openGalleryFromList('B 手札', handImages.B);
-    });
-    document.getElementById('a-life').addEventListener('click', () => {
-      thumbsContext = { area: 'life', player: 'A' };
-      openGalleryFromList('A ライフ', lifeImages.A);
-    });
-    document.getElementById('b-life').addEventListener('click', () => {
-      thumbsContext = { area: 'life', player: 'B' };
-      openGalleryFromList('B ライフ', lifeImages.B);
-    });
-    document.getElementById('a-trash').addEventListener('click', () => {
-      thumbsContext = { area: 'trash', player: 'A' };
-      openGalleryFromList('A トラッシュ', trashImages.A);
-    });
-    document.getElementById('b-trash').addEventListener('click', () => {
-      thumbsContext = { area: 'trash', player: 'B' };
-      openGalleryFromList('B トラッシュ', trashImages.B);
-    });
+    // デッキ・手札・ライフ・トラッシュ：画像ではなく「セル(.card)」をクリックで一覧
+    function wireAreaCell(imgSelector, area, player){
+      const img  = document.querySelector(imgSelector);
+      const card = img ? img.closest('.card') : null;
+      if (!card) return;
+      // 二重バインド防止（ハイフンの無い単一フラグに統一）
+      if (card.dataset.bound === '1') return;
+      card.dataset.bound = '1';
+      card.addEventListener('click', () => {
+        thumbsContext = { area, player };
+        const listMap = { deck: deckImages, hand: handImages, life: lifeImages, trash: trashImages };
+        const titleMap = { deck:'デッキ', hand:'手札', life:'ライフ', trash:'トラッシュ' };
+        openGalleryFromList(`${player} ${titleMap[area]}`, listMap[area][player]);
+      });
+    }
+    wireAreaCell('#a-deck',  'deck',  'A');
+    wireAreaCell('#b-deck',  'deck',  'B');
+    wireAreaCell('#a-hand',  'hand',  'A');
+    wireAreaCell('#b-hand',  'hand',  'B');
+    wireAreaCell('#a-life',  'life',  'A');
+    wireAreaCell('#b-life',  'life',  'B');
+    // トラッシュは img が display:none のときも要素自体はあるので同様にOK
+    wireAreaCell('#a-trash', 'trash', 'A');
+    wireAreaCell('#b-trash', 'trash', 'B');
 
     /* ===== デッキ → 手札（手札+1） ===== */
     function drawToHand(player){
