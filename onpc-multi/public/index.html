@@ -66,30 +66,6 @@
       z-index: 2;
     }
 
-    /* 右上カウンタボタン（-1 / +1） */
-    .counter-controls{
-      position: absolute;
-      top: 6px;
-      left: 6px;
-      right: 6px;           /* ← ビタビタ回避のマージン */
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 3px;             /* ← ボタン間も少し余白 */
-      z-index: 2;
-    }
-    .btn-counter{
-      padding: 6px 10px;           /* ← クリック面積アップ */
-      border-radius: 8px;
-      background: rgba(0,0,0,.6);
-      color: #fff; font-weight: 700;
-      font-size: clamp(12px, 1.1vw, 16px);  /* ← 文字も少し大きく */
-      line-height: 1;
-      border: none;
-      cursor: pointer;
-      user-select: none;
-      width: 100%;
-    }
-
     /* ===== モーダル ===== */
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,0.5);
@@ -237,8 +213,7 @@
 
     /* --- ドンデッキ中央アラート（安全余白の中央に配置） --- */
     .card.don-deck{
-      /* 上：上部ボタンぶん／下：×n ラベルぶんの安全余白 */
-      --safe-top: 86px;      /* ← 52px から増量（±2の2段ボタン想定） */
+      --safe-top: 12px;
       --safe-bottom: 34px;
 
       /* 安全領域（= 100% - (top + bottom)）の中央Y座標 */
@@ -279,27 +254,6 @@
       height: auto;
       pointer-events: none; /* クリック透過 */
       z-index: 2;           /* ラベルより上 */
-    }
-
-    /* ==== ドン系カウンター：色分け ==== */
-    /* －1／－2 → 薄い赤 */
-    .btn-counter[data-type="donDeck"][data-delta="-1"],
-    .btn-counter[data-type="donDeck"][data-delta="-2"],
-    .btn-counter[data-type="donAct"][data-delta="-1"],
-    .btn-counter[data-type="donAct"][data-delta="-2"],
-    .btn-counter[data-type="donRest"][data-delta="-1"],
-    .btn-counter[data-type="donRest"][data-delta="-2"]{
-      background: rgba(64, 160, 255, .70);
-    }
-
-    /* ＋1／＋2 → 薄い青 */
-    .btn-counter[data-type="donDeck"][data-delta="1"],
-    .btn-counter[data-type="donDeck"][data-delta="2"],
-    .btn-counter[data-type="donAct"][data-delta="1"],
-    .btn-counter[data-type="donAct"][data-delta="2"],
-    .btn-counter[data-type="donRest"][data-delta="1"],
-    .btn-counter[data-type="donRest"][data-delta="2"]{
-      background: rgba(255, 64, 64, .70);
     }
 
     /* デッキ選択（2カラムの一覧） */
@@ -409,33 +363,6 @@
     img { -webkit-touch-callout: none; }        /* iOSの長押しメニュー無効 */
     a, img, button, .card, .card * { -webkit-tap-highlight-color: rgba(0,0,0,0); }
 
-    /* === Mobile: hide ±2 buttons on Don counters === */
-    @media (pointer: coarse) {
-      .btn-counter[data-type="donDeck"][data-delta="2"],
-      .btn-counter[data-type="donDeck"][data-delta="-2"],
-      .btn-counter[data-type="donAct"][data-delta="2"],
-      .btn-counter[data-type="donAct"][data-delta="-2"],
-      .btn-counter[data-type="donRest"][data-delta="2"],
-      .btn-counter[data-type="donRest"][data-delta="-2"]{
-        display: none !important;
-      }
-      /* ±2の行が消えるので、中央アラートの安全余白を1行分に */
-      .card.don-deck { --safe-top: 52px; }
-    }
-
-    /* Fallback（pointer未対応ブラウザ向け） */
-    @media (max-width: 640px) {
-      .btn-counter[data-type="donDeck"][data-delta="2"],
-      .btn-counter[data-type="donDeck"][data-delta="-2"],
-      .btn-counter[data-type="donAct"][data-delta="2"],
-      .btn-counter[data-type="donAct"][data-delta="-2"],
-      .btn-counter[data-type="donRest"][data-delta="2"],
-      .btn-counter[data-type="donRest"][data-delta="-2"]{
-        display: none !important;
-      }
-      .card.don-deck { --safe-top: 52px; }
-    }
-
     /* カスタムブロックの中央説明 */
     .deckselect-item.custom .custom-desc{
       flex: 1;
@@ -514,36 +441,18 @@
           <!-- ↓ 追加：中央アラート -->
           <img class="alert-icon" src="component_images/alert.png" alt="alert">
           <span id="a-don-deck-label" class="don-label">ドンデッキ×10</span>
-          <div class="counter-controls">
-            <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="-1" aria-label="A ドンデッキ -1">- 1</button>
-            <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="1"  aria-label="A ドンデッキ +1">+ 1</button>
-            <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="-2" aria-label="A ドンデッキ -2">- 2</button>
-            <button type="button" class="btn-counter" data-type="donDeck" data-player="A" data-delta="2"  aria-label="A ドンデッキ +2">+ 2</button>
-          </div>
         </div>
 
         <!-- A-DON-ACT -->
         <div class="card">
           <img src="component_images/don_act.png" alt="A-DON-ACT">
           <span id="a-don-act-label" class="don-label">アクティブ×0</span>
-          <div class="counter-controls">
-            <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="-1" aria-label="A アクティブ -1">- 1</button>
-            <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="1"  aria-label="A アクティブ +1">+ 1</button>
-            <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="-2" aria-label="A アクティブ -2">- 2</button>
-            <button type="button" class="btn-counter" data-type="donAct" data-player="A" data-delta="2"  aria-label="A アクティブ +2">+ 2</button>
-          </div>
         </div>
 
         <!-- A-DON-REST -->
         <div class="card">
           <img src="component_images/don_rest.png" alt="A-DON-REST">
           <span id="a-don-rest-label" class="don-label">レスト×0</span>
-          <div class="counter-controls">
-            <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="-1" aria-label="A レスト -1">- 1</button>
-            <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="1"  aria-label="A レスト +1">+ 1</button>
-            <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="-2" aria-label="A レスト -2">- 2</button>
-            <button type="button" class="btn-counter" data-type="donRest" data-player="A" data-delta="2"  aria-label="A レスト +2">+ 2</button>
-          </div>
         </div>
 
         <!-- A-HAND -->
@@ -604,36 +513,18 @@
           <!-- ↓ 追加：中央アラート -->
           <img class="alert-icon" src="component_images/alert.png" alt="alert">
           <span id="b-don-deck-label" class="don-label">ドンデッキ×10</span>
-          <div class="counter-controls">
-            <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="-1" aria-label="B ドンデッキ -1">- 1</button>
-            <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="1"  aria-label="B ドンデッキ +1">+ 1</button>
-            <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="-2" aria-label="B ドンデッキ -2">- 2</button>
-            <button type="button" class="btn-counter" data-type="donDeck" data-player="B" data-delta="2"  aria-label="B ドンデッキ +2">+ 2</button>
-          </div>
         </div>
 
         <!-- B-DON-ACT -->
         <div class="card">
           <img src="component_images/don_act.png" alt="B-DON-ACT">
           <span id="b-don-act-label" class="don-label">アクティブ×0</span>
-          <div class="counter-controls">
-            <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="-1" aria-label="B アクティブ -1">- 1</button>
-            <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="1"  aria-label="B アクティブ +1">+ 1</button>
-            <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="-2" aria-label="B アクティブ -2">- 2</button>
-            <button type="button" class="btn-counter" data-type="donAct" data-player="B" data-delta="2"  aria-label="B アクティブ +2">+ 2</button>
-          </div>
         </div>
 
         <!-- B-DON-REST -->
         <div class="card">
           <img src="component_images/don_rest.png" alt="B-DON-REST">
           <span id="b-don-rest-label" class="don-label">レスト×0</span>
-          <div class="counter-controls">
-            <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="-1" aria-label="B レスト -1">- 1</button>
-            <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="1"  aria-label="B レスト +1">+ 1</button>
-            <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="-2" aria-label="B レスト -2">- 2</button>
-            <button type="button" class="btn-counter" data-type="donRest" data-player="B" data-delta="2"  aria-label="B レスト +2">+ 2</button>
-          </div>
         </div>
 
         <!-- B-HAND -->
@@ -849,31 +740,6 @@
       if(type==="donRest")   donRestCounts[player]= n;
       renderCounts();
     }
-
-    /* ===== DON系カウンターの上下限（0〜10） ===== */
-    document.addEventListener('click', (e) => {
-      const btn = e.target.closest('.btn-counter');
-      if (!btn) return;
-
-      const type   = btn.dataset.type;    // "donDeck" | "donAct" | "donRest"
-      const player = btn.dataset.player;  // "A" | "B"
-      const delta  = parseInt(btn.dataset.delta, 10) || 0;
-
-      const tables    = { donDeck: donDeckCounts, donAct: donActCounts, donRest: donRestCounts };
-      const maxByType = { donDeck: 10,           donAct: 10,           donRest: 10           };
-
-      const table = tables[type];
-      if (!table || !player) return;
-
-      const current = Number(table[player]) || 0;
-      const min = 0;
-      const max = maxByType[type] ?? Infinity;
-      const next = Math.min(max, Math.max(min, current + delta));
-      if (next === current) return;
-
-      // ★ここでは送るだけ（観戦は server 側で拒否される）
-      emitAction({ type: 'DON_SET', scope: type, player, value: next });
-    });
 
     /* ===== ギャラリー（配列から表示） ===== */
     const backdrop = document.getElementById('gallery-backdrop');
@@ -2973,16 +2839,6 @@
         case 'LIFE_TO_HAND':       if (typeof lifeToHand          === 'function') lifeToHand(a.player); break;
         case 'LIFE_TO_TRASH':      if (typeof lifeToTrash         === 'function') lifeToTrash(a.player); break;
         case 'LIFE_SHUFFLE':       if (typeof shuffleWithSeed     === 'function') shuffleWithSeed(lifeImages[a.player], a.seed ?? 0); break;
-        case 'DON_SET': {
-          if (typeof setCount === 'function') {
-            setCount(a.scope, a.player, Math.min(10, Math.max(0, (a.value|0))));
-          }
-          // ★追加：ドン系の時だけ判定を更新
-          if (a.scope === 'donDeck' || a.scope === 'donAct' || a.scope === 'donRest') {
-            updateDonDeckAlert(a.player);
-          }
-          break;
-        }
         case 'PIECE_REST_SET':     if (typeof setRestState        === 'function') setRestState(getPieceCell(a.player, a.area, a.slot), !!a.on); break;
         case 'PIECE_DON_SET': {
           if (typeof setDonCount === 'function') {
