@@ -803,6 +803,20 @@
       document.getElementById('b-don-act-label').textContent  = `アクティブ×${donActCounts.B}`;
       document.getElementById('a-don-rest-label').textContent = `レスト×${donRestCounts.A}`;
       document.getElementById('b-don-rest-label').textContent = `レスト×${donRestCounts.B}`;
+
+      // ★ 手札/ライフの山アイコンは0枚のとき非表示
+      const aHandImg = document.getElementById('a-hand');
+      const bHandImg = document.getElementById('b-hand');
+      const aLifeImg = document.getElementById('a-life');
+      const bLifeImg = document.getElementById('b-life');
+      const aDeckImg = document.getElementById('a-deck');
+      const bDeckImg = document.getElementById('b-deck');
+      if (aHandImg) aHandImg.style.display = (handCounts.A > 0) ? '' : 'none';
+      if (bHandImg) bHandImg.style.display = (handCounts.B > 0) ? '' : 'none';
+      if (aLifeImg) aLifeImg.style.display = (lifeCounts.A > 0) ? '' : 'none';
+      if (bLifeImg) bLifeImg.style.display = (lifeCounts.B > 0) ? '' : 'none';
+      if (aDeckImg) aDeckImg.style.display = (deckCounts.A > 0) ? '' : 'none';
+      if (bDeckImg) bDeckImg.style.display = (deckCounts.B > 0) ? '' : 'none';
     }
 
     function setCount(type, player, n){
