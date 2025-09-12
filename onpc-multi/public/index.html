@@ -1196,6 +1196,10 @@
       const type = TYPE_MAP[kind];
       if (!type) return;
       for (let i=0;i<n;i++) emitAction({ type, player });
+      // デッキ→手札のときだけ、手札一覧を開く
+      if (kind === 'hand') {
+        requestAnimationFrame(() => openHandListNow(player));
+      }
     });
     // 外側クリックでも閉じる
     document.addEventListener('click', (e) => { if (!deckSubMenu.contains(e.target)) hideDeckSubMenu(); });
@@ -1232,7 +1236,7 @@
         }
         return;
       } else if (zone === 'life') {
-        if (action === 'hand-plus')      { hideDeckMenu(); emitAction({ type: 'LIFE_TO_HAND',  player }); return; }
+        if (action === 'hand-plus')      { hideDeckMenu(); emitAction({ type: 'LIFE_TO_HAND',  player }); requestAnimationFrame(() => openHandListNow(player)); return; }
         else if (action === 'life-plus') { drawToLife(player); }     // ※要望外なのでそのまま
         else if (action === 'trash-plus'){ hideDeckMenu(); emitAction({ type: 'LIFE_TO_TRASH', player }); return; }
         else if (action === 'shuffle')   {
@@ -1923,6 +1927,11 @@
       const titleMap = { deck:'デッキ', hand:'手札', life:'ライフ', trash:'トラッシュ' };
       openGalleryFromList(`${player} ${titleMap[area]}`, areaLists[area][player]);
     }
+    /* 手札一覧モーダルを即座に開くユーティリティ */
+    function openHandListNow(player){
+      thumbsContext = { area: 'hand', player };
+      openGalleryFromList(`${player} 手札`, handImages[player]);
+    }
 
     // ★★ 差し替え版：サーバー同期で実行（送信のみ、ローカルは何もしない）
     pieceSubMenu.addEventListener('click', (e) => {
@@ -2058,6 +2067,8 @@
         requestAnimationFrame(() => {
           if (confirm('ターンを開始しますか？')) {
             emitAction({ type: 'REFRESH', player });
+            // ターン開始後、手札一覧モーダルを表示（以降のドローは自動反映）
+            requestAnimationFrame(() => openHandListNow(player));
           }
         })
       } else if (action === 'mulligan' && player) {
@@ -2066,6 +2077,7 @@
           if (confirm('マリガンを行いますか？')) {
             const seed = (Date.now() ^ Math.floor(Math.random()*1e9)) >>> 0;
             emitAction({ type: 'MULLIGAN', player, seed });
+            requestAnimationFrame(() => openHandListNow(player));
           }
         });
       } else if (action === 'rules') {
