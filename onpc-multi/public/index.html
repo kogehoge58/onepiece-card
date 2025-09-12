@@ -1583,29 +1583,30 @@
     /* ==== リーダー／キャラ用メニュー ==== */
     const pieceMenu = document.getElementById('piece-menu');
 
-    function showPieceMenu(e, ctx = {}) {
-      e.preventDefault();
+    function openPieceMenuAt(x, y, ctx = {}) {
       // 他メニューは閉じる
       if (typeof hideDeckMenu === 'function')  hideDeckMenu();
       if (typeof hideThumbMenu === 'function') hideThumbMenu();
 
-      // 文脈を保持（後で処理追加する想定）
+      // 文脈
       pieceMenu.dataset.player = ctx.player || '';
-      pieceMenu.dataset.area   = ctx.area   || ''; // "leader" | "chara"
+      pieceMenu.dataset.area   = ctx.area   || ''; // "leader" | "chara" | "stage"
       pieceMenu.dataset.slot   = ctx.slot != null ? String(ctx.slot) : '';
 
       pieceMenu.style.display = 'block';
       pieceMenu.setAttribute('aria-hidden', 'false');
 
       // 位置（はみ出し防止）
-      let x = e.clientX, y = e.clientY;
       const w = pieceMenu.offsetWidth, h = pieceMenu.offsetHeight, pad = 8;
-      if (x + w + pad > window.innerWidth)  x = window.innerWidth  - w - pad;
-      if (y + h + pad > window.innerHeight) y = window.innerHeight - h - pad;
-      pieceMenu.style.left = `${x}px`;
-      pieceMenu.style.top  = `${y}px`;
+      let left = x, top = y;
+      if (left + w + pad > window.innerWidth)  left = window.innerWidth  - w - pad;
+      if (top  + h + pad > window.innerHeight) top  = window.innerHeight - h - pad;
+      if (left < 8) left = 8;
+      if (top  < 8) top  = 8;
+      pieceMenu.style.left = `${left}px`;
+      pieceMenu.style.top  = `${top}px`;
 
-      // 既存の位置計算・表示の直後に追加
+      // 表示内容の最終調整
       const restBtn = pieceMenu.querySelector('button[data-action="rest"], button[data-action="active"]');
       if (restBtn){
         const player = pieceMenu.dataset.player;
@@ -1616,16 +1617,16 @@
         restBtn.dataset.action = resting ? 'active' : 'rest';
         restBtn.textContent    = resting ? 'アクティブ' : 'レスト';
       }
-
       const isStage = pieceMenu.dataset.area === 'stage';
       const donAdj = pieceMenu.querySelector('button[data-action="don-adjust"]');
       if (donAdj) donAdj.style.display = isStage ? 'none' : 'block';
-
-      // リーダーから開いたときは「移動する」を隠す（他エリアでは表示）
       const moveBtn = pieceMenu.querySelector('button[data-action="move"]');
       if (moveBtn) moveBtn.style.display = (pieceMenu.dataset.area === 'leader') ? 'none' : 'block';
-
       wirePieceMoveHover();
+    }
+    function showPieceMenu(e, ctx = {}) {
+      e.preventDefault();
+      openPieceMenuAt(e.clientX, e.clientY, ctx);
     }
 
     function hidePieceMenu(){
@@ -3092,7 +3093,19 @@
         if (typeof emitAction === 'function'){
           emitAction({ type:'PIECE_DON_SET', player, area: pieceArea, slot: pieceSlot, value: next });
         }
+        // モーダルを閉じてから、カード画像中心に右クリメニューを再表示
+        const imgEl = cell?.querySelector('img');
+        let cx = null, cy = null;
+        if (imgEl){
+          const r = imgEl.getBoundingClientRect();
+          cx = Math.round(r.left + r.width / 2);
+          cy = Math.round(r.top  + r.height / 2);
+        }
         closeDonDialog();
+        if (cx != null && cy != null && typeof openPieceMenuAt === 'function') {
+          // 同フレームだとクリックイベントのバブリングで閉じられるので次フレームで開く
+          requestAnimationFrame(() => openPieceMenuAt(cx, cy, { player, area: pieceArea, slot: pieceSlot }));
+        }
         return;
       }
 
