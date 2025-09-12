@@ -414,6 +414,30 @@
     @media (max-width: 680px){
       .don-grid{ grid-template-columns: repeat(5, 1fr); }
     }
+
+    /* ==== ドン増減：レスト調整トグル ==== */
+    .don-toggle{
+      position:absolute;
+      left:8px; top:6px;
+      display:flex; align-items:center; gap:10px;
+      font-weight:700; color:#333;
+    }
+    .don-toggle .label{ white-space:nowrap; }
+    .switch{
+      position:relative; display:inline-block; width:46px; height:26px;
+    }
+    .switch input{ opacity:0; width:0; height:0; }
+    .switch .slider{
+      position:absolute; inset:0; border-radius:13px;
+      background:#ddd; transition:background .2s;
+    }
+    .switch .slider::before{
+      content:""; position:absolute; left:3px; top:3px;
+      width:20px; height:20px; border-radius:50%; background:#fff; transition:transform .2s;
+      box-shadow: 0 1px 2px rgba(0,0,0,.25);
+    }
+    .switch input:checked + .slider{ background:#2ecc71; }
+    .switch input:checked + .slider::before{ transform: translateX(20px); }
   </style>
 </head>
 <body>
@@ -696,6 +720,7 @@
     <div class="modal don-modal">
       <div class="modal-header">
         <div id="don-modal-title" class="modal-title">ドン増減（現在：0枚）</div>
+        <div id="rest-toggle-wrap" class="don-toggle" style="display:none;"><label class="switch"><input id="rest-toggle" type="checkbox"><span class="slider"></span></label><span class="label">レスト調整</span></div>
       </div>
       <div class="don-box">
         <div id="don-buttons" class="don-grid" role="group" aria-label="ドン増減ボタン"></div>
@@ -2809,7 +2834,12 @@
     const donBackdrop  = document.getElementById('don-backdrop');
     const donTitleEl   = document.getElementById('don-modal-title');
     const donBtnsWrap  = document.getElementById('don-buttons');
+
+    const restTglWrap  = document.getElementById('rest-toggle-wrap');
+    const restTglInput = document.getElementById('rest-toggle');
+
     let   donCtx       = { player:null, scope:null }; // scope: 'donDeck'|'donAct'|'donRest'
+    let   restAdjustOn = false;                       // 「レスト調整」トグル状態（デフォルトOFF）
 
     const tableByScope = {
       donDeck: () => donDeckCounts,
@@ -2826,6 +2856,13 @@
     }
     function openDonDialog(player, scope){
       donCtx = { player, scope };
+      // レスト調整トグルの表示制御（アクティブでのみ表示、デフォルトOFF）
+      if (restTglWrap) {
+        const show = scope === 'donAct';
+        restTglWrap.style.display = show ? '' : 'none';
+        if (restTglInput) restTglInput.checked = false;
+        restAdjustOn = false;
+      }
       // ボタンを20個生成（+1..+10 → -1..-10）
       donBtnsWrap.innerHTML = '';
       for (let i=1;i<=10;i++){
@@ -2842,6 +2879,8 @@
       donBackdrop.setAttribute('aria-hidden','false');
       setDonTitle();
     }
+    if (restTglInput) restTglInput.addEventListener('change', () => { restAdjustOn = !!restTglInput.checked; });
+
     function closeDonDialog(){
       donBackdrop.style.display='none';
       donBackdrop.setAttribute('aria-hidden','true');
@@ -2854,9 +2893,18 @@
       const { player, scope } = donCtx; if (!player || !scope) return;
       const curr = getDonValue(player, scope);
       const next = Math.min(10, Math.max(0, curr + delta));
+      const eff  = next - curr; // 実際に反映される増減（クランプ考慮）
       // 全員同期：絶対値で送る
       if (typeof emitAction === 'function'){
         emitAction({ type:'DON_SET', scope, player, value: next });
+        // アクティブで「レスト調整」ONなら、レストを反対方向に同量だけ調整
+        if (scope === 'donAct' && restAdjustOn && eff !== 0) {
+          const rCurr = getDonValue(player, 'donRest');
+          const rNext = Math.min(10, Math.max(0, rCurr - eff)); // +なら減、-なら増
+          if (rNext !== rCurr) {
+            emitAction({ type:'DON_SET', scope:'donRest', player, value: rNext });
+          }
+        }
       }
       closeDonDialog();
     });
