@@ -3145,6 +3145,34 @@
 
     let MY_SEAT = 'P1';
 
+    // === 受信：同室からのリロード要求 → 自動で再読み込み（ループ防止フラグ付き） ===
+    socket.on('room:reload', () => {
+      try { sessionStorage.setItem('MD_ReloadByBroadcast', '1'); } catch (_) {}
+      location.reload();
+    });
+
+    // === 接続時：このページのロードが「リロード」だったら他クライアントへ通知 ===
+    socket.on('connect', () => {
+      let isReload = false;
+      try {
+        const navs = performance.getEntriesByType && performance.getEntriesByType('navigation');
+        if (navs && navs.length) {
+          isReload = (navs[0].type === 'reload');
+        } else if (performance && performance.navigation) {
+          // 古いブラウザ向けフォールバック
+          isReload = (performance.navigation.type === 1);
+        }
+      } catch (_) {}
+
+      let byBroadcast = false;
+      try { byBroadcast = (sessionStorage.getItem('MD_ReloadByBroadcast') === '1'); } catch (_) {}
+
+      // 自分が手動リロードしたときだけ通知（ブロードキャストでのリロードは再通知しない）
+      if (isReload && !byBroadcast) socket.emit('client:request-room-reload');
+      // 一度使ったフラグはクリア
+      if (byBroadcast) { try { sessionStorage.removeItem('MD_ReloadByBroadcast'); } catch (_) {} }
+    });
+
     // room:hello で MY_ROLE / MY_SEAT が入る箇所の直後に追加
     function myPlayerLetter(){
       return (MY_SEAT === 'P1') ? 'A' : 'B';

@@ -273,6 +273,12 @@ io.on('connection', (socket) => {
     if (info.state) socket.emit('snapshot:apply', info.state);
   });
 
+  // --- ブラウザ更新ブロードキャスト（送信者以外に通知） ---
+  // クライアントが「自分はリロードした」と申告 → 同室の他クライアントへ一斉通知
+  socket.on('client:request-room-reload', () => {
+    socket.to(roomId).emit('room:reload', { by: socket.id, ts: Date.now() });
+  });
+
   // --- 退室 ---
   socket.on('disconnect', () => {
     const r = roomState.get(roomId);
