@@ -390,6 +390,30 @@
       z-index: 9998;
       pointer-events: auto;
     }
+
+    /* ==== ドン増減モーダル ==== */
+    .don-modal{ width: min(720px, 92vw); height: auto; }
+    .don-box{
+      border: none;
+      padding: 16px;
+      margin: 4px 6px 8px;
+    }
+    .don-grid{
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .donop-btn{
+      padding: 6px 10px; border-radius: 8px; border: 0;
+      color:#fff; font-weight:700; font-size:14px; line-height:1;
+      cursor:pointer; user-select:none;
+    }
+    .donop-btn.plus  { background: rgba(255, 64,  64, .70); } /* 薄い赤 */
+    .donop-btn.minus { background: rgba( 64, 160,255, .70); } /* 薄い青 */
+    @media (max-width: 680px){
+      .don-grid{ grid-template-columns: repeat(5, 1fr); }
+    }
   </style>
 </head>
 <body>
@@ -666,6 +690,18 @@
 
   <!-- プリロード中オーバーレイ -->
   <div id="preload-overlay" aria-hidden="true">画像データ読み込み中…</div>
+
+  <!-- ドン増減モーダル -->
+  <div id="don-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div class="modal don-modal">
+      <div class="modal-header">
+        <div id="don-modal-title" class="modal-title">ドン増減（現在：0枚）</div>
+      </div>
+      <div class="don-box">
+        <div id="don-buttons" class="don-grid" role="group" aria-label="ドン増減ボタン"></div>
+      </div>
+    </div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -2769,6 +2805,73 @@
       schedule(() => runDeckPreload({ showOverlay: true }));
     });
 
+    /* ===== ドン増減（ドンデッキ／アクティブ／レスト） ===== */
+    const donBackdrop  = document.getElementById('don-backdrop');
+    const donTitleEl   = document.getElementById('don-modal-title');
+    const donBtnsWrap  = document.getElementById('don-buttons');
+    let   donCtx       = { player:null, scope:null }; // scope: 'donDeck'|'donAct'|'donRest'
+
+    const tableByScope = {
+      donDeck: () => donDeckCounts,
+      donAct : () => donActCounts,
+      donRest: () => donRestCounts,
+    };
+    function getDonValue(player, scope){
+      const t = tableByScope[scope]?.(); return Number(t?.[player]) || 0;
+    }
+    function setDonTitle(){
+      if (!donCtx.player || !donCtx.scope) return;
+      const n = getDonValue(donCtx.player, donCtx.scope);
+      donTitleEl.textContent = `ドン増減（現在：${n}枚）`;
+    }
+    function openDonDialog(player, scope){
+      donCtx = { player, scope };
+      // ボタンを20個生成（+1..+10 → -1..-10）
+      donBtnsWrap.innerHTML = '';
+      for (let i=1;i<=10;i++){
+        const b = document.createElement('button');
+        b.type='button'; b.className='donop-btn plus'; b.dataset.delta=String(i);
+        b.textContent = `+${i}`; donBtnsWrap.appendChild(b);
+      }
+      for (let i=1;i<=10;i++){
+        const b = document.createElement('button');
+        b.type='button'; b.className='donop-btn minus'; b.dataset.delta=String(-i);
+        b.textContent = `-${i}`; donBtnsWrap.appendChild(b);
+      }
+      donBackdrop.style.display='flex';
+      donBackdrop.setAttribute('aria-hidden','false');
+      setDonTitle();
+    }
+    function closeDonDialog(){
+      donBackdrop.style.display='none';
+      donBackdrop.setAttribute('aria-hidden','true');
+      donCtx = { player:null, scope:null };
+    }
+    donBackdrop.addEventListener('click', (e)=>{ if (e.target === donBackdrop) closeDonDialog(); });
+    donBtnsWrap.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button.donop-btn'); if (!btn) return;
+      const delta = parseInt(btn.dataset.delta, 10) || 0;
+      const { player, scope } = donCtx; if (!player || !scope) return;
+      const curr = getDonValue(player, scope);
+      const next = Math.min(10, Math.max(0, curr + delta));
+      // 全員同期：絶対値で送る
+      if (typeof emitAction === 'function'){
+        emitAction({ type:'DON_SET', scope, player, value: next });
+      }
+      closeDonDialog();
+    });
+
+    // 盤面のドンカードを左クリックでモーダルオープン
+    const wireDon = (sel, player, scope) => {
+      const el = document.querySelector(sel);
+      if (el) el.addEventListener('click', () => openDonDialog(player, scope));
+    };
+    wireDon('img[alt="A-DON-DECK"]','A','donDeck');
+    wireDon('img[alt="B-DON-DECK"]','B','donDeck');
+    wireDon('img[alt="A-DON-ACT"]' ,'A','donAct');
+    wireDon('img[alt="B-DON-ACT"]' ,'B','donAct');
+    wireDon('img[alt="A-DON-REST"]','A','donRest');
+    wireDon('img[alt="B-DON-REST"]','B','donRest');
 
 
 
@@ -2879,6 +2982,19 @@
           // ★A/B 合計100枚を裏でプリロード（完了までオーバーレイ表示）
           if (typeof runDeckPreload === 'function') runDeckPreload({ showOverlay: true });
 
+          break;
+        }
+        case 'DON_SET': {
+          // ドン3種（donDeck / donAct / donRest）の絶対値セット
+          const scope  = a.scope;
+          const player = a.player;
+          const value  = Math.min(10, Math.max(0, (a.value|0)));
+          if (scope === 'donDeck' || scope === 'donAct' || scope === 'donRest'){
+            if (typeof setCount === 'function') setCount(scope, player, value);
+            if (typeof updateDonDeckAlert === 'function') updateDonDeckAlert(player);
+            // モーダルを開いている場合はタイトルの現在枚数も更新
+            setDonTitle();
+          }
           break;
         }
       }
