@@ -817,6 +817,20 @@
       if (bLifeImg) bLifeImg.style.display = (lifeCounts.B > 0) ? '' : 'none';
       if (aDeckImg) aDeckImg.style.display = (deckCounts.A > 0) ? '' : 'none';
       if (bDeckImg) bDeckImg.style.display = (deckCounts.B > 0) ? '' : 'none';
+
+      // ★ ドン（デッキ／アクティブ／レスト）は0枚のとき画像を非表示
+      const aDonDeckImg = document.querySelector('img[alt="A-DON-DECK"]');
+      const bDonDeckImg = document.querySelector('img[alt="B-DON-DECK"]');
+      const aDonActImg  = document.querySelector('img[alt="A-DON-ACT"]');
+      const bDonActImg  = document.querySelector('img[alt="B-DON-ACT"]');
+      const aDonRestImg = document.querySelector('img[alt="A-DON-REST"]');
+      const bDonRestImg = document.querySelector('img[alt="B-DON-REST"]');
+      if (aDonDeckImg) aDonDeckImg.style.display = (donDeckCounts.A > 0) ? '' : 'none';
+      if (bDonDeckImg) bDonDeckImg.style.display = (donDeckCounts.B > 0) ? '' : 'none';
+      if (aDonActImg)  aDonActImg.style.display  = (donActCounts.A  > 0) ? '' : 'none';
+      if (bDonActImg)  bDonActImg.style.display  = (donActCounts.B  > 0) ? '' : 'none';
+      if (aDonRestImg) aDonRestImg.style.display = (donRestCounts.A > 0) ? '' : 'none';
+      if (bDonRestImg) bDonRestImg.style.display = (donRestCounts.B > 0) ? '' : 'none';
     }
 
     function setCount(type, player, n){
@@ -3115,15 +3129,16 @@
 
     // 盤面のドンカードを左クリックでモーダルオープン
     const wireDon = (sel, player, scope) => {
-      const el = document.querySelector(sel);
-      if (el) el.addEventListener('click', () => openDonDialog(player, scope));
+      const img  = document.querySelector(sel);
+      const card = img ? img.closest('.card') : null;
+      if (card) card.addEventListener('click', () => openDonDialog(player, scope));
     };
-    wireDon('img[alt="A-DON-DECK"]','A','donDeck');
-    wireDon('img[alt="B-DON-DECK"]','B','donDeck');
-    wireDon('img[alt="A-DON-ACT"]' ,'A','donAct');
-    wireDon('img[alt="B-DON-ACT"]' ,'B','donAct');
-    wireDon('img[alt="A-DON-REST"]','A','donRest');
-    wireDon('img[alt="B-DON-REST"]','B','donRest');
+    wireDon('img[alt="A-DON-DECK"]', 'A', 'donDeck');
+    wireDon('img[alt="B-DON-DECK"]', 'B', 'donDeck');
+    wireDon('img[alt="A-DON-ACT"]' , 'A', 'donAct');
+    wireDon('img[alt="B-DON-ACT"]' , 'B', 'donAct');
+    wireDon('img[alt="A-DON-REST"]', 'A', 'donRest');
+    wireDon('img[alt="B-DON-REST"]', 'B', 'donRest');
 
 
 
