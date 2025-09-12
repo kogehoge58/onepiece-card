@@ -3012,10 +3012,15 @@
     }
     function openDonDialog(player, scope, opts = {}){
       donCtx = { player, scope, pieceArea: opts.pieceArea || null, pieceSlot: (opts.pieceSlot|0) || 0 };
-      // レスト調整トグルの表示制御（アクティブでのみ表示、デフォルトOFF）
+      // 連動トグルの表示制御（アクティブ/レストで表示、デフォルトOFF）
       if (restTglWrap) {
-        const show = scope === 'donAct';
+        const show = (scope === 'donAct' || scope === 'donRest');
         restTglWrap.style.display = show ? '' : 'none';
+        // スコープに応じてラベルを切替
+        const lbl = restTglWrap.querySelector('.label');
+        if (lbl) {
+          lbl.textContent = (scope === 'donRest') ? 'アクティブ連動' : 'レスト連動';
+        }
         if (restTglInput) restTglInput.checked = false;
         restAdjustOn = false;
       }
@@ -3070,6 +3075,12 @@
           const rCurr = getDonValue(player, 'donRest');
           const rNext = Math.min(10, Math.max(0, rCurr - eff)); // +なら減、-なら増
           if (rNext !== rCurr) emitAction({ type:'DON_SET', scope:'donRest', player, value: rNext });
+        }
+        // レスト→アクティブ連動（新規）
+        else if (scope === 'donRest' && restAdjustOn && eff !== 0) {
+          const aCurr = getDonValue(player, 'donAct');
+          const aNext = Math.min(10, Math.max(0, aCurr - eff)); // +なら減、-なら増
+          if (aNext !== aCurr) emitAction({ type:'DON_SET', scope:'donAct', player, value: aNext });
         }
       }
 
