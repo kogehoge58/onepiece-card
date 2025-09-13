@@ -3235,6 +3235,14 @@
             if (typeof setActiveTurnUI === 'function') setActiveTurnUI(p);
             if (typeof clearNoAttackIcons === 'function') clearNoAttackIcons(p);
 
+            // ★手札モーダルを開いていたらタイトルを最新のアクティブドンに更新
+            if (backdrop?.style.display === 'flex'
+                && thumbsContext?.area === 'hand'
+                && thumbsContext?.player === p
+                && galleryLabel) {
+              galleryLabel.textContent = `手札（アクティブドン×${(donActCounts?.[p] | 0)}枚）`;
+            }
+
             break; // ★初回はここで終了（＝他のリフレッシュ処理は行わない）
           }
 
@@ -3242,6 +3250,15 @@
           if (typeof setActiveTurnUI === 'function') setActiveTurnUI(a.player);
           if (typeof clearNoAttackIcons === 'function') clearNoAttackIcons(a.player);
           if (typeof refreshPlayer   === 'function') refreshPlayer(a.player);
+
+          // ★通常ターン開始時も、手札モーダルを開いていればタイトルを更新
+          if (backdrop?.style.display === 'flex'
+              && thumbsContext?.area === 'hand'
+              && thumbsContext?.player === a.player
+              && galleryLabel) {
+            galleryLabel.textContent = `手札（アクティブドン×${(donActCounts?.[a.player] | 0)}枚）`;
+          }
+
           break;
         }
         case 'DECK_TO_HAND':       if (typeof drawToHand          === 'function') drawToHand(a.player); break;
