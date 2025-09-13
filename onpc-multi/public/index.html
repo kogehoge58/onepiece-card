@@ -1572,6 +1572,10 @@
           src,               // 対象カード画像のURL
         });
         hideThumbMenu();
+        // 手札一覧→To：キャラエリア のときはモーダルも閉じる
+        if (action === 'to-chara' && area === 'hand' && backdrop?.style.display === 'flex') {
+          hideModal();
+        }
         return;
       }
 
