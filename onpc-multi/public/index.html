@@ -459,6 +459,25 @@
       color:#fff; text-shadow:0 0 2px rgba(0,0,0,.6);
     }
     .card .don-chip.active .num{ color:#000; text-shadow:none; }
+
+    /* === デッキメニュー配色：デフォルト色（親&派生） === */
+    /* 親：手札＋／ライフ＋／トラッシュ＋（デッキ右クリ時のみ有効） */
+    #deck-menu[data-zone="deck"] button[data-action="hand-plus"]  { background: rgba(64,160,255,.18); }
+    #deck-menu[data-zone="deck"] button[data-action="life-plus"]  { background: rgba(255,224,96,.22); }
+    #deck-menu[data-zone="deck"] button[data-action="trash-plus"] { background: rgba(176,128,255,.20); }
+
+    /* 派生：1〜5（#deck-submenu の data-kind に応じて色分け） */
+    #deck-submenu[data-kind="hand"]  button  { background: rgba(64,160,255,.18); }
+    #deck-submenu[data-kind="life"]  button  { background: rgba(255,224,96,.22); }
+    #deck-submenu[data-kind="trash"] button  { background: rgba(176,128,255,.20); }
+
+    /* （任意）ホバーは同系色で少しだけ濃く：既存の白っぽいhoverより上書き */
+    #deck-menu[data-zone="deck"] button[data-action="hand-plus"]:hover,
+    #deck-submenu[data-kind="hand"]  button:hover  { background: rgba(64,160,255,.30); }
+    #deck-menu[data-zone="deck"] button[data-action="life-plus"]:hover,
+    #deck-submenu[data-kind="life"]  button:hover  { background: rgba(255,224,96,.34); }
+    #deck-menu[data-zone="deck"] button[data-action="trash-plus"]:hover,
+    #deck-submenu[data-kind="trash"] button:hover  { background: rgba(176,128,255,.32); }
   </style>
 </head>
 <body>
