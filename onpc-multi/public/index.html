@@ -3163,20 +3163,27 @@
       let chip = cell.querySelector('.don-chip');
       if (chip) return chip;
       chip = document.createElement('div'); chip.className='don-chip';
-      const icon = document.createElement('img'); icon.src='component_images/don_rest.png';
+      const icon = document.createElement('img'); icon.src='component_images/don_chara_rest.png';
       const num  = document.createElement('span'); num.className='num'; num.textContent='0';
       chip.append(icon, num);
       chip.addEventListener('click', (ev)=>{
         ev.stopPropagation();
         openDonDialog(ctx.player, 'piece', { pieceArea: ctx.area, pieceSlot: ctx.slot });
       });
+      // ▼キャラ上のドンチップは右クリック禁止（OS標準メニュー/アプリ側ともに抑止）
+      if (ctx.area === 'chara') {
+        chip.addEventListener('contextmenu', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+        }, { capture: true });
+      }
       cell.appendChild(chip); return chip;
     }
     function updateDonChip(chip, n){
       if (!chip) return;
       const img = chip.querySelector('img'); const num = chip.querySelector('.num');
       const v = Math.max(0, Math.min(10, n|0));
-      img.src = (v>0) ? 'component_images/don_act.png' : 'component_images/don_rest.png';
+      img.src = (v>0) ? 'component_images/don_chara_act.png' : 'component_images/don_chara_rest.png';
       num.textContent = String(v);
       chip.classList.toggle('active', v>0);
     }
