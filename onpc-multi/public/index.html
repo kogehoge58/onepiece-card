@@ -3190,6 +3190,25 @@
       chip.classList.toggle('active', v>0);
     }
 
+    // === 共通：全ての右クリメニューを閉じる ===
+    function hideAllContextMenus(){
+      // 既存の専用閉じ処理（データクリア込み）
+      try { hideDeckSubMenu(); } catch(_) {}
+      try { hideDeckMenu();    } catch(_) {}
+      // その他のメニューも一括クローズ
+      document.querySelectorAll('.context-menu').forEach(menu=>{
+        menu.style.display = 'none';
+        menu.setAttribute('aria-hidden','true');
+      });
+    }
+
+    // === 追加：メニュー外を右クリックしたら閉じる ===
+    // capture=true で各要素の右クリック表示処理より先に走らせる
+    document.addEventListener('contextmenu', (e) => {
+      const inMenu = e.target.closest('.context-menu');
+      if (!inMenu) hideAllContextMenus(); // 先に全部閉じる（次に新しいメニューが開く）
+    }, true);
+
 
 
     // ====== socketの処理 ======
