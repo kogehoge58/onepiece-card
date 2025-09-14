@@ -141,7 +141,7 @@
     .rest-badge{
       position: absolute;
       left: 6px;
-      bottom: 30px;
+      bottom: 6px;
       padding: 2px 6px;
       border-radius: 6px;
       background: rgba(0,0,0,.6);
@@ -444,6 +444,19 @@
     }
     .switch input:checked + .slider{ background:#2ecc71; }
     .switch input:checked + .slider::before{ transform: translateX(20px); }
+
+    /* 右下のドンチップ（rest/act 画像＋中央の数字） */
+    .card .don-chip{
+      position:absolute; right:6px; bottom:6px;
+      width:min(28%, 64px); z-index:3; cursor:pointer;
+    }
+    .card .don-chip img{ display:block; width:100%; height:auto; }
+    .card .don-chip .num{
+      position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+      font-weight:800; font-size:clamp(12px,1.2vw,16px);
+      color:#fff; text-shadow:0 0 2px rgba(0,0,0,.6);
+    }
+    .card .don-chip.active .num{ color:#000; text-shadow:none; }
   </style>
 </head>
 <body>
@@ -477,7 +490,6 @@
         <!-- A-LEADER -->
         <div class="card">
           <img id="a-leader-img" src="deck/player_A/leader.png" alt="A-LEADER">
-          <span id="a-leader-don-label" class="don-label">ドン×0</span>
         </div>
 
         <!-- A-STAGE -->
@@ -549,7 +561,6 @@
         <!-- B-LEADER -->
         <div class="card">
           <img id="b-leader-img" src="deck/player_B/leader.png" alt="B-LEADER">
-          <span id="b-leader-don-label" class="don-label">ドン×0</span>
         </div>
 
         <!-- B-STAGE -->
@@ -639,7 +650,6 @@
   <!-- ==== リーダー／キャラ用 右クリックメニュー ==== -->
   <div id="piece-menu" class="context-menu" role="menu" aria-hidden="true">
     <button type="button" role="menuitem" data-action="rest">レスト</button>
-    <button type="button" role="menuitem" data-action="don-adjust">ドン増減</button>
     <button type="button" role="menuitem" data-action="move">移動する</button>
   </div>
 
@@ -776,6 +786,12 @@
 
     // ★初回ターン開始のドン移動を済ませたか
     let FIRST_TURN_DON_BOOTSTRAP = false;
+
+    // 起動時：リーダー2枚にチップをセット（0表示・restアイコン）
+    ['A','B'].forEach(p=>{
+      const c = getPieceCell(p,'leader',0);
+      if (c){ const chip = createDonChip(c,{player:p,area:'leader',slot:0}); updateDonChip(chip,0); }
+    });
 
     renderCounts();
 
@@ -1502,11 +1518,9 @@
       img.addEventListener('click', () => openImagePreview(img.src, img.alt || ''));
       cell.appendChild(img);
 
-      const don = document.createElement('span');
-      don.className = 'don-label';
-      don.id = `${player.toLowerCase()}-chara-${idx+1}-don-label`; // 例: a-chara-1-don-label
-      don.textContent = 'ドン×0';
-      cell.appendChild(don);
+      const ctx = { player, area:'chara', slot:idx+1 };
+      const chip = createDonChip(cell, ctx);
+      updateDonChip(chip, 0);
 
       // 右下に「攻撃不可」アイコンを重ねる
       const na = document.createElement('img');
@@ -1851,20 +1865,14 @@
       return cell?.querySelector('.don-label') || null;
     }
     function getDonCount(cell){
-      const lab = getDonLabelInCell(cell);
-      const m = lab?.textContent.match(/(\d+)/);
-      return m ? parseInt(m[1], 10) : 0;
+      const num = cell?.querySelector('.don-chip .num');
+      return num ? (parseInt(num.textContent,10)||0) : 0;
     }
     function setDonCount(cell, n){
       if (!cell) return;
-      const clamped = Math.min(10, Math.max(0, Number(n) || 0));
-      let lab = getDonLabelInCell(cell);
-      if (!lab){
-        lab = document.createElement('span');
-        lab.className = 'don-label';
-        cell.appendChild(lab);
-      }
-      lab.textContent = `ドン×${clamped}`;
+      const ctx = detectCellCtx(cell); if (!ctx) return;
+      const chip = createDonChip(cell, ctx);
+      updateDonChip(chip, n);
     }
 
     document.getElementById('a-life').addEventListener('contextmenu', (e) => showDeckMenu(e, 'A', 'life'));
@@ -3104,19 +3112,7 @@
         if (typeof emitAction === 'function'){
           emitAction({ type:'PIECE_DON_SET', player, area: pieceArea, slot: pieceSlot, value: next });
         }
-        // モーダルを閉じてから、カード画像中心に右クリメニューを再表示
-        const imgEl = cell?.querySelector('img');
-        let cx = null, cy = null;
-        if (imgEl){
-          const r = imgEl.getBoundingClientRect();
-          cx = Math.round(r.left + r.width / 2);
-          cy = Math.round(r.top  + r.height / 2);
-        }
         closeDonDialog();
-        if (cx != null && cy != null && typeof openPieceMenuAt === 'function') {
-          // 同フレームだとクリックイベントのバブリングで閉じられるので次フレームで開く
-          requestAnimationFrame(() => openPieceMenuAt(cx, cy, { player, area: pieceArea, slot: pieceSlot }));
-        }
         return;
       }
 
@@ -3154,6 +3150,36 @@
     wireDon('img[alt="B-DON-ACT"]' , 'B', 'donAct');
     wireDon('img[alt="A-DON-REST"]', 'A', 'donRest');
     wireDon('img[alt="B-DON-REST"]', 'B', 'donRest');
+
+    function detectCellCtx(cell){
+      const id = cell?.id||''; const m = id.match(/^([ab])-chara-(\d)$/i);
+      if (m) return { player:m[1].toUpperCase(), area:'chara', slot:parseInt(m[2],10) };
+      const img = cell?.querySelector('#a-leader-img,#b-leader-img');
+      if (img) return { player: img.id.startsWith('a-')?'A':'B', area:'leader', slot:0 };
+      return null;
+    }
+    function createDonChip(cell, ctx){
+      if (!cell) return null;
+      let chip = cell.querySelector('.don-chip');
+      if (chip) return chip;
+      chip = document.createElement('div'); chip.className='don-chip';
+      const icon = document.createElement('img'); icon.src='component_images/don_rest.png';
+      const num  = document.createElement('span'); num.className='num'; num.textContent='0';
+      chip.append(icon, num);
+      chip.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        openDonDialog(ctx.player, 'piece', { pieceArea: ctx.area, pieceSlot: ctx.slot });
+      });
+      cell.appendChild(chip); return chip;
+    }
+    function updateDonChip(chip, n){
+      if (!chip) return;
+      const img = chip.querySelector('img'); const num = chip.querySelector('.num');
+      const v = Math.max(0, Math.min(10, n|0));
+      img.src = (v>0) ? 'component_images/don_act.png' : 'component_images/don_rest.png';
+      num.textContent = String(v);
+      chip.classList.toggle('active', v>0);
+    }
 
 
 
@@ -3273,6 +3299,16 @@
         case 'PIECE_DON_SET': {
           if (typeof setDonCount === 'function') {
             setDonCount(getPieceCell(a.player, a.area, a.slot), a.value|0);
+          }
+          // ★同じピースのドン増減モーダルを開いているクライアントでは、
+          //   タイトルの「現在：n枚」をリアルタイムに更新する
+          if (donBackdrop?.style.display === 'flex'
+              && donCtx?.scope === 'piece'
+              && donCtx?.player === a.player
+              && donCtx?.pieceArea === a.area
+              && Number(donCtx?.pieceSlot) === Number(a.slot)
+              && typeof setDonTitle === 'function') {
+            setDonTitle();
           }
           // ★追加：場のドンが変わるので毎回更新
           updateDonDeckAlert(a.player);
