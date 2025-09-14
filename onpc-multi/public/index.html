@@ -246,12 +246,13 @@
       border-color: #39FF14; /* 蛍光グリーン */
     }
 
-    /* 攻撃不可アイコン（キャラカード右下・小さめ） */
+    /* 攻撃不可アイコン（カード中央に重ねる） */
     .card .no-attack-icon{
       position: absolute;
-      right: 6px;
-      bottom: 6px;
-      max-width: min(26%, 56px); /* 小さく表示 */
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      max-width: min(26%, 56px); /* サイズは従来相当。必要なら後で調整可 */
       width: auto;
       height: auto;
       pointer-events: none; /* クリック透過 */
