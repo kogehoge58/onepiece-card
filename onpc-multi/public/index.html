@@ -409,12 +409,23 @@
     .don-grid{
       display: grid;
       grid-template-columns: repeat(10, 1fr);
-      gap: 10px;
+      gap: 12px;                 /* 押し間違い防止に少し広げる */
       margin-top: 8px;
     }
     .donop-btn{
-      padding: 6px 10px; border-radius: 8px; border: 0;
-      color:#fff; font-weight:700; font-size:14px; line-height:1;
+      /* 正方形化：セルの幅に応じて高さが決まる */
+      aspect-ratio: 1 / 1;
+      /* テキストを中央に配置 */
+      display: grid;
+      place-items: center;
+      /* aspect-ratioを崩さないため内側余白は0 */
+      padding: 0;
+      /* タップしやすい最小サイズ（Apple/Google推奨 44px） */
+      min-width: 44px;
+      min-height: 44px;
+      border-radius: 10px;
+      border: 0;
+      color:#fff; font-weight:700; font-size:16px; line-height:1;
       cursor:pointer; user-select:none;
     }
     .donop-btn.plus  { background: rgba(255, 64,  64, .70); } /* 薄い赤 */
