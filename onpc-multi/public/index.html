@@ -507,6 +507,12 @@
 
     /* モーダル初回表示で当たるフォーカスの枠線を非表示にする */
     .donop-btn:focus { outline: none; box-shadow: none; }
+
+    /* 左側ボタン（手札を見る） */
+    .header-btn-left{ left:8px; right:auto; }
+
+    /* 手札画像モーダルはギャラリー(#gallery-backdrop:9999)より前面 */
+    #handlist-backdrop { z-index: 10002; }
   </style>
 </head>
 <body>
@@ -659,6 +665,8 @@
     <div class="modal">
       <div class="modal-header">
         <div id="gallery-label" class="modal-title"></div>
+        <!-- デッキ一覧用：タイトル左に「手札を見る」ボタン（デッキ時のみ表示） -->
+        <button id="gallery-show-hand" type="button" class="header-btn header-btn-left" style="display:none;">手札を見る</button>
         <button id="gallery-reveal-all" type="button" class="header-btn" style="display:none;">すべて表向き</button>
       </div>
       <div id="thumbs" class="thumbs"></div>
@@ -805,6 +813,17 @@
     <button type="button" role="menuitem" data-n="5">5</button>
   </div>
 
+  <!-- 手札画像モーダル（新規／デッキ一覧の上に重ねる） -->
+  <div id="handlist-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">手札</div>
+        <!-- 閉じるボタン不要：外側クリック/Escで閉じる -->
+      </div>
+      <div id="handlist-thumbs" class="thumbs" role="list"></div>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const ROOM = new URLSearchParams(location.search).get('room') || 'dev';
@@ -940,11 +959,47 @@
     }
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) hideModal(); });
 
+    /* ===== 手札画像モーダル（新規） ===== */
+    const handlistBackdrop = document.getElementById('handlist-backdrop');
+    const handlistThumbs   = document.getElementById('handlist-thumbs');
+
+    function hideHandImagesOverlay(){
+      handlistBackdrop.style.display = 'none';
+      handlistBackdrop.setAttribute('aria-hidden', 'true');
+      handlistThumbs.innerHTML = '';
+    }
+    if (handlistBackdrop){
+      handlistBackdrop.addEventListener('click', (e) => {
+        if (e.target === handlistBackdrop) hideHandImagesOverlay();
+      });
+      // モーダル内は右クリック無効
+      handlistThumbs?.addEventListener('contextmenu', (e)=> e.preventDefault());
+    }
+
+    // デッキ一覧の「手札を見る」から呼ぶ：右クリなし／左クリで拡大のみ
+    function openHandImagesOverlay(player){
+      const list = handImages[player] || [];
+      handlistThumbs.innerHTML = '';
+      for (const src of list){
+        const wrap = document.createElement('div');
+        wrap.className = 'thumb-wrap';
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = '';
+        img.addEventListener('click', () => openImagePreview(src));
+        wrap.appendChild(img);
+        handlistThumbs.appendChild(wrap);
+      }
+      handlistBackdrop.style.display = 'flex';
+      handlistBackdrop.setAttribute('aria-hidden', 'false');
+    }
+
     // ★ どの一覧を開いているかの文脈（キャラ移動に必要）
     let thumbsContext = { area: null, player: null };
 
-    const galleryLabel = document.getElementById('gallery-label');
-    const revealAllBtn = document.getElementById('gallery-reveal-all');
+    const galleryLabel   = document.getElementById('gallery-label');
+    const revealAllBtn   = document.getElementById('gallery-reveal-all');
+    const galleryHandBtn = document.getElementById('gallery-show-hand');
 
     function openGalleryFromList(title, list){
       // ★ライフ/デッキのときだけ「すべて表向き」を表示
@@ -953,6 +1008,16 @@
       const showReveal = (area === 'deck' || area === 'life');
       revealAllBtn.style.display = showReveal ? '' : 'none';
       revealAllBtn.onclick = null;
+
+      // ★デッキ一覧のときだけ「手札を見る」を表示
+      if (galleryHandBtn){
+        const showHandBtn = (area === 'deck');
+        galleryHandBtn.style.display = showHandBtn ? '' : 'none';
+        galleryHandBtn.onclick = showHandBtn ? (() => {
+          if (!player) return;
+          openHandImagesOverlay(player);
+        }) : null;
+      }
 
       if (showReveal){
         revealAllBtn.onclick = () => {
