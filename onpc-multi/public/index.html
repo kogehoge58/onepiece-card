@@ -829,6 +829,9 @@
     // ★初回ターン開始のドン移動を済ませたか
     let FIRST_TURN_DON_BOOTSTRAP = false;
 
+    // ★全体のターン開始押下カウント（先攻後攻関係なし）
+    let TURN_BEGIN_COUNT = 0;
+
     // 起動時：リーダー2枚にチップをセット（0表示・restアイコン）
     ['A','B'].forEach(p=>{
       const c = getPieceCell(p,'leader',0);
@@ -842,6 +845,9 @@
     const bLeader = document.getElementById('b-leader-img');
     if (aLeader) aLeader.src = withRoom(`deck/player_A/leader.png?v=${__V}`);
     if (bLeader) bLeader.src = withRoom(`deck/player_B/leader.png?v=${__V}`);
+
+    // ★no_attack をリーダーに初期表示
+    ensureLeaderNoAttackOverlays();
 
     // ★起動時はalert.pngを非表示
     document.querySelectorAll('.card.don-deck .alert-icon').forEach(el => el.style.display = 'none');
@@ -3249,6 +3255,24 @@
       if (!inMenu) hideAllContextMenus(); // 先に全部閉じる（次に新しいメニューが開く）
     }, true);
 
+    // ===== リーダーno_attack制御 =====
+    function ensureLeaderNoAttackOverlays(){
+      ['A','B'].forEach(p=>{
+        const cell = getPieceCell(p, 'leader');
+        if (!cell) return;
+        if (!cell.querySelector('.leader-no-attack')){
+          const icon = document.createElement('img');
+          icon.className = 'no-attack-icon leader-no-attack';
+          icon.src = 'component_images/no_attack.png';
+          icon.alt = 'no_attack';
+          cell.appendChild(icon);
+        }
+      });
+    }
+    function hideLeaderNoAttackForBoth(){
+      document.querySelectorAll('.leader-no-attack').forEach(el => el.remove());
+    }
+
 
 
     // ====== socketの処理 ======
@@ -3314,6 +3338,13 @@
 
       switch (a.type) {
         case 'REFRESH': {
+          // ★ターン開始「全体」押下回数をカウント（1回目=先攻、2回目=後攻、3回目=両者解禁）
+          TURN_BEGIN_COUNT += 1;
+          if (TURN_BEGIN_COUNT === 3) {
+            // 3回目でA/B両方のリーダーno_attackを非表示
+            hideLeaderNoAttackForBoth();
+          }
+
           // ★初回だけ：押下プレイヤーのドンデッキ-1 / アクティブ+1 のみ実行して他はスキップ
           if (!FIRST_TURN_DON_BOOTSTRAP) {
             FIRST_TURN_DON_BOOTSTRAP = true;
