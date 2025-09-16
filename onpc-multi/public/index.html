@@ -97,6 +97,9 @@
       scrollbar-gutter: stable;      /* 対応ブラウザで縦スクロール分の溝を常時確保 */
       box-sizing: content-box;       /* 下のパディングで内容幅を削らないように */
       padding-inline-end: 20px;      /* 非対応ブラウザ向けのフォールバック余白 */
+
+      /* 追加：各列を上詰めにする（余白は下へ） */
+      align-content: start;
     }
     .thumbs img {
       width: 100%; aspect-ratio: 1 / 1.4; object-fit: cover; border: 1px solid #aaa;
