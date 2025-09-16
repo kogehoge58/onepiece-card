@@ -13,7 +13,18 @@
       height: 100vh;
       overflow: hidden;           /* 画面本体はスクロール禁止 */
       font-family: sans-serif;
-      /* background: url("component_images/wallpaper.png") center center / cover no-repeat; */
+      /* 白オーバーレイ + 画像 */
+      background:
+        linear-gradient(
+          rgba(255,255,255,var(--wallpaper-tint)),
+          rgba(255,255,255,var(--wallpaper-tint))
+        ),
+        url("component_images/wallpaper.png") center center / cover no-repeat;
+    }
+
+    :root {
+      /* 背景の白み（0.0〜1.0）お好みで調整 */
+      --wallpaper-tint: 0.5;
     }
 
     #bg-video {
@@ -495,10 +506,6 @@
   </style>
 </head>
 <body>
-  <!-- 背景動画 -->
-  <video autoplay muted loop playsinline id="bg-video">
-    <source src="component_images/wallpaper.mp4" type="video/mp4">
-  </video>
   <div class="container">
     <!-- プレイヤーA -->
     <div class="player-field">
