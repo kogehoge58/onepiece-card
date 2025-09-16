@@ -3134,8 +3134,31 @@
       if (actTglWrap && restTglWrap){
         const isPiece = (scope === 'piece');
         const isDeck  = (scope === 'donDeck');
-        actTglWrap.style.display  = (isPiece || isDeck) ? '' : 'none';
-        restTglWrap.style.display = (isPiece || isDeck || scope === 'donAct' || scope === 'donRest') ? '' : 'none';
+
+        // ✅ 表示可否を明示
+        if (scope === 'donAct') {
+          // アクティブ増減：レスト連動だけ見せる
+          actTglWrap.style.display  = 'none';
+          restTglWrap.style.display = '';
+        } else if (scope === 'donRest') {
+          // レスト増減：アクティブ連動だけ見せる
+          actTglWrap.style.display  = '';
+          restTglWrap.style.display = 'none';
+        } else {
+          // ピース（リーダー/キャラ） or ドンデッキ：両方見せる
+          actTglWrap.style.display  = (isPiece || isDeck) ? '' : 'none';
+          restTglWrap.style.display = (isPiece || isDeck) ? '' : 'none';
+        }
+
+        // ✅ 位置調整：donAct / donRest モーダルでは左寄せに移動
+        // まず既定をクリア
+        actTglWrap.classList.remove('don-toggle-right');
+        restTglWrap.classList.remove('don-toggle-right');
+        // 既定（ピース・ドンデッキなど）は従来どおり「レストを右」に戻す
+        if (!(scope === 'donAct' || scope === 'donRest')) {
+          restTglWrap.classList.add('don-toggle-right');
+        }
+
         // ラベル
         const rlbl = restTglWrap.querySelector('.label');
         if (rlbl) rlbl.textContent = isPiece ? 'レスト連動' : ((scope === 'donRest') ? 'アクティブ連動' : 'レスト連動');
@@ -3172,13 +3195,25 @@
     // 相互排他：どちらかをONにしたらもう片方はOFF
     if (actTglInput)  actTglInput.addEventListener('change', () => {
       if (actTglInput.checked && restTglInput) restTglInput.checked = false;
-      // piece時のみリンク先を保持（donAct/donRestは既存restAdjustOnを使用）
-      pieceLinkMode = actTglInput.checked ? 'act' : (restTglInput?.checked ? 'rest' : null);
+      if (donCtx.scope === 'donRest') {
+        // レスト増減モーダル＝左(アクティブ連動)トグルで連動ON/OFF
+        restAdjustOn = !!actTglInput.checked;
+        pieceLinkMode = null;
+      } else {
+        // ピース／ドンデッキ用：リンク先保持
+        pieceLinkMode = actTglInput.checked ? 'act' : (restTglInput?.checked ? 'rest' : null);
+      }
     });
     if (restTglInput) restTglInput.addEventListener('change', () => {
       if (restTglInput.checked && actTglInput) actTglInput.checked = false;
-      restAdjustOn = !!restTglInput.checked; // 既存（donAct/donRest用）は維持
-      pieceLinkMode = restTglInput.checked ? 'rest' : (actTglInput?.checked ? 'act' : null);
+      if (donCtx.scope === 'donAct') {
+        // アクティブ増減モーダル＝右(レスト連動)トグルで連動ON/OFF
+        restAdjustOn = !!restTglInput.checked;
+        pieceLinkMode = null;
+      } else {
+        // ピース／ドンデッキ用：リンク先保持
+        pieceLinkMode = restTglInput.checked ? 'rest' : (actTglInput?.checked ? 'act' : null);
+      }
     });
 
     function closeDonDialog(){
