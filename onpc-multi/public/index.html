@@ -448,13 +448,14 @@
       .don-grid{ grid-template-columns: repeat(5, 1fr); }
     }
 
-    /* ==== ドン増減：レスト調整トグル ==== */
+    /* ==== ドン増減：連動トグル ==== */
     .don-toggle{
       position:absolute;
       left:8px; top:6px;
       display:flex; align-items:center; gap:10px;
       font-weight:700; color:#333;
     }
+    .don-toggle-right{ left:auto; right:8px; }
     .don-toggle .label{ white-space:nowrap; }
     .switch{
       position:relative; display:inline-block; width:46px; height:26px;
@@ -778,7 +779,13 @@
     <div class="modal don-modal">
       <div class="modal-header">
         <div id="don-modal-title" class="modal-title">ドン増減（現在：0枚）</div>
-        <div id="rest-toggle-wrap" class="don-toggle" style="display:none;"><label class="switch"><input id="rest-toggle" type="checkbox"><span class="slider"></span></label><span class="label">レスト連動</span></div>
+        <!-- 左：アクティブ連動 / 右：レスト連動（どちらも初期OFF・相互排他） -->
+        <div id="act-toggle-wrap"  class="don-toggle"        style="display:none;">
+          <label class="switch"><input id="act-toggle"  type="checkbox"><span class="slider"></span></label><span class="label">アクティブ連動</span>
+        </div>
+        <div id="rest-toggle-wrap" class="don-toggle don-toggle-right" style="display:none;">
+          <label class="switch"><input id="rest-toggle" type="checkbox"><span class="slider"></span></label><span class="label">レスト連動</span>
+        </div>
       </div>
       <div class="don-box">
         <div id="don-buttons" class="don-grid" role="group" aria-label="ドン増減ボタン"></div>
@@ -3083,12 +3090,15 @@
     const donTitleEl   = document.getElementById('don-modal-title');
     const donBtnsWrap  = document.getElementById('don-buttons');
 
+    const actTglWrap   = document.getElementById('act-toggle-wrap');
+    const actTglInput  = document.getElementById('act-toggle');
     const restTglWrap  = document.getElementById('rest-toggle-wrap');
     const restTglInput = document.getElementById('rest-toggle');
 
     // scope: 'donDeck'|'donAct'|'donRest'|'piece'
     let   donCtx       = { player:null, scope:null, pieceArea:null, pieceSlot:0 };
-    let   restAdjustOn = false;                       // 「レスト調整」トグル状態（デフォルトOFF）
+    let   restAdjustOn = false;                       // 既存：donAct/donRest 用の連動フラグ（デフォルトOFF）
+    let   pieceLinkMode = null;                       // 新規：piece用 'act' | 'rest' | null
 
     const tableByScope = {
       donDeck: () => donDeckCounts,
@@ -3111,18 +3121,24 @@
     }
     function openDonDialog(player, scope, opts = {}){
       donCtx = { player, scope, pieceArea: opts.pieceArea || null, pieceSlot: (opts.pieceSlot|0) || 0 };
-      // 連動トグルの表示制御（アクティブ/レストで表示、デフォルトOFF）
-      if (restTglWrap) {
-        const show = (scope === 'donAct' || scope === 'donRest');
-        restTglWrap.style.display = show ? '' : 'none';
-        // スコープに応じてラベルを切替
-        const lbl = restTglWrap.querySelector('.label');
-        if (lbl) {
-          lbl.textContent = (scope === 'donRest') ? 'アクティブ連動' : 'レスト連動';
-        }
+
+      // 連動トグルの表示制御（piece の時は左右2つ、donAct/donRest は従来どおり右のみ）
+      if (actTglWrap && restTglWrap){
+        const isPiece = (scope === 'piece');
+        actTglWrap.style.display  = isPiece ? '' : 'none';
+        restTglWrap.style.display = (isPiece || scope === 'donAct' || scope === 'donRest') ? '' : 'none';
+        // ラベル
+        const rlbl = restTglWrap.querySelector('.label');
+        if (rlbl) rlbl.textContent = isPiece ? 'レスト連動' : ((scope === 'donRest') ? 'アクティブ連動' : 'レスト連動');
+        const albl = actTglWrap.querySelector('.label');
+        if (albl) albl.textContent = 'アクティブ連動';
+        // 初期OFF & 相互排他初期化
+        if (actTglInput)  actTglInput.checked  = false;
         if (restTglInput) restTglInput.checked = false;
-        restAdjustOn = false;
+        pieceLinkMode = null;
+        restAdjustOn  = false;
       }
+
       // ボタンを20個生成（+1..+10 → -1..-10）
       donBtnsWrap.innerHTML = '';
       for (let i=1;i<=10;i++){
@@ -3139,7 +3155,18 @@
       donBackdrop.setAttribute('aria-hidden','false');
       setDonTitle();
     }
-    if (restTglInput) restTglInput.addEventListener('change', () => { restAdjustOn = !!restTglInput.checked; });
+
+    // 相互排他：どちらかをONにしたらもう片方はOFF
+    if (actTglInput)  actTglInput.addEventListener('change', () => {
+      if (actTglInput.checked && restTglInput) restTglInput.checked = false;
+      // piece時のみリンク先を保持（donAct/donRestは既存restAdjustOnを使用）
+      pieceLinkMode = actTglInput.checked ? 'act' : (restTglInput?.checked ? 'rest' : null);
+    });
+    if (restTglInput) restTglInput.addEventListener('change', () => {
+      if (restTglInput.checked && actTglInput) actTglInput.checked = false;
+      restAdjustOn = !!restTglInput.checked; // 既存（donAct/donRest用）は維持
+      pieceLinkMode = restTglInput.checked ? 'rest' : (actTglInput?.checked ? 'act' : null);
+    });
 
     function closeDonDialog(){
       donBackdrop.style.display='none';
@@ -3157,9 +3184,19 @@
         const cell = getPieceCell(player, pieceArea, pieceSlot);
         const curr = getDonCount(cell);
         const next = Math.min(10, Math.max(0, curr + delta));
+
+        const eff  = next - curr; // 実際の増減
         if (typeof emitAction === 'function'){
           emitAction({ type:'PIECE_DON_SET', player, area: pieceArea, slot: pieceSlot, value: next });
+          // 新規：piece用 連動（アクティブ or レストを逆方向に調整）
+          if (pieceLinkMode && eff !== 0){
+            const linkScope = (pieceLinkMode === 'act') ? 'donAct' : 'donRest';
+            const pCurr = getDonValue(player, linkScope);
+            const pNext = Math.min(10, Math.max(0, pCurr - eff)); // +なら減、-なら増（既存と同じ考え方）
+            if (pNext !== pCurr) emitAction({ type:'DON_SET', scope: linkScope, player, value: pNext });
+          }
         }
+
         closeDonDialog();
         return;
       }
