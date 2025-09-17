@@ -94,6 +94,12 @@
       border-radius: 10px; padding: 16px;
       display: flex; flex-direction: column;
     }
+
+    /* ★モーダル背景色バリエーション */
+    .modal.bg-hand  { background: rgb(198, 224, 248); }  /* 薄い青：手札 */
+    .modal.bg-life  { background: rgb(253, 241, 194); }  /* 薄い黄色：ライフ */
+    .modal.bg-trash { background: rgb(194, 194, 194); } /* グレー：トラッシュ */
+
     .thumbs {
       /* 既存 */
       flex: 1;
@@ -179,7 +185,7 @@
     .modal-header{
       flex: 0 0 auto;
       padding: 6px 8px 10px;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid #000;
       margin-bottom: 10px;
     }
     .modal-title{
@@ -815,7 +821,7 @@
 
   <!-- 手札画像モーダル（新規／デッキ一覧の上に重ねる） -->
   <div id="handlist-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
-    <div class="modal">
+    <div class="modal bg-hand">
       <div class="modal-header">
         <div class="modal-title">手札</div>
         <!-- 閉じるボタン不要：外側クリック/Escで閉じる -->
@@ -1008,6 +1014,16 @@
       const showReveal = (area === 'deck' || area === 'life');
       revealAllBtn.style.display = showReveal ? '' : 'none';
       revealAllBtn.onclick = null;
+
+      // ★一覧種類に応じてギャラリーモーダルの背景色を切替
+      (function(){
+        const galleryModal = backdrop.querySelector('.modal');
+        if (!galleryModal) return;
+        galleryModal.classList.remove('bg-hand','bg-life','bg-trash');
+        if (area === 'hand')  galleryModal.classList.add('bg-hand');
+        if (area === 'life')  galleryModal.classList.add('bg-life');
+        if (area === 'trash') galleryModal.classList.add('bg-trash');
+      })();
 
       // ★デッキ一覧のときだけ「手札を見る」を表示
       if (galleryHandBtn){
