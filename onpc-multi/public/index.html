@@ -874,6 +874,8 @@
     let donActCounts  = { A: 0,  B: 0 };
     let donRestCounts = { A: 0,  B: 0 };
 
+    const LAST_DON_SNAPSHOT = { A: null, B: null };
+
     // ★初回ターン開始のドン移動を済ませたか
     let FIRST_TURN_DON_BOOTSTRAP = false;
 
@@ -921,6 +923,29 @@
         setDonReturnVisible(player, false);              // まず自分を隠す
         if (typeof emitAction === 'function'){
           emitAction({ type:'DON_RETURN_HIDE', player }); // 同期で他クライアントにも隠す
+        }
+        // ★このクライアントだけ確認ダイアログを表示（最初に押下した人だけが見る）
+        const snap = LAST_DON_SNAPSHOT[player];
+        if (!snap) {
+          alert('直前のドン状態が見つかりません。');
+          // ★保持が無いときは隠してしまっているので即座に再表示（同期）
+          setDonReturnVisible(player, true);
+          if (typeof emitAction === 'function'){
+            emitAction({ type:'DON_RETURN_SHOW', player });
+          }
+          return;
+        }
+        if (confirm('ドンを直前の状態に戻しますか？')) {
+          // 全クライアントへ「復元実行」アクション（状態本体は各自の保持分を使用）
+          if (typeof emitAction === 'function') {
+            emitAction({ type:'DON_RETURN_APPLY', player });
+          }
+        } else {
+          // ★キャンセル時は再表示（自分 & 他クライアント）
+          setDonReturnVisible(player, true);
+          if (typeof emitAction === 'function'){
+            emitAction({ type:'DON_RETURN_SHOW', player });
+          }
         }
       });
     });
@@ -3268,6 +3293,8 @@
         console.table(snap.chara);           // キャラはスロットごとに個別識別
         if (snap.target) console.log('Target piece:', snap.target);
         console.groupEnd();
+        // ★保持：直前スナップショットを記録（復元に利用）
+        LAST_DON_SNAPSHOT[player] = snap;
         // ログと同時に、対象プレイヤー側のドンデッキ右上に don_return を表示（同期）
         setDonReturnVisible(player, true); // 自分
         // 他クライアントにも同期出力（受信側で自分の分は除外）
@@ -3744,6 +3771,8 @@
           const s  = a.snapshot || {};
           const p  = s.player || a.player;
           const sc = s.scope  || a.scope;
+          // ★保持：直前スナップショットを記録（復元に利用）
+          LAST_DON_SNAPSHOT[p] = s;
           const d  = (s.pressed !== undefined)
                       ? s.pressed
                       : (typeof a.delta === 'number' ? (a.delta >= 0 ? `+${a.delta}` : `${a.delta}`) : '?');
@@ -3760,6 +3789,41 @@
         case 'DON_RETURN_HIDE': {
           const p = a.player;
           if (p) setDonReturnVisible(p, false);
+          break;
+        }
+        case 'DON_RETURN_APPLY': {
+          const p = a?.player;
+          const s = LAST_DON_SNAPSHOT?.[p];
+          if (!p || !s) break;
+          const clamp = (n)=> Math.max(0, Math.min(10, (n|0)));
+
+          // 1) ドン3種（デッキ/アクティブ/レスト）
+          if (typeof setCount === 'function') {
+            setCount('donDeck', p, clamp(s?.don?.deck ?? 0));
+            setCount('donAct',  p, clamp(s?.don?.act  ?? 0));
+            setCount('donRest', p, clamp(s?.don?.rest ?? 0));
+          }
+
+          // 2) リーダー
+          const leaderCell = getPieceCell(p,'leader',0);
+          if (leaderCell) setDonCount(leaderCell, clamp(s?.leader?.count ?? 0));
+
+          // 3) キャラ1〜5（カードがあるセルのみ上書き）
+          for (let i=1; i<=5; i++){
+            const cell = getPieceCell(p,'chara', i);
+            const n = clamp(s?.chara?.[i] ?? 0);
+            if (cell && cell.querySelector('img')) setDonCount(cell, n);
+          }
+
+          // 4) 付随UI
+          if (typeof updateDonDeckAlert === 'function') updateDonDeckAlert(p);
+          setDonReturnVisible(p, false); // 念のため非表示
+          break;
+        }
+        // ★キャンセル時など：戻しアイコンを再表示
+        case 'DON_RETURN_SHOW': {
+          const p = a.player;
+          if (p) setDonReturnVisible(p, true);
           break;
         }
       }
