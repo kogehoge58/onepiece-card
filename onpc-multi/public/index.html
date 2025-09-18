@@ -519,6 +519,17 @@
 
     /* 手札画像モーダルはギャラリー(#gallery-backdrop:9999)より前面 */
     #handlist-backdrop { z-index: 10002; }
+
+    /* === ドン戻しアイコン（右上） === */
+    .card.don-deck .don-return-btn{
+      position: absolute;
+      right: 6px;
+      top: 6px;
+      width: min(24%, 48px);
+      height: auto;
+      z-index: 3;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -564,6 +575,7 @@
           <img src="component_images/don_back.png" alt="A-DON-DECK">
           <!-- ↓ 追加：中央アラート -->
           <img class="alert-icon" src="component_images/alert.png" alt="alert">
+          <img class="don-return-btn" data-player="A" src="component_images/don_return.png" alt="don-return">
           <span id="a-don-deck-label" class="don-label">ドンデッキ×10</span>
         </div>
 
@@ -635,6 +647,7 @@
           <img src="component_images/don_back.png" alt="B-DON-DECK">
           <!-- ↓ 追加：中央アラート -->
           <img class="alert-icon" src="component_images/alert.png" alt="alert">
+          <img class="don-return-btn" data-player="B" src="component_images/don_return.png" alt="don-return">
           <span id="b-don-deck-label" class="don-label">ドンデッキ×10</span>
         </div>
 
@@ -889,7 +902,28 @@
 
     // ★起動時はalert.pngを非表示
     document.querySelectorAll('.card.don-deck .alert-icon').forEach(el => el.style.display = 'none');
+    // ★起動時はdon_return.pngも非表示（CSS既定だが明示）
+    document.querySelectorAll('.card.don-deck .don-return-btn').forEach(el => el.style.display = 'none');
 
+    // === 共通：ドン戻しアイコンの表示/非表示 ===
+    function setDonReturnVisible(player, visible){
+      const deckImg = document.querySelector(`img[alt="${player}-DON-DECK"]`);
+      const card = deckImg?.closest('.card.don-deck');
+      const btn = card?.querySelector('.don-return-btn');
+      if (btn){ btn.style.display = visible ? '' : 'none'; }
+    }
+
+    // 右上アイコン押下：一旦非表示（同期）
+    document.querySelectorAll('.card.don-deck .don-return-btn').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const player = btn.dataset.player;
+        setDonReturnVisible(player, false);              // まず自分を隠す
+        if (typeof emitAction === 'function'){
+          emitAction({ type:'DON_RETURN_HIDE', player }); // 同期で他クライアントにも隠す
+        }
+      });
+    });
 
     function renderCounts(){
       document.getElementById('a-deck-label').textContent  = `デッキ×${deckCounts.A}`;
@@ -3234,6 +3268,8 @@
         console.table(snap.chara);           // キャラはスロットごとに個別識別
         if (snap.target) console.log('Target piece:', snap.target);
         console.groupEnd();
+        // ログと同時に、対象プレイヤー側のドンデッキ右上に don_return を表示（同期）
+        setDonReturnVisible(player, true); // 自分
         // 他クライアントにも同期出力（受信側で自分の分は除外）
         if (typeof emitAction === 'function') {
           emitAction({ type: 'LOG_DON_SNAPSHOT', player, scope, delta, snapshot: snap });
@@ -3717,6 +3753,13 @@
           if (s.chara)               console.table(s.chara);
           if (s.target)              console.log('Target piece:', s.target);
           console.groupEnd();
+          // ログ同期と同タイミングで don_return を表示（同期）
+          setDonReturnVisible(p, true);
+          break;
+        }
+        case 'DON_RETURN_HIDE': {
+          const p = a.player;
+          if (p) setDonReturnVisible(p, false);
           break;
         }
       }
