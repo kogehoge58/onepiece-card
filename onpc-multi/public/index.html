@@ -3187,38 +3187,6 @@
     let   restAdjustOn = false;                       // 既存：donAct/donRest 用の連動フラグ（デフォルトOFF）
     let   pieceLinkMode = null;                       // 新規：piece用 'act' | 'rest' | null
 
-    /* ==== ドン状況集計（±押下後に非同期でコンソール出力） ==== */
-    function __collectDonStatus(player){
-      const leader = getDonCount(getPieceCell(player, 'leader'));
-      const c = [1,2,3,4,5].map(i => getDonCount(getPieceCell(player, 'chara', i)));
-      return {
-        player,
-        donDeck: Number(donDeckCounts?.[player]) || 0,
-        donAct : Number(donActCounts?.[player])  || 0,
-        donRest: Number(donRestCounts?.[player]) || 0,
-        leader,
-        chara1: c[0], chara2: c[1], chara3: c[2], chara4: c[3], chara5: c[4],
-      };
-    }
-    function __logDonStatusAsync(player){
-      const run = () => {
-        const s = __collectDonStatus(player);
-        try{
-          console.groupCollapsed(`DON状況 ${player} 側（±押下後）`);
-          console.log('ドンデッキ', s.donDeck);
-          console.log('アクティブ', s.donAct);
-          console.log('レスト', s.donRest);
-          console.log('リーダー', s.leader);
-          console.log('キャラ', {1:s.chara1,2:s.chara2,3:s.chara3,4:s.chara4,5:s.chara5});
-          console.groupEnd();
-        }catch(_){
-          console.log('[DON状況]', s);
-        }
-      };
-      if ('requestAnimationFrame' in window) requestAnimationFrame(() => setTimeout(run, 0));
-      else setTimeout(run, 0);
-    }
-
     const tableByScope = {
       donDeck: () => donDeckCounts,
       donAct : () => donActCounts,
@@ -3370,7 +3338,6 @@
         }
 
         closeDonDialog();
-        __donLogState.pending[player] = true;
         return;
       }
 
@@ -3402,7 +3369,6 @@
       }
 
       closeDonDialog();
-      __donLogState.pending[player] = true;
     });
 
     // 盤面のドンカードを左クリックでモーダルオープン
@@ -3490,22 +3456,6 @@
     }
     function hideLeaderNoAttackForBoth(){
       document.querySelectorAll('.leader-no-attack').forEach(el => el.remove());
-    }
-
-    // ドン状況ログ：受信アクション後にまとめて出すための状態
-    const __donLogState = {
-      pending: { A:false, B:false },
-      timer:   { A:null,  B:null  },
-    };
-    function __queueDonLogAfterActions(player){
-      if (!player) return;
-      __donLogState.pending[player] = true;
-      clearTimeout(__donLogState.timer[player]);
-      // 連動分の DON_SET が続けて届くので少しだけデバウンス（~2フレーム）
-      __donLogState.timer[player] = setTimeout(() => {
-        __logDonStatusAsync(player);   // 既存の集計関数をそのまま使用
-        __donLogState.pending[player] = false;
-      }, 34);
     }
 
 
@@ -3646,7 +3596,6 @@
           }
           // ★追加：場のドンが変わるので毎回更新
           updateDonDeckAlert(a.player);
-          if (__donLogState.pending?.[a.player]) __queueDonLogAfterActions(a.player);
           break;
         }
         case 'LIST_MOVE':          if (typeof applyListMove       === 'function') applyListMove(a); break;
@@ -3692,7 +3641,6 @@
             if (typeof updateDonDeckAlert === 'function') updateDonDeckAlert(player);
             // モーダルを開いている場合はタイトルの現在枚数も更新
             setDonTitle();
-            if (__donLogState.pending?.[player]) __queueDonLogAfterActions(player);
             // ★手札一覧を表示中で、該当プレイヤーならタイトルを同期更新
             if (scope === 'donAct'
                 && backdrop?.style.display === 'flex'
