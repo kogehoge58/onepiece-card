@@ -3195,6 +3195,53 @@
     function getDonValue(player, scope){
       const t = tableByScope[scope]?.(); return Number(t?.[player]) || 0;
     }
+    // === NEW: DONスナップショット（±押下「前」を同期でコンソール出力） ===
+    function __getCharaDonMap(player){
+      const m = {};
+      for (let i = 1; i <= 5; i++){
+        m[i] = getDonCount(getPieceCell(player, 'chara', i));
+      }
+      return m;
+    }
+    function logDonSnapshotBeforeOp({ player, scope, pieceArea=null, pieceSlot=0, delta=0 }){
+      try{
+        const leaderCell = getPieceCell(player, 'leader');
+        const leaderDon  = getDonCount(leaderCell);
+        const charaMap   = __getCharaDonMap(player);
+        const snap = {
+          player,
+          scope,
+          pressed: (delta >= 0 ? `+${delta}` : `${delta}`),
+          don: {
+            deck: getDonValue(player,'donDeck'),
+            act : getDonValue(player,'donAct'),
+            rest: getDonValue(player,'donRest'),
+          },
+          leader: { count: leaderDon },
+          chara : charaMap
+        };
+        if (scope === 'piece' && pieceArea){
+          const cell = getPieceCell(player, pieceArea, pieceSlot);
+          snap.target = {
+            area: pieceArea,
+            slot: pieceSlot|0,
+            count: getDonCount(cell)
+          };
+        }
+        console.groupCollapsed(`[DON before ±] P=${player} scope=${scope} delta=${snap.pressed}`);
+        console.log('DON(deck/act/rest):', snap.don);
+        console.log('Leader DON:', snap.leader.count);
+        console.table(snap.chara);           // キャラはスロットごとに個別識別
+        if (snap.target) console.log('Target piece:', snap.target);
+        console.groupEnd();
+        // 他クライアントにも同期出力（受信側で自分の分は除外）
+        if (typeof emitAction === 'function') {
+          emitAction({ type: 'LOG_DON_SNAPSHOT', player, scope, delta, snapshot: snap });
+        }
+      }catch(e){
+        console.warn('logDonSnapshotBeforeOp failed:', e);
+      }
+    }
     function setDonTitle(){
       if (!donCtx.player) return;
       let n = 0;
@@ -3319,6 +3366,8 @@
       const delta = parseInt(btn.dataset.delta, 10) || 0;
 
       const { player, scope, pieceArea, pieceSlot } = donCtx; if (!player) return;
+      // ★NEW: 押下「前」の状態を同期でコンソール出力（対象プレイヤーのみ）
+      logDonSnapshotBeforeOp({ player, scope, pieceArea, pieceSlot, delta });
 
       if (scope === 'piece'){
         const cell = getPieceCell(player, pieceArea, pieceSlot);
@@ -3651,6 +3700,23 @@
               galleryLabel.textContent = `手札（アクティブドン×${n}枚）`;
             }
           }
+          break;
+        }
+        case 'LOG_DON_SNAPSHOT': {
+          // 自分が送ったログは二重表示を避ける
+          if (a.actor && a.actor === myClientId()) break;
+          const s  = a.snapshot || {};
+          const p  = s.player || a.player;
+          const sc = s.scope  || a.scope;
+          const d  = (s.pressed !== undefined)
+                      ? s.pressed
+                      : (typeof a.delta === 'number' ? (a.delta >= 0 ? `+${a.delta}` : `${a.delta}`) : '?');
+          console.groupCollapsed(`[DON before ±][sync] P=${p} scope=${sc} delta=${d}`);
+          if (s.don)                 console.log('DON(deck/act/rest):', s.don);
+          if (s.leader != null)      console.log('Leader DON:', s.leader.count ?? s.leader);
+          if (s.chara)               console.table(s.chara);
+          if (s.target)              console.log('Target piece:', s.target);
+          console.groupEnd();
           break;
         }
       }
