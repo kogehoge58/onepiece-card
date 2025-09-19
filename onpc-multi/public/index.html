@@ -1788,8 +1788,9 @@
           src,               // 対象カード画像のURL
         });
         hideThumbMenu();
-        // 手札一覧→To：キャラエリア のときはモーダルも閉じる
-        if (action === 'to-chara' && area === 'hand' && backdrop?.style.display === 'flex') {
+        // 手札一覧→To：キャラエリア／ステージエリア のときはモーダルも閉じる
+        if ((action === 'to-chara' || action === 'to-stage') &&
+            area === 'hand' && backdrop?.style.display === 'flex') {
           hideModal();
         }
         return;
@@ -3569,6 +3570,52 @@
     function hideLeaderNoAttackForBoth(){
       document.querySelectorAll('.leader-no-attack').forEach(el => el.remove());
     }
+
+    /* === 直後の離しクリックを一度だけ捨てるためのユーティリティ === */
+    let __lastPointerDown = { t: 0, type: "", down: false };
+
+    /* 直近の pointerdown を記録 */
+    document.addEventListener("pointerdown", (e) => {
+      __lastPointerDown = { t: Date.now(), type: e.pointerType || "", down: true };
+    }, true);
+
+    /* 指が離れたら down=false に戻すだけ（判定の補助） */
+    document.addEventListener("pointerup", () => {
+      __lastPointerDown.down = false;
+    }, true);
+
+    /* 次の click を一度だけ握りつぶす（キャプチャ段階で止める） */
+    function suppressReleaseClickOnce() {
+      let done = false;
+      const stop = (e) => {
+        if (done) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation?.();
+        done = true;
+        window.removeEventListener("click", stop, true);
+      };
+      window.addEventListener("click", stop, true);
+      // 念のためのフェイルセーフ
+      setTimeout(() => {
+        if (!done) window.removeEventListener("click", stop, true);
+      }, 500);
+    }
+
+    /* 「長押し中にメニューが開いた」と判定できたら、離しクリックを捨てる */
+    function maybeSuppressReleaseClick() {
+      const dt = Date.now() - __lastPointerDown.t;
+      const isLongPressNow =
+        __lastPointerDown.type === "touch" &&   // タッチ操作で
+        __lastPointerDown.down === true &&      // まだ指が付いたまま（長押し中）
+        dt >= 350;                              // 長押しっぽい（閾値はお好みで）
+      if (isLongPressNow) suppressReleaseClickOnce();
+    }
+
+    /* どの右クリメニューでも有効化：contextmenu 発火直後に一回だけ click を捨てる */
+    document.addEventListener("contextmenu", () => {
+      maybeSuppressReleaseClick();
+    }, true);
 
 
 
