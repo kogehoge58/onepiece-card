@@ -563,6 +563,32 @@
       .card.ex-card { padding: 2px; }          /* 既存 4px → 2px */
       .ex-scroll    { gap: 4px; }              /* 既存 6px → 4px */
     }
+
+    /* === EXの表示/非表示制御（トグルOFF時はマスク&非表示） === */
+    .card.ex-card { position: relative; }
+    .card.ex-card .ex-mask{
+      position:absolute; inset:0;
+      background: rgba(0,0,0,.30);   /* 薄いグレー */
+      display:none; pointer-events:none; z-index:4;
+    }
+    .card.ex-card.ex-off .ex-mask{ display:block; }
+    .card.ex-card.ex-off .ex-scroll{ overflow-x:hidden; }
+    .card.ex-card.ex-off .ex-scroll img{ display:none; }
+
+    /* 手札カード右上トグル（既存 .switch の見た目を流用） */
+    .hand-toggle-wrap{
+      position:absolute; right:6px; top:6px; z-index:3;
+    }
+
+    /* 手札トグル：少し小さく（他の .switch には影響させない） */
+    .hand-toggle-wrap .switch{ width:34px; height:20px; }
+    .hand-toggle-wrap .switch .slider{ border-radius:10px; }
+    .hand-toggle-wrap .switch .slider::before{
+      width:14px; height:14px; left:3px; top:3px;
+    }
+    .hand-toggle-wrap .switch input:checked + .slider::before{
+      transform: translateX(14px); /* 34 - 14 - 6 = 14 */
+    }
   </style>
 </head>
 <body>
@@ -628,6 +654,13 @@
         <div class="card">
           <img id="a-hand" src="component_images/hand.png" alt="A-HAND">
           <span id="a-hand-label" class="hand-label">手札×0</span>
+          <!-- ★EX表示トグル（デフォルトOFF） -->
+          <div class="hand-toggle-wrap">
+            <label class="switch">
+              <input id="a-ex-toggle" type="checkbox">
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
 
         <!-- A-TRASH -->
@@ -639,6 +672,7 @@
 
         <!-- ★ A-EX：手札ストリップ（横スクロール） -->
         <div id="a-ex" class="card ex-card">
+          <div class="ex-mask" aria-hidden="true"></div>
           <div id="a-ex-scroll" class="ex-scroll" aria-label="Aの手札ストリップ"></div>
         </div>
       </div>
@@ -705,6 +739,13 @@
         <div class="card">
           <img id="b-hand" src="component_images/hand.png" alt="B-HAND">
           <span id="b-hand-label" class="hand-label">手札×0</span>
+          <!-- ★EX表示トグル（デフォルトOFF） -->
+          <div class="hand-toggle-wrap">
+            <label class="switch">
+              <input id="b-ex-toggle" type="checkbox">
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
 
         <!-- B-TRASH -->
@@ -716,6 +757,7 @@
 
         <!-- ★ B-EX：手札ストリップ（横スクロール） -->
         <div id="b-ex" class="card ex-card">
+          <div class="ex-mask" aria-hidden="true"></div>
           <div id="b-ex-scroll" class="ex-scroll" aria-label="Bの手札ストリップ"></div>
         </div>
       </div>
@@ -907,6 +949,42 @@
     const lifeImages  = { A: [], B: [] };
     const trashImages = { A: [], B: [] };
 
+    /* === EX表示トグル状態（デフォルトOFF） === */
+    const exVisible = { A: false, B: false };
+
+    function applyExToggle(player){
+      const exCard  = document.getElementById(player === 'A' ? 'a-ex' : 'b-ex');
+      const exScroll= document.getElementById(player === 'A' ? 'a-ex-scroll' : 'b-ex-scroll');
+      if (!exCard || !exScroll) return;
+      if (exVisible[player]) {
+        exCard.classList.remove('ex-off');
+        // 画像枚数に応じたスクロールバー表示へ復帰
+        adjustExScrollbar(player);
+      } else {
+        exCard.classList.add('ex-off');
+        // 残っているスクロール位置をリセット
+        exScroll.scrollLeft = 0;
+      }
+    }
+
+    function wireExToggle(player){
+      const input = document.getElementById(player === 'A' ? 'a-ex-toggle' : 'b-ex-toggle');
+      if (!input) return;
+      input.checked = !!exVisible[player]; // 既定OFF
+      // ▼ トグル操作が親カードへバブって「手札一覧」を開かないよう、各種イベントをキャプチャで止める
+      const wrap = input.closest('.hand-toggle-wrap');
+      const stop = (e) => { e.stopPropagation(); };
+      ['click','pointerdown','pointerup','touchstart','touchend','mousedown','mouseup','contextmenu']
+        .forEach(type => {
+          input.addEventListener(type, stop, true);
+          if (wrap) wrap.addEventListener(type, stop, true);
+        });
+      input.addEventListener('change', () => {
+        exVisible[player] = !!input.checked;
+        applyExToggle(player);
+      });
+    }
+
     /* ===== カウント管理 ===== */
     let deckCounts   = { A: 50, B: 50 };
     let lifeCounts   = { A: 0,  B: 0 };
@@ -1043,6 +1121,9 @@
       // NEW: スクロールバー表示/非表示を同期
       adjustExScrollbar('A');
       adjustExScrollbar('B');
+      // NEW: EX表示トグルの状態反映（マスク/表示切替）
+      applyExToggle('A');
+      applyExToggle('B');
 
       // === モバイル長押し → サムネメニュー（EXストリップ） ===
       // ・タッチ長押し（~450ms）で #thumb-menu を表示
@@ -1350,6 +1431,9 @@
     // トラッシュは img が display:none のときも要素自体はあるので同様にOK
     wireAreaCell('#a-trash', 'trash', 'A');
     wireAreaCell('#b-trash', 'trash', 'B');
+    // ★ EX表示トグルのイベントをバインド（非同期＝ローカルのみ）
+    wireExToggle('A');
+    wireExToggle('B');
 
     /* ===== EXストリップ（手札横並び） ===== */
     // ★ホイール感度（必要に応じて調整）
