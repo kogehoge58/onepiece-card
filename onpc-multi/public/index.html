@@ -1283,14 +1283,26 @@
     wireAreaCell('#b-trash', 'trash', 'B');
 
     /* ===== EXストリップ（手札横並び） ===== */
+    // ★ホイール感度（必要に応じて調整）
+    const EX_WHEEL_MULT = 2.5;       // 1.0=従来, 2.5=約2.5倍スクロール
+    const EX_WHEEL_MIN_STEP = 120;   // 微小deltaはこのpxに丸めて増幅
+
     function initExStrips(){
       ['A','B'].forEach(p=>{
         const el = document.getElementById(p==='A' ? 'a-ex-scroll' : 'b-ex-scroll');
         if (!el) return;
         // ホイール：上で左、下で右
         el.addEventListener('wheel', (e)=>{
+          // どちらの軸が強いかで横スクロール量を決定
           const dom = (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) ? e.deltaY : e.deltaX;
-          el.scrollLeft += dom;  // 上(負)→左, 下(正)→右
+          // deltaMode補正：0=px, 1=line, 2=page
+          let delta = dom;
+          if (e.deltaMode === 1) delta *= 16;              // 行→px換算
+          else if (e.deltaMode === 2) delta *= el.clientWidth; // ページ→要素幅
+          // 微小deltaは最小ステップに丸めて増幅
+          const abs = Math.abs(delta);
+          const step = (abs < 40 ? EX_WHEEL_MIN_STEP : abs) * EX_WHEEL_MULT;
+          el.scrollLeft += Math.sign(delta) * step;        // 上(負)→左, 下(正)→右
           e.preventDefault();
         }, { passive:false });
       });
