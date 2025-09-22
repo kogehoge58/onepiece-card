@@ -1034,6 +1034,31 @@
 
     renderCounts();
 
+    /* === Mobile only: 上下に少し余白をつけてビタビタ回避（PCは無変更） === */
+    function isMobileLike(){
+      // タッチ主体 or 幅が狭い端末をモバイル扱い
+      return (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || window.innerWidth <= 900;
+    }
+    function adjustMobileBreathingSpace(){
+      const el = document.querySelector('.container');
+      if (!el) return;
+      if (isMobileLike()){
+        // 端末高さベースで 8〜16px の範囲にクランプ
+        const pad = Math.max(8, Math.min(16, Math.round(window.innerHeight * 0.025)));
+        el.style.paddingTop = pad + 'px';
+        el.style.paddingBottom = pad + 'px';
+      } else {
+        // PC は元に戻す
+        el.style.paddingTop = '';
+        el.style.paddingBottom = '';
+      }
+    }
+    // 初期適用
+    adjustMobileBreathingSpace();
+    // 画面サイズ変化・回転に追従
+    window.addEventListener('resize', () => requestAnimationFrame(adjustMobileBreathingSpace), { passive: true });
+    window.addEventListener('orientationchange', () => setTimeout(adjustMobileBreathingSpace, 0));
+
     // ★ リーダー画像もキャッシュ回避
     const aLeader = document.getElementById('a-leader-img');
     const bLeader = document.getElementById('b-leader-img');
