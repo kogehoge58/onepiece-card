@@ -3704,40 +3704,91 @@
       maybeSuppressReleaseClick();
     }, true);
 
-    /* ==============================================
-    *  画面フィット：カードグリッドを可視領域に自動縮小
-    *  - 初期表示＆リサイズ時に実行
-    *  - 横幅・縦幅の両制約を見て最小の倍率で scale
-    *  - 余白は translate で中央寄せ
-    * ============================================== */
+    // 余白を「左端 = 中央 = 右端」にそろえて配置する
     function fitGridsToViewport(){
-      // 左右2面のグリッドを取得（順に A, B ）
-      const grids = document.querySelectorAll('.player-field .card-grid');
-      grids.forEach(grid => {
-        // 一度リセットして“素のサイズ”を計測
+      const fields = Array.from(document.querySelectorAll('.player-field'));
+      const grids  = fields.map(f => f.querySelector('.card-grid')).filter(Boolean);
+
+      // 2面そろっているときは「左右/中央/右 = 1:1:1」で配置。
+      // 片面しかない等のときは従来の個別センタリングにフォールバック。
+      if (grids.length === 2) {
+        const data = grids.map((grid) => {
+          grid.style.transform = 'none';                    // 素のサイズで計測
+          const parent = grid.closest('.player-field');
+          if (!parent) return null;
+          const ps   = getComputedStyle(parent);
+          const padL = parseFloat(ps.paddingLeft)   || 0;
+          const padR = parseFloat(ps.paddingRight)  || 0;
+          const padT = parseFloat(ps.paddingTop)    || 0;
+          const padB = parseFloat(ps.paddingBottom) || 0;
+
+          const pW = parent.clientWidth  - padL - padR;     // パディングを除いた内側幅
+          const pH = parent.clientHeight - padT - padB;     // パディングを除いた内側高
+          const gW = grid.scrollWidth;
+          const gH = grid.scrollHeight;
+          if (!gW || !gH || !pW || !pH) return null;
+
+          const scale = Math.min(pW / gW, pH / gH, 1);      // はみ出さない最大倍率
+          const leftover = pW - gW * scale;                 // 内側で余る横幅（≥0想定）
+          const ty = (pH - gH * scale) / 2;                 // 縦は従来どおり中央寄せ
+          return { grid, padL, padR, scale, leftover, ty };
+        });
+
+        if (data.every(Boolean)) {
+          const A = data[0]; // 左面
+          const B = data[1]; // 右面
+
+          // 目標余白を「左 : 中央 : 右 = 4 : 1 : 4」にする
+          //   LO = A.padL + tL
+          //   CG = A.padR + (A.leftover - tL) + B.padL + tR
+          //   RO = B.padR + (B.leftover - tR)
+          //   S  = LO + CG + RO
+          //      = (A.leftover + B.leftover) + (A.padL + A.padR + B.padL + B.padR)
+          //   比率 4:1:4 → 係数 k = S / 9
+          const sumPads = A.padL + A.padR + B.padL + B.padR;
+          const S = A.leftover + B.leftover + sumPads;
+          const k = S / 9;
+
+          // 左右端を 4k に合わせる（中央は自動的に 1k になる）
+          let tL = (4 * k) - A.padL;                 // 左面：左外余白=4k
+          let tR = (B.leftover + B.padR) - (4 * k);  // 右面：右外余白=4k
+
+          // パディングをまたいでも表示が欠けないよう軽くクランプ
+          const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+          tL = clamp(tL, -A.padL, A.leftover + A.padR);   // 左 <= tL <= 右側へはみ出してもOK
+          tR = clamp(tR, -B.padL, B.leftover + B.padR);
+
+          // 反映
+          A.grid.style.transform = `translate(${tL}px, ${A.ty}px) scale(${A.scale})`;
+          B.grid.style.transform = `translate(${tR}px, ${B.ty}px) scale(${B.scale})`;
+          return;
+        }
+      }
+
+      // フォールバック：従来の“各面ごと中央寄せ”
+      document.querySelectorAll('.player-field .card-grid').forEach(grid => {
         grid.style.transform = 'none';
         const parent = grid.closest('.player-field');
         if (!parent) return;
+        const ps   = getComputedStyle(parent);
+        const padL = parseFloat(ps.paddingLeft)   || 0;
+        const padR = parseFloat(ps.paddingRight)  || 0;
+        const padT = parseFloat(ps.paddingTop)    || 0;
+        const padB = parseFloat(ps.paddingBottom) || 0;
 
-        // 親の内側サイズ（パディングを除外）
-        const ps = getComputedStyle(parent);
-        const pW = parent.clientWidth  - parseFloat(ps.paddingLeft) - parseFloat(ps.paddingRight);
-        const pH = parent.clientHeight - parseFloat(ps.paddingTop)  - parseFloat(ps.paddingBottom);
-
-        // グリッドの“実寸”を取得（スクロールサイズ＝未縮小の総サイズ）
+        const pW = parent.clientWidth  - padL - padR;
+        const pH = parent.clientHeight - padT - padB;
         const gW = grid.scrollWidth;
         const gH = grid.scrollHeight;
         if (!gW || !gH || !pW || !pH) return;
 
-        // はみ出さない最大倍率（1を超えて拡大はしない）
         const scale = Math.min(pW / gW, pH / gH, 1);
-
-        // 余白分を中央寄せ（左上原点から平行移動）
         const tx = (pW - gW * scale) / 2;
         const ty = (pH - gH * scale) / 2;
         grid.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
       });
     }
+
     // 初期表示＆画面サイズ変更で実行
     window.addEventListener('load',  fitGridsToViewport, { once:true });
     window.addEventListener('resize', fitGridsToViewport);
