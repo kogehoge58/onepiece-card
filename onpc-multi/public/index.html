@@ -534,6 +534,12 @@
       z-index: 3;
       cursor: pointer;
     }
+
+    /* === A/B の EX 行：5セルぶち抜き（高さは通常1セルと同じ） === */
+    #a-ex, #b-ex{
+      grid-column: 1 / -1;   /* 1列目から最終列まで */
+      aspect-ratio: 5 / 1.4; /* 幅5×高さ1のときでも1セル分の高さを維持 */
+    }
   </style>
 </head>
 <body>
@@ -608,10 +614,7 @@
           <span id="a-trash-label" class="trash-label">トラッシュ×0</span>
         </div>
 
-        <div id="a-ex" class="card"></div>
-        <div id="a-ex" class="card"></div>
-        <div id="a-ex" class="card"></div>
-        <div id="a-ex" class="card"></div>
+        <!-- ★ A-EX：5セルぶち抜きの1セル -->
         <div id="a-ex" class="card"></div>
       </div>
     </div>
@@ -686,10 +689,7 @@
           <span id="b-trash-label" class="trash-label">トラッシュ×0</span>
         </div>
 
-        <div id="b-ex" class="card"></div>
-        <div id="b-ex" class="card"></div>
-        <div id="b-ex" class="card"></div>
-        <div id="b-ex" class="card"></div>
+        <!-- ★ B-EX：5セルぶち抜きの1セル -->
         <div id="b-ex" class="card"></div>
       </div>
     </div>
