@@ -540,6 +540,20 @@
       grid-column: 1 / -1;   /* 1列目から最終列まで */
       aspect-ratio: 5 / 1.4; /* 幅5×高さ1のときでも1セル分の高さを維持 */
     }
+
+    /* === EXストリップ（手札横並び） === */
+    .card.ex-card{ padding: 4px; }
+    .ex-scroll{
+      display:flex; align-items:center; gap:6px;
+      height:100%;
+      overflow-x:auto; overflow-y:hidden;
+      scroll-behavior:smooth;
+    }
+    .ex-scroll img{
+      height:100%; width:auto; flex:0 0 auto;
+      border:1px solid #999; border-radius:4px;
+      object-fit:contain; cursor:pointer;
+    }
   </style>
 </head>
 <body>
@@ -614,8 +628,10 @@
           <span id="a-trash-label" class="trash-label">トラッシュ×0</span>
         </div>
 
-        <!-- ★ A-EX：5セルぶち抜きの1セル -->
-        <div id="a-ex" class="card"></div>
+        <!-- ★ A-EX：手札ストリップ（横スクロール） -->
+        <div id="a-ex" class="card ex-card">
+          <div id="a-ex-scroll" class="ex-scroll" aria-label="Aの手札ストリップ"></div>
+        </div>
       </div>
     </div>
 
@@ -689,8 +705,10 @@
           <span id="b-trash-label" class="trash-label">トラッシュ×0</span>
         </div>
 
-        <!-- ★ B-EX：5セルぶち抜きの1セル -->
-        <div id="b-ex" class="card"></div>
+        <!-- ★ B-EX：手札ストリップ（横スクロール） -->
+        <div id="b-ex" class="card ex-card">
+          <div id="b-ex-scroll" class="ex-scroll" aria-label="Bの手札ストリップ"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1009,6 +1027,10 @@
       if (bDonActImg)  bDonActImg.style.display  = (donActCounts.B  > 0) ? '' : 'none';
       if (aDonRestImg) aDonRestImg.style.display = (donRestCounts.A > 0) ? '' : 'none';
       if (bDonRestImg) bDonRestImg.style.display = (donRestCounts.B > 0) ? '' : 'none';
+
+      // ★EXストリップ（手札の横並び一覧）を最新化
+      renderExStrip('A');
+      renderExStrip('B');
     }
 
     function setCount(type, player, n){
@@ -1259,6 +1281,43 @@
     // トラッシュは img が display:none のときも要素自体はあるので同様にOK
     wireAreaCell('#a-trash', 'trash', 'A');
     wireAreaCell('#b-trash', 'trash', 'B');
+
+    /* ===== EXストリップ（手札横並び） ===== */
+    function initExStrips(){
+      ['A','B'].forEach(p=>{
+        const el = document.getElementById(p==='A' ? 'a-ex-scroll' : 'b-ex-scroll');
+        if (!el) return;
+        // ホイール：上で左、下で右
+        el.addEventListener('wheel', (e)=>{
+          const dom = (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) ? e.deltaY : e.deltaX;
+          el.scrollLeft += dom;  // 上(負)→左, 下(正)→右
+          e.preventDefault();
+        }, { passive:false });
+      });
+    }
+
+    function renderExStrip(player){
+      const el = document.getElementById(player==='A' ? 'a-ex-scroll' : 'b-ex-scroll');
+      if (!el) return;
+      const list = handImages[player] || [];
+      const key  = list.join('|');
+      if (el.dataset.key === key) return; // 変更なし
+      el.dataset.key = key;
+      el.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      for (const src of list){
+        const img = document.createElement('img');
+        img.src = src; img.alt = '';
+        img.addEventListener('click', ()=> openImagePreview(src));
+        frag.appendChild(img);
+      }
+      el.appendChild(frag);
+    }
+
+    // 初期化
+    initExStrips();
+    renderExStrip('A');
+    renderExStrip('B');
 
     /* ===== デッキ → 手札（手札+1） ===== */
     function drawToHand(player){
