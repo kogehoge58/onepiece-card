@@ -3712,8 +3712,8 @@
     * ============================================== */
     function fitGridsToViewport(){
       // 左右2面のグリッドを取得（順に A, B ）
-      const grids = Array.from(document.querySelectorAll('.player-field .card-grid'));
-      grids.forEach((grid, idx) => {
+      const grids = document.querySelectorAll('.player-field .card-grid');
+      grids.forEach(grid => {
         // 一度リセットして“素のサイズ”を計測
         grid.style.transform = 'none';
         const parent = grid.closest('.player-field');
@@ -3732,14 +3732,9 @@
         // はみ出さない最大倍率（1を超えて拡大はしない）
         const scale = Math.min(pW / gW, pH / gH, 1);
 
-        // 余白 L = pW - gW*scale を左右に配分
-        // いまの表示は [左外:中央:右外] = 1:2:1（各面で左右均等）になりがち。
-        // これを 1:1:1 にするため、各面の“中央側”を L/3、“外側”を 2L/3 に振り分ける。
-        const Lx = Math.max(0, pW - gW * scale);
-        // idx: 0=左面(A), 1=右面(B) 以降があっても左右左右…で交互に配分
-        const isLeftSide = (idx % 2 === 0);
-        const tx = isLeftSide ? (Lx * 2/3) : (Lx * 1/3); // 左外=2/3L, 右外=2/3L になるよう調整
-        const ty = (pH - gH * scale) / 2;                // 縦は従来どおり中央寄せ
+        // 余白分を中央寄せ（左上原点から平行移動）
+        const tx = (pW - gW * scale) / 2;
+        const ty = (pH - gH * scale) / 2;
         grid.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
       });
     }
