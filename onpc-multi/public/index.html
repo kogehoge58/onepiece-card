@@ -1031,6 +1031,60 @@
       // ★EXストリップ（手札の横並び一覧）を最新化
       renderExStrip('A');
       renderExStrip('B');
+
+      // === モバイル長押し → サムネメニュー（EXストリップ） ===
+      // ・タッチ長押し（~450ms）で #thumb-menu を表示
+      // ・指が動いたらキャンセル
+      // ・長押し直後の click を抑止して画像プレビュー誤発火を防止
+      function wireExLongPress(containerId, player){
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        let timer = null, sx = 0, sy = 0, byLongPress = false;
+        const HOLD_MS = 450, MOVE_TOL = 10;
+
+        const clearTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
+
+        el.addEventListener('pointerdown', (e) => {
+          // タッチ/ペンのみ対象（マウスは従来の右クリでOK）
+          if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+          const img = e.target.closest('img'); if (!img) return;
+          sx = e.clientX; sy = e.clientY; byLongPress = false;
+          clearTimer();
+          timer = setTimeout(() => {
+            byLongPress = true;
+            // EXは常に「手札」文脈として扱う
+            thumbsContext = { area: 'hand', player };
+            // showThumbMenu は clientX/Y を使うので擬似イベントを渡す
+            const fakeEvt = { clientX: sx, clientY: sy, preventDefault(){}, stopPropagation(){} };
+            showThumbMenu(fakeEvt, img);
+          }, HOLD_MS);
+        }, { passive: true });
+
+        el.addEventListener('pointermove', (e) => {
+          if (!timer) return;
+          if (Math.abs(e.clientX - sx) > MOVE_TOL || Math.abs(e.clientY - sy) > MOVE_TOL) {
+            clearTimer();
+          }
+        }, { passive: true });
+
+        const end = (e) => {
+          if (timer) clearTimer();
+          if (byLongPress) {
+            // 長押し直後の click / tap を無効化してプレビュー誤発火を防ぐ
+            e.preventDefault(); e.stopPropagation();
+            byLongPress = false;
+          }
+        };
+        el.addEventListener('pointerup', end, true);
+        el.addEventListener('pointercancel', end, true);
+        // ブラウザ差異対策で click も念のため抑止
+        el.addEventListener('click', (e) => {
+          if (byLongPress) { e.preventDefault(); e.stopPropagation(); byLongPress = false; }
+        }, true);
+      }
+      // A/B 両方のEXストリップに適用
+      wireExLongPress('a-ex-scroll', 'A');
+      wireExLongPress('b-ex-scroll', 'B');
     }
 
     function setCount(type, player, n){
@@ -1703,7 +1757,7 @@
 
       lastRightClickedThumb = img;
       // data-src を優先（エンコードの揺れ対策）
-      thumbMenu.dataset.src = img?.dataset?.src || img?.src || '';
+      thumbMenu.dataset.src = normalizeSrc(img?.dataset?.src || img?.src || '');
       thumbMenu.style.display = 'block';
       thumbMenu.setAttribute('aria-hidden', 'false');
 
@@ -1736,13 +1790,27 @@
       showThumbMenu(e, img);
     });
 
+    // ★ EXストリップ（A/B）の画像も同様の右クリメニューを出す（領域は常に「手札」）
+    document.getElementById('a-ex-scroll')?.addEventListener('contextmenu', (e) => {
+      const img = e.target.closest('img');
+      if (!img) return;
+      thumbsContext = { area: 'hand', player: 'A' };
+      showThumbMenu(e, img);
+    });
+    document.getElementById('b-ex-scroll')?.addEventListener('contextmenu', (e) => {
+      const img = e.target.closest('img');
+      if (!img) return;
+      thumbsContext = { area: 'hand', player: 'B' };
+      showThumbMenu(e, img);
+    });
+
     // 右クリック（contextmenu）を全体で禁止。ただし個別に許可している要素のみ通す
     document.addEventListener('contextmenu', (e) => {
       const allowed = e.target.closest(
-        '#thumbs img, #a-deck, #b-deck, #a-life, #b-life, #a-leader-img, #b-leader-img,' +
+        '#thumbs img, .ex-scroll img, #a-deck, #b-deck, #a-life, #b-life, #a-leader-img, #b-leader-img,' +
         ' #a-chara-1 img, #a-chara-2 img, #a-chara-3 img, #a-chara-4 img, #a-chara-5 img,' +
         ' #b-chara-1 img, #b-chara-2 img, #b-chara-3 img, #b-chara-4 img, #b-chara-5 img,' +
-        ' #a-stage img, #b-stage img, img[src$="menu.png"]' // ★追加
+        ' #a-stage img, #b-stage img, img[src$="menu.png"]'
       );
       if (!allowed) { e.preventDefault(); e.stopPropagation(); }
     }, true);
@@ -1846,7 +1914,7 @@
       if (!btn) return;
 
       const action = btn.dataset.action;
-      const src = thumbMenu.dataset.src || '';
+      const src = normalizeSrc(thumbMenu.dataset.src || '');
       const { area, player } = thumbsContext || {};
       if (!src || !area || !player) { hideThumbMenu(); return; }
 
@@ -2274,7 +2342,7 @@
       const imgEl       = cell?.querySelector('img');
       if (!player || !cell || !imgEl) { hidePieceSubMenu(); return; }
 
-      const src         = imgEl.getAttribute('src');
+      const src         = normalizeSrc(imgEl.getAttribute('src'));
 
       // ★ステージ/リーダー/キャラ → リスト系 6種だけを同期アクションに委譲
       const toMap = {
@@ -3206,7 +3274,7 @@
           clear();
           tId = setTimeout(() => {
             el.dispatchEvent(new MouseEvent('contextmenu', {bubbles:true, cancelable:true, clientX:sx, clientY:sy}));
-          }, 550);
+          }, 450);
         }, {passive:true});
 
         document.addEventListener('pointermove', e => {
