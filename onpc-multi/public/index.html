@@ -1066,6 +1066,9 @@
             byLongPress = true;
             // EXは常に「手札」文脈として扱う
             thumbsContext = { area: 'hand', player };
+            // 離しクリック抑止（デッキ一覧と同じ挙動に）
+            // ※ 長押しでメニューを開いた直後の click を一度だけ捨てる
+            maybeSuppressReleaseClick();
             // showThumbMenu は clientX/Y を使うので擬似イベントを渡す
             const fakeEvt = { clientX: sx, clientY: sy, preventDefault(){}, stopPropagation(){} };
             showThumbMenu(fakeEvt, img);
