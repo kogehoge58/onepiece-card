@@ -921,7 +921,7 @@
   <div id="handlist-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
     <div class="modal bg-hand">
       <div class="modal-header">
-        <div class="modal-title">手札</div>
+        <div id="handlist-title" class="modal-title">手札</div>
         <!-- 閉じるボタン不要：外側クリック/Escで閉じる -->
       </div>
       <div id="handlist-thumbs" class="thumbs" role="list"></div>
@@ -1221,6 +1221,7 @@
     /* ===== 手札画像モーダル（新規） ===== */
     const handlistBackdrop = document.getElementById('handlist-backdrop');
     const handlistThumbs   = document.getElementById('handlist-thumbs');
+    const handlistTitle    = document.getElementById('handlist-title');
 
     function hideHandImagesOverlay(){
       handlistBackdrop.style.display = 'none';
@@ -1237,6 +1238,11 @@
 
     // デッキ一覧の「手札を見る」から呼ぶ：右クリなし／左クリで拡大のみ
     function openHandImagesOverlay(player){
+      // ★タイトルに「手札（アクティブドン×n）」を表示（オープン時の値）
+      if (handlistTitle){
+        const n = (donActCounts?.[player] | 0);
+        handlistTitle.textContent = `手札（アクティブドン×${n}枚)`;
+      }
       const list = handImages[player] || [];
       handlistThumbs.innerHTML = '';
       for (const src of list){
