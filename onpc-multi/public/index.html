@@ -1190,7 +1190,6 @@
       } else if (deckFiles.length !== 50) {
         dcErrors.push('※デッキ画像が50枚ではありません。');
       }
-      console.log(deckFiles.length);
       if (dcErrors.length){
         if (errBox) errBox.innerHTML = dcErrors.map(m => `<div>${m}</div>`).join('');
         return;
