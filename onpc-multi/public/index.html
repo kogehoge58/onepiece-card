@@ -600,6 +600,26 @@
       z-index: 3;
       cursor: pointer;
     }
+
+    /* ==== アップロードモーダル ==== */
+    .upload-modal{ width: min(720px, 92vw); height:auto; }
+    .upload-form{ padding:16px 20px 22px; }
+    .upl-pick{ border:0; background:transparent; padding:0; width:36px; height:36px; display:inline-grid; place-items:center; cursor:pointer; }
+    .upl-pick img{ width:28px; height:28px; display:block; }
+    .upl-name{
+      flex:1; border:1px solid #999; border-radius:4px; padding:10px;
+      font-size:14px; color:#666; background:#ddd;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .upl-name.has-file{ color:#000; background:#fff; }
+    /* ==== アップロードモーダル ==== */
+    /* ラベルの下に“アイコン+ファイル名”が来る縦レイアウトに変更 */
+    .upl-row{ display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding:12px 4px; }
+    .upl-label{ width:auto; font-weight:700; font-size:15px; }
+    .upl-field{ width:100%; display:flex; align-items:center; gap:12px; }
+    .upload-actions{ display:flex; justify-content:center; margin-top:16px; }
+    /* 送信ボタンは画像ではなく通常ボタン（黒・白文字）を使用 */
+    .upload-error{ min-height:28px; text-align:center; color:#e11; font-weight:700; margin-top:12px; }
   </style>
 </head>
 <body>
@@ -835,6 +855,7 @@
     <button type="button" role="menuitem" data-action="coin-toss">コイントス</button>
     <button type="button" role="menuitem" data-action="room-settings">ルーム設定</button>
     <button type="button" role="menuitem" data-action="deck-select">デッキ選択</button>
+    <button type="button" role="menuitem" data-action="upload-open">アップロード</button>
     <button type="button" role="menuitem" data-action="rules">ルール確認</button>
   </div>
 
@@ -942,6 +963,45 @@
     </div>
   </div>
 
+  <!-- ★アップロードモーダル -->
+  <div id="upload-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div class="modal upload-modal">
+      <div class="modal-header">
+        <div class="modal-title">アップロード</div>
+      </div>
+      <form id="upload-form" class="upload-form" onsubmit="return false;">
+        <!-- リーダー画像（1枚） -->
+        <div class="upl-row">
+          <div class="upl-label"><span class="req">*</span>リーダー画像（1枚）</div>
+          <div class="upl-field">
+            <input id="upl-leader" type="file" accept=".png,.jpg,.jpeg" style="display:none">
+            <button type="button" class="upl-pick" data-for="upl-leader" aria-label="リーダー画像を選択">
+              <img src="component_images/upload.png" alt="upload">
+            </button>
+            <div id="upl-leader-name" class="upl-name">ここに選択された画像の名称が表示されます。</div>
+          </div>
+        </div>
+        <!-- デッキ画像（50枚までまとめて） -->
+        <div class="upl-row">
+          <div class="upl-label"><span class="req">*</span>デッキ画像（50枚）</div>
+          <div class="upl-field">
+            <input id="upl-deck" type="file" accept=".png,.jpg,.jpeg" multiple style="display:none">
+            <button type="button" class="upl-pick" data-for="upl-deck" aria-label="デッキ画像を選択">
+              <img src="component_images/upload.png" alt="upload">
+            </button>
+            <div id="upl-deck-name" class="upl-name">ここに選択された画像の名称が表示されます。</div>
+          </div>
+        </div>
+        <!-- 送信（未処理でOK） -->
+        <div class="upload-actions">
+          <button id="upl-submit" class="btn-primary" type="button">アップロード</button>
+        </div>
+        <!-- エラーメッセージ領域（確保のみ） -->
+        <div id="upl-error" class="upload-error">&nbsp;</div>
+      </form>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const ROOM = new URLSearchParams(location.search).get('room') || 'dev';
@@ -1033,6 +1093,76 @@
     let lastFocusEl = null;
 
     renderCounts();
+
+    /* ===== アップロードモーダル制御 ===== */
+    const uploadBackdrop = document.getElementById('upload-backdrop');
+    const mainMenuEl = document.getElementById('main-menu');
+
+    function resetUploadView(){
+      const lBox = document.getElementById('upl-leader-name');
+      const dBox = document.getElementById('upl-deck-name');
+      const err  = document.getElementById('upl-error');
+      if (lBox){ lBox.textContent = 'ここに選択された画像の名称が表示されます。'; lBox.classList.remove('has-file'); }
+      if (dBox){ dBox.textContent = 'ここに選択された画像の名称が表示されます。'; dBox.classList.remove('has-file'); }
+      if (err){ err.innerHTML = '&nbsp;'; }
+      const lInp = document.getElementById('upl-leader');
+      const dInp = document.getElementById('upl-deck');
+      if (lInp) lInp.value = '';
+      if (dInp) dInp.value = '';
+    }
+    function openUploadModal(){
+      resetUploadView();
+      uploadBackdrop.style.display = 'flex';
+      uploadBackdrop.setAttribute('aria-hidden','false');
+    }
+    function hideUploadModal(){
+      uploadBackdrop.style.display = 'none';
+      uploadBackdrop.setAttribute('aria-hidden','true');
+    }
+    if (uploadBackdrop){
+      uploadBackdrop.addEventListener('click', (e)=>{ if (e.target === uploadBackdrop) hideUploadModal(); });
+    }
+    // メニューの「アップロード」押下でモーダル
+    if (mainMenuEl){
+      mainMenuEl.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button[data-action="upload-open"]');
+        if (!btn) return;
+        e.preventDefault(); e.stopPropagation();
+        mainMenuEl.style.display = 'none';
+        openUploadModal();
+      }, true);
+    }
+    // ピッカー（upload.png）からinput起動
+    function wireUploadPickers(){
+      document.querySelectorAll('.upl-pick').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const forId = btn.getAttribute('data-for');
+          const inp = document.getElementById(forId);
+          if (inp) inp.click();
+        });
+      });
+    }
+    wireUploadPickers();
+    // ファイル選択名の表示（黒字/白背景）
+    function updateUplName(inputId, nameId){
+      const inp = document.getElementById(inputId);
+      const box = document.getElementById(nameId);
+      if (!inp || !box) return;
+      const files = Array.from(inp.files || []);
+      if (files.length === 0){
+        box.textContent = 'ここに選択された画像の名称が表示されます。';
+        box.classList.remove('has-file');
+        return;
+      }
+      const names = files.map(f=>f.name);
+      const label = (names.length <= 3) ? names.join('、') : `${names.slice(0,3).join('、')} 他${names.length-3}件`;
+      box.textContent = label;
+      box.classList.add('has-file');
+    }
+    document.getElementById('upl-leader')?.addEventListener('change', ()=>updateUplName('upl-leader','upl-leader-name'));
+    document.getElementById('upl-deck')?.addEventListener('change',   ()=>updateUplName('upl-deck','upl-deck-name'));
+    // 送信（未処理でOK）
+    document.getElementById('upl-submit')?.addEventListener('click', (e)=>{ e.preventDefault(); /* TODO: 実装 */ });
 
     /* === Mobile only: 上下に少し余白をつけてビタビタ回避（PCは無変更） === */
     function isMobileLike(){
