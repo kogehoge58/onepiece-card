@@ -605,7 +605,7 @@
     .upload-modal{ width: min(720px, 92vw); height:auto; }
     .upload-form{ padding:16px 20px 22px; }
     .upl-pick{ border:0; background:transparent; padding:0; width:36px; height:36px; display:inline-grid; place-items:center; cursor:pointer; }
-    .upl-pick img{ width:28px; height:28px; display:block; }
+    .upl-pick img{ width:30px; height:30px; display:block; }
     .upl-name{
       flex:1; border:1px solid #999; border-radius:4px; padding:10px;
       font-size:14px; color:#666; background:#ddd;
@@ -1097,6 +1097,8 @@
     /* ===== アップロードモーダル制御 ===== */
     const uploadBackdrop = document.getElementById('upload-backdrop');
     const mainMenuEl = document.getElementById('main-menu');
+    // メニューが閉じても送信時にプレイヤーを失わないよう一時保持
+    let UPLOAD_PLAYER = null;
 
     function resetUploadView(){
       const lBox = document.getElementById('upl-leader-name');
@@ -1118,6 +1120,7 @@
     function hideUploadModal(){
       uploadBackdrop.style.display = 'none';
       uploadBackdrop.setAttribute('aria-hidden','true');
+      UPLOAD_PLAYER = null; // 念のためクリア
     }
     if (uploadBackdrop){
       uploadBackdrop.addEventListener('click', (e)=>{ if (e.target === uploadBackdrop) hideUploadModal(); });
@@ -1128,6 +1131,8 @@
         const btn = e.target.closest('button[data-action="upload-open"]');
         if (!btn) return;
         e.preventDefault(); e.stopPropagation();
+        // この時点のプレイヤーを保持（hideMainMenuでdatasetが消えてもOK）
+        UPLOAD_PLAYER = (mainMenuEl && mainMenuEl.dataset && mainMenuEl.dataset.player) || null;
         mainMenuEl.style.display = 'none';
         openUploadModal();
       }, true);
@@ -1161,8 +1166,90 @@
     }
     document.getElementById('upl-leader')?.addEventListener('change', ()=>updateUplName('upl-leader','upl-leader-name'));
     document.getElementById('upl-deck')?.addEventListener('change',   ()=>updateUplName('upl-deck','upl-deck-name'));
-    // 送信（未処理でOK）
-    document.getElementById('upl-submit')?.addEventListener('click', (e)=>{ e.preventDefault(); /* TODO: 実装 */ });
+
+    // 送信：選択画像を PNG 化して所定名にリネーム→即時適用
+    document.getElementById('upl-submit')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const errBox = document.getElementById('upl-error');
+      if (errBox) errBox.innerHTML = '&nbsp;';
+
+      // datasetが消えても特定できるように退避値を優先
+      const player = UPLOAD_PLAYER || (mainMenuEl && mainMenuEl.dataset && mainMenuEl.dataset.player) || null;
+      if (!player) { alert('プレイヤーが特定できません'); return; }
+
+      const leaderInp = document.getElementById('upl-leader');
+      const deckInp   = document.getElementById('upl-deck');
+      const leaderFile = leaderInp?.files?.[0];
+      const deckFiles  = Array.from(deckInp?.files || []);
+
+      if (!leaderFile){ if (errBox) errBox.textContent = 'リーダー画像を選択してください。'; return; }
+      if (deckFiles.length === 0){ if (errBox) errBox.textContent = 'デッキ画像を選択してください。'; return; }
+
+      const btn = e.currentTarget;
+      const origText = btn.textContent;
+      btn.disabled = true;
+      if (btn.tagName === 'BUTTON') btn.textContent = 'アップロード中…';
+
+      // 任意拡張子(PNG/JPG) → PNG の Base64 に統一
+      const fileToPngBase64 = (file) => new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onerror = reject;
+        fr.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const c = document.createElement('canvas');
+            c.width  = img.naturalWidth || img.width || 0;
+            c.height = img.naturalHeight || img.height || 0;
+            c.getContext('2d').drawImage(img, 0, 0);
+            resolve((c.toDataURL('image/png').split(',')[1]) || '');
+          };
+          img.onerror = reject;
+          img.src = String(fr.result || '');
+        };
+        fr.readAsDataURL(file);
+      });
+
+      try {
+        // リネーム規則に合わせて積む
+        const filesPayload = [];
+        filesPayload.push({ path: 'leader.png', contentBase64: await fileToPngBase64(leaderFile) });
+        const max = Math.min(50, deckFiles.length);
+        for (let i = 0; i < max; i++) {
+          filesPayload.push({
+            path: `images/image (${i + 1}).png`,
+            contentBase64: await fileToPngBase64(deckFiles[i])
+          });
+        }
+
+        // アップロード＆即時適用
+        const r = await fetch('/api/deck/upload-and-apply?room=' + encodeURIComponent(ROOM), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player, files: filesPayload })
+        });
+        const j = await r.json().catch(() => ({ ok: false }));
+        if (!r.ok || !j.ok) throw new Error(j.error || r.statusText);
+
+        // 既存「カスタム」と同じ UI 更新
+        const v = Date.now();
+        const base = (player === 'A') ? 'deck/player_A' : 'deck/player_B';
+        const leaderEl = document.getElementById(player === 'A' ? 'a-leader-img' : 'b-leader-img');
+        if (leaderEl) leaderEl.src = withRoom(`${base}/leader.png?v=${v}`);
+        const imgs = Array.from({ length: 50 }, (_, i) => withRoom(`${base}/images/image (${i + 1}).png?v=${v}`));
+        deckImages[player] = imgs;
+        deckCounts[player] = imgs.length;
+        renderCounts();
+        refreshIfOpen('deck', player);
+        hideUploadModal();
+        emitAction({ type: 'DECK_APPLIED', player, v });
+      } catch (e2) {
+        if (errBox) errBox.textContent = 'アップロードに失敗：' + ((e2 && e2.message) || e2);
+        else alert('アップロードに失敗：' + ((e2 && e2.message) || e2));
+      } finally {
+        btn.disabled = false;
+        if (btn.tagName === 'BUTTON') btn.textContent = origText;
+      }
+    });
 
     /* === Mobile only: 上下に少し余白をつけてビタビタ回避（PCは無変更） === */
     function isMobileLike(){
