@@ -1182,8 +1182,19 @@
       const leaderFile = leaderInp?.files?.[0];
       const deckFiles  = Array.from(deckInp?.files || []);
 
-      if (!leaderFile){ if (errBox) errBox.textContent = 'リーダー画像を選択してください。'; return; }
-      if (deckFiles.length === 0){ if (errBox) errBox.textContent = 'デッキ画像を選択してください。'; return; }
+      // ★DC: 必須 & 枚数 (=50) チェック。複数エラーは縦に積んで表示
+      const dcErrors = [];
+      if (!leaderFile) dcErrors.push('※リーダー画像が選択されていません。');
+      if (deckFiles.length === 0) {
+        dcErrors.push('※デッキ画像が選択されていません。');
+      } else if (deckFiles.length !== 50) {
+        dcErrors.push('※デッキ画像が50枚ではありません。');
+      }
+      console.log(deckFiles.length);
+      if (dcErrors.length){
+        if (errBox) errBox.innerHTML = dcErrors.map(m => `<div>${m}</div>`).join('');
+        return;
+      }
 
       const btn = e.currentTarget;
       const origText = btn.textContent;
@@ -1214,7 +1225,7 @@
         const filesPayload = [];
         filesPayload.push({ path: 'leader.png', contentBase64: await fileToPngBase64(leaderFile) });
         const max = Math.min(50, deckFiles.length);
-        for (let i = 0; i < max; i++) {
+        for (let i = 0; i < deckFiles.length; i++) {
           filesPayload.push({
             path: `images/image (${i + 1}).png`,
             contentBase64: await fileToPngBase64(deckFiles[i])
