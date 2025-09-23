@@ -1324,6 +1324,9 @@
     const galleryHandBtn = document.getElementById('gallery-show-hand');
 
     function openGalleryFromList(title, list){
+      // すでにモーダルが開いている場合はスクロール位置を保持
+      const wasOpen = (backdrop.style.display === 'flex');
+      const prevScrollTop = wasOpen ? thumbs.scrollTop : 0;
       // ★ライフ/デッキのときだけ「すべて表向き」を表示
       const area = thumbsContext?.area;
       const player = thumbsContext?.player;
@@ -1473,7 +1476,14 @@
       thumbs.appendChild(frag);
       backdrop.style.display = 'flex';
       backdrop.setAttribute('aria-hidden', 'false');
-      requestAnimationFrame(() => forceScrollTop(thumbs));
+      // 初回オープン時のみ先頭にスクロール／再描画時は位置維持
+      requestAnimationFrame(() => {
+        if (wasOpen) {
+          thumbs.scrollTop = prevScrollTop;
+        } else {
+          forceScrollTop(thumbs);
+        }
+      });
     }
 
     // デッキ・手札・ライフ・トラッシュ：画像ではなく「セル(.card)」をクリックで一覧
