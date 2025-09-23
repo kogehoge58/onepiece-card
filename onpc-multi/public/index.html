@@ -1934,8 +1934,10 @@
       if (typeof hideDeckMenu === 'function') hideDeckMenu();
 
       lastRightClickedThumb = img;
-      // data-src を優先（エンコードの揺れ対策）
-      thumbMenu.dataset.src = normalizeSrc(img?.dataset?.src || img?.src || '');
+      // ★保持値は正規化しない：?v のキャッシュバスターを残す
+      //   （表示中が back.png の場合は data-src を優先）
+      const raw = img?.dataset?.src || img?.currentSrc || img?.src || '';
+      thumbMenu.dataset.src = raw;
       thumbMenu.style.display = 'block';
       thumbMenu.setAttribute('aria-hidden', 'false');
 
@@ -2092,7 +2094,8 @@
       if (!btn) return;
 
       const action = btn.dataset.action;
-      const src = normalizeSrc(thumbMenu.dataset.src || '');
+      // ★?v を残す：一覧→移動で旧画像に戻るのを防止
+      const src = (thumbMenu.dataset.src || '');
       const { area, player } = thumbsContext || {};
       if (!src || !area || !player) { hideThumbMenu(); return; }
 
@@ -2520,7 +2523,8 @@
       const imgEl       = cell?.querySelector('img');
       if (!player || !cell || !imgEl) { hidePieceSubMenu(); return; }
 
-      const src         = normalizeSrc(imgEl.getAttribute('src'));
+      // ★?v 保持：盤面→リストでもキャッシュバスターを失わない
+      const src         = (imgEl?.dataset?.src || imgEl.getAttribute('src'));
 
       // ★ステージ/リーダー/キャラ → リスト系 6種だけを同期アクションに委譲
       const toMap = {
