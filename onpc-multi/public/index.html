@@ -2953,26 +2953,39 @@
     }
 
     // ★追加：ドン整合チェック & アラート表示/非表示
+    // 連動トグルON時に DON_SET が連続で飛ぶと一時的不整合でアラートが点灯するため、
+    // rAF で 1フレーム遅延・集約してから評価する（= 最新状態だけを見る）。
+    const __donAlertRaf = Object.create(null); // player => requestAnimationFrame id
     function updateDonDeckAlert(player){
-      const deck = Number(donDeckCounts[player]) || 0;
-      const act  = Number(donActCounts[player])  || 0;
-      const rest = Number(donRestCounts[player]) || 0;
+      if (__donAlertRaf[player]) cancelAnimationFrame(__donAlertRaf[player]);
+      __donAlertRaf[player] = requestAnimationFrame(() => {
+        __donAlertRaf[player] = 0;
+        const deck = Number(donDeckCounts[player]) || 0;
+        const act  = Number(donActCounts[player])  || 0;
+        const rest = Number(donRestCounts[player]) || 0;
 
-      // 場のドン＝リーダー＋キャラ5枠の合計
-      let field = 0;
-      const leaderCell = getPieceCell(player, 'leader');
-      field += getDonCount(leaderCell);
-      for (let i = 1; i <= 5; i++){
-        field += getDonCount(getPieceCell(player, 'chara', i));
-      }
+        // 場のドン＝リーダー＋キャラ5枠の合計
+        let field = 0;
+        const leaderCell = getPieceCell(player, 'leader');
+        field += getDonCount(leaderCell);
+        for (let i = 1; i <= 5; i++){
+          field += getDonCount(getPieceCell(player, 'chara', i));
+        }
 
-      const ok = (10 - deck) === (act + rest + field);
+        const ok = (10 - deck) === (act + rest + field);
 
-      const labId   = `${player.toLowerCase()}-don-deck-label`;
-      const labEl   = document.getElementById(labId);
-      const cardEl  = labEl ? labEl.closest('.don-deck') : null;
-      const alertEl = cardEl ? cardEl.querySelector('.alert-icon') : null;
-      if (alertEl) alertEl.style.display = ok ? 'none' : '';
+        const labId   = `${player.toLowerCase()}-don-deck-label`;
+        const labEl   = document.getElementById(labId);
+        const cardEl  = labEl ? labEl.closest('.don-deck') : null;
+        const alertEl = cardEl ? cardEl.querySelector('.alert-icon') : null;
+        if (!alertEl) return;
+        // 無駄な style 書き換えを避けて再描画を抑制
+        const shouldShow = !ok;
+        const isShown    = (alertEl.style.display !== 'none');
+        if (shouldShow !== isShown) {
+          alertEl.style.display = shouldShow ? '' : 'none';
+        }
+      });
     }
 
     // ターン中のUIハイライト切替
