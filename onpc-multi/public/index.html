@@ -3346,43 +3346,43 @@
         deckSelList.innerHTML = '';
 
         // ★最上段：カスタム（全幅・右隣にブロックが来ない）
-        {
-          const item = document.createElement('div');
-          item.className = 'deckselect-item custom';
-          // item.style.gridColumn = '1 / -1'; // ← フル幅
-          paintCustomBg(item); // ★6色ストライプ背景
+        // {
+        //   const item = document.createElement('div');
+        //   item.className = 'deckselect-item custom';
+        //   // item.style.gridColumn = '1 / -1'; // ← フル幅
+        //   paintCustomBg(item); // ★6色ストライプ背景
 
-          const nm = document.createElement('div');
-          nm.className = 'deckselect-name';
-          nm.textContent = 'カスタム';
+        //   const nm = document.createElement('div');
+        //   nm.className = 'deckselect-name';
+        //   nm.textContent = 'カスタム';
 
-          // ★中央の説明文
-          const desc = document.createElement('div');
-          desc.className = 'custom-desc';
-          const line1 = document.createElement('p');
-          const line2 = document.createElement('p');
-          desc.append(line1, line2);
+        //   // ★中央の説明文
+        //   const desc = document.createElement('div');
+        //   desc.className = 'custom-desc';
+        //   const line1 = document.createElement('p');
+        //   const line2 = document.createElement('p');
+        //   desc.append(line1, line2);
 
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'ds-btn';
-          btn.textContent = 'アップロード';
+        //   const btn = document.createElement('button');
+        //   btn.type = 'button';
+        //   btn.className = 'ds-btn';
+        //   btn.textContent = 'アップロード';
 
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.setAttribute('webkitdirectory','');
-          input.setAttribute('multiple','');
-          input.style.display = 'none';
+        //   const input = document.createElement('input');
+        //   input.type = 'file';
+        //   input.setAttribute('webkitdirectory','');
+        //   input.setAttribute('multiple','');
+        //   input.style.display = 'none';
 
-          btn.addEventListener('click', () => input.click());
-          input.addEventListener('change', () => {
-            if (input.files && input.files.length) handleCustomUpload(input.files, btn);
-            input.value = ''; // 次回も同じフォルダを選べるように
-          });
+        //   btn.addEventListener('click', () => input.click());
+        //   input.addEventListener('change', () => {
+        //     if (input.files && input.files.length) handleCustomUpload(input.files, btn);
+        //     input.value = ''; // 次回も同じフォルダを選べるように
+        //   });
 
-          item.append(nm, desc, btn, input);
-          deckSelList.appendChild(item);
-        }
+        //   item.append(nm, desc, btn, input);
+        //   deckSelList.appendChild(item);
+        // }
 
         if (!list || list.length === 0){
           deckSelList.innerHTML = '<div style="grid-column:1/-1;padding:12px;">デッキが見つかりません</div>';
