@@ -3789,8 +3789,6 @@
       });
     }
     function showPreloadOverlay(text='画像データ読み込み中…'){
-      // ★NEW: ターン開始が1回以上押下済みならオーバーレイ自体を出さない
-      if (typeof TURN_BEGIN_COUNT === 'number' && TURN_BEGIN_COUNT >= 1) return;
       const el = document.getElementById('preload-overlay');
       if (!el) return;
       el.textContent = text;
@@ -3804,13 +3802,6 @@
       el.setAttribute('aria-hidden','true');
     }
     async function runDeckPreload({ showOverlay=false } = {}){
-      // ★NEW: すでにターン開始が1回以上ならプリロードをスキップ
-      if (typeof TURN_BEGIN_COUNT === 'number' && TURN_BEGIN_COUNT >= 1) {
-        // 進行中のプリロードトークンを無効化し、表示中ならオーバーレイを閉じる
-        __preloadToken++;
-        if (showOverlay) hidePreloadOverlay();
-        return;
-      }
       const token = ++__preloadToken;
       if (showOverlay) showPreloadOverlay();
       try{
@@ -4368,8 +4359,6 @@
 
       switch (a.type) {
         case 'REFRESH': {
-          // ★NEW: ターン開始が押されたら、もしプリロード中なら即中断＆オーバーレイを閉じる
-          try { __preloadToken++; hidePreloadOverlay(); } catch (_) {}
           // ★ターン開始「全体」押下回数をカウント（1回目=先攻、2回目=後攻、3回目=両者解禁）
           TURN_BEGIN_COUNT += 1;
           if (TURN_BEGIN_COUNT === 3) {
