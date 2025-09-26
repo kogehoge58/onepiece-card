@@ -856,6 +856,7 @@
     <button type="button" role="menuitem" data-action="room-settings">ルーム設定</button>
     <button type="button" role="menuitem" data-action="deck-select">デッキ選択</button>
     <button type="button" role="menuitem" data-action="upload-open">アップロード</button>
+    <button type="button" role="menuitem" data-action="reset">リセット</button>
     <!-- <button type="button" role="menuitem" data-action="rules">ルール確認</button> -->
   </div>
 
@@ -2904,6 +2905,54 @@
         // 発火クライアントで一度だけ乱数 → 全員へ同結果を配信
         const result = (Math.random() < 0.5) ? 'heads' : 'tails'; // heads=オモテ, tails=ウラ
         emitAction({ type: 'COIN_TOSS', result });
+      // ★ 追加: reset（アラート→同期でキャラ/ステージをデッキ上に戻す）
+      } else if (action === 'reset') {
+        hideMainMenu();
+        // 次フレームで confirm（キャンセル可）
+        setTimeout(() => {
+          const ok = confirm('盤面をリセットしますか？');
+          if (!ok) return; // ★キャンセル時は何もしない
+          // 以降は同期処理：全プレイヤー(A/B)のキャラ/ステージを走査し
+          // 「PIECE_TO_LIST（to: deck, pos: top）」を emit して全員へ同期
+          ['A','B'].forEach(p => {
+            // キャラ枠 1〜5
+            for (let i = 1; i <= 5; i++) {
+              const cell = getPieceCell(p, 'chara', i);
+              const imgEl = cell?.querySelector('img');
+              if (!imgEl) continue;
+              const src = (imgEl.dataset?.src || imgEl.getAttribute('src'));
+              if (!src) continue;
+              emitAction({
+                type     : 'PIECE_TO_LIST',
+                player   : p,
+                fromArea : 'chara',
+                fromSlot : i,
+                to       : 'deck',
+                pos      : 'top',
+                src
+              });
+            }
+            // ステージ
+            {
+              const cell = getPieceCell(p, 'stage', 0);
+              const imgEl = cell?.querySelector('img');
+              if (imgEl) {
+                const src = (imgEl.dataset?.src || imgEl.getAttribute('src'));
+                if (src) {
+                  emitAction({
+                    type     : 'PIECE_TO_LIST',
+                    player   : p,
+                    fromArea : 'stage',
+                    fromSlot : 0,
+                    to       : 'deck',
+                    pos      : 'top',
+                    src
+                  });
+                }
+              }
+            }
+          });
+        }, 0);
       } else {
         hideMainMenu();
       }
