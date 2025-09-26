@@ -633,6 +633,16 @@
       filter: drop-shadow(0 2px 4px rgba(0,0,0,.35));
     }
     .quick-actions img:active{ transform: translateY(1px); }
+
+    /* ★追加：手札一覧用の「トラッシュ」ボタン（見た目はデッキ下と同等） */
+    .thumbs .thumb-trashbtn{
+      position: absolute;
+      top: 4px; right: 4px;
+      padding: 6px 10px; border-radius: 8px; border: 0;
+      background: rgba(0,0,0,.6); color: #fff; font-weight: 700;
+      font-size: clamp(12px, 1.1vw, 16px); line-height: 1;
+      cursor: pointer; user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -1737,6 +1747,15 @@
           wrap.appendChild(btn);
         }
 
+        // ★追加：手札一覧の各カードに「トラッシュ」ボタン（EX/デッキ一覧内の手札一覧は対象外）
+        if (area === 'hand') {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'thumb-trashbtn';
+          btn.textContent = 'トラッシュ';
+          wrap.appendChild(btn);
+        }
+
         frag.appendChild(wrap);
       });
 
@@ -2118,6 +2137,27 @@
 
     /* ギャラリー内のサムネ（image (1)～(50)）クリックで拡大 */
     document.getElementById('thumbs').addEventListener('click', (e) => {
+      /* ★追加：手札一覧サムネ右上「トラッシュ」ボタン */
+      const trashBtn = e.target.closest('.thumb-trashbtn');
+      if (trashBtn) {
+        const wrap   = trashBtn.closest('.thumb-wrap');
+        const img    = wrap?.querySelector('img');
+        const player = thumbsContext?.player;
+        const area   = thumbsContext?.area;
+        if (img && player && area === 'hand') {
+          emitAction({
+            type  : 'LIST_MOVE',
+            player,
+            from  : 'hand',
+            to    : 'trash',
+            pos   : 'bottom',
+            src   : img.dataset?.src || img.currentSrc || img.src
+          });
+        }
+        e.stopPropagation(); e.preventDefault();
+        return;
+      }
+
       // ★追加：デッキ一覧サムネの「デッキ下」ボタン
       const deckBtn = e.target.closest('.thumb-deckbtn');
       if (deckBtn) {
