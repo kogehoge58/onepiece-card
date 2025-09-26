@@ -1689,6 +1689,9 @@
                 wrap.appendChild(b);
               }
             });
+            // ★追加：デッキ一覧の「すべて表向き」は押下後にボタン自体を非表示（非同期）
+            // （モーダルを閉じて再度開けば既存の showReveal ロジックで再表示される）
+            revealAllBtn.style.display = 'none';
           }
         };
       }
