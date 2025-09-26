@@ -1183,6 +1183,39 @@
     // 初期描画
     requestAnimationFrame(() => { updateMobileExScrollbar('A'); updateMobileExScrollbar('B'); });
 
+    /* ===== スマホ：デッキの右クリメニュー後の「離しクリック」抑止 ===== */
+    // 長押し→contextmenu（メニュー表示）直後の pointerup/click を“1回だけ”無効化
+    let SUPPRESS_DECK_CLICK_UNTIL = 0;  // ms タイムスタンプ
+    const SUPPRESS_WINDOW_MS = 700;     // 抑止の有効窓（体感で十分な長さ）
+    function armDeckClickSuppressor(){
+      if (!isMobileLike()) return;
+      const ids = ['a-deck','b-deck'];
+      ids.forEach(id=>{
+        const el = document.getElementById(id);
+        if (!el) return;
+        // 右クリ（長押し）でメニューを出した直後に抑止をセット
+        el.addEventListener('contextmenu', () => { SUPPRESS_DECK_CLICK_UNTIL = Date.now() + SUPPRESS_WINDOW_MS; }, true);
+        // “指を離した直後の誤クリック”を捕まえて止める
+        const stopper = (e) => {
+          if (!isMobileLike()) return;
+          if (Date.now() < SUPPRESS_DECK_CLICK_UNTIL){
+            e.stopPropagation(); e.preventDefault();
+          }
+        };
+        el.addEventListener('pointerup', stopper, true);
+        el.addEventListener('touchend',  stopper, true);
+        el.addEventListener('click',     stopper, true);
+      });
+      // 念のため、メニュー操作で閉じた直後も少しだけ抑止を継続
+      const deckMenu = document.getElementById('deck-menu');
+      if (deckMenu){
+        // メニュー内クリック後＝閉じる直前に少しだけ延長
+        deckMenu.addEventListener('click', () => { SUPPRESS_DECK_CLICK_UNTIL = Date.now() + 200; }, true);
+      }
+    }
+    // 起動時に配線
+    armDeckClickSuppressor();
+
     function wireExToggle(player){
       const input = document.getElementById(player === 'A' ? 'a-ex-toggle' : 'b-ex-toggle');
       if (!input) return;
