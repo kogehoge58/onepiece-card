@@ -3068,6 +3068,8 @@
           emitAction({ type:'DON_SET', scope:'donRest', player:p, value:0  });
           // リーダーのドンチップを0
           emitAction({ type:'PIECE_DON_SET', player:p, area:'leader', slot:0, value:0 });
+          // ★リーダーがレストなら解除（同期）
+          emitAction({ type:'PIECE_REST_SET', player:p, area:'leader', slot:0, on:false });
         });
         // UI系：no_attack再表示/ターン数0/赤枠を黒（同期）
         emitAction({ type:'TURN_UI_RESET' });
