@@ -1601,6 +1601,22 @@
     const revealAllBtn   = document.getElementById('gallery-reveal-all');
     const galleryHandBtn = document.getElementById('gallery-show-hand');
 
+    // ★ライフ一覧用：「全て表向き/全て裏向き」ボタンの文言を現在状態から決定
+    function updateLifeRevealAllLabel(area, player){
+      if (!revealAllBtn) return;
+      if (area !== 'life' || !player) {
+        // デッキなど他一覧は従来どおり
+        revealAllBtn.textContent = 'すべて表向き';
+        return;
+      }
+      const key = `life-${player}`;
+      const list = (lifeImages?.[player] || []);
+      const set  = (revealedFaces?.[key] || new Set());
+      // 全部表なら「全て裏向き」、そうでなければ「全て表向き」
+      const allRevealed = (list.length > 0) && list.every(src => set.has(src));
+      revealAllBtn.textContent = allRevealed ? '全て裏向き' : '全て表向き';
+    }
+
     function openGalleryFromList(title, list){
       // すでにモーダルが開いている場合はスクロール位置を保持
       const wasOpen = (backdrop.style.display === 'flex');
@@ -1611,6 +1627,9 @@
       const showReveal = (area === 'deck' || area === 'life');
       revealAllBtn.style.display = showReveal ? '' : 'none';
       revealAllBtn.onclick = null;
+
+      // ★ボタン文言を現在の状態から決定（ライフのみトグル表示）
+      if (showReveal) updateLifeRevealAllLabel(area, player);
 
       // ★一覧種類に応じてギャラリーモーダルの背景色を切替
       (function(){
@@ -1636,31 +1655,32 @@
         revealAllBtn.onclick = () => {
           const key = galleryKey();
           if (!key) return;
-          // ★ ライフ一覧は同期アクションに切替（デッキは従来のローカルのまま）
+          // ★ ライフは同期：全表⇔全裏をトグル
           if (key.startsWith('life-')) {
             const player = thumbsContext?.player;
-            emitAction({ type: 'LIFE_REVEAL_ALL', player });
-            return; // 受信側でUI反映
+            const list = lifeImages?.[player] || [];
+            const set  = (revealedFaces?.[key] || new Set());
+            const allRevealed = (list.length > 0) && list.every(src => set.has(src));
+            emitAction({ type: allRevealed ? 'LIFE_HIDE_ALL' : 'LIFE_REVEAL_ALL', player });
+            return; // UI反映は受信側
           }
-          // （デッキは従来処理）
+          // ★デッキは従来のローカル処理（常に全表）
           const kset = (revealedFaces[key] ||= new Set());
           kset.clear();
           if (key.startsWith('deck-')) {
             const player = thumbsContext?.player;
             const list = deckImages[player] || [];
             list.forEach(src => kset.add(src));
-
-            // ▼ 全サムネを「表」にしつつ data-src を残す（原因①の解消）
+            // ▼ 全サムネを表にしつつ data-src を保持
             thumbs.querySelectorAll('.thumb-wrap').forEach(wrap => {
               const img = wrap.querySelector('img');
               if (!img) return;
               const real = img.dataset?.src;
               if (real) {
-                img.src = real;                 // 表にする
-                if (!img.dataset.src) img.dataset.src = real; // 念のため保持
+                img.src = real;
+                if (!img.dataset.src) img.dataset.src = real;
               }
-
-              // ▼ 「デッキ下」ボタンを未設置なら付与（原因②の解消）
+              // ▼ 「デッキ下」ボタンを未設置なら付与
               if (!wrap.querySelector('.thumb-deckbtn')) {
                 const b = document.createElement('button');
                 b.type = 'button';
@@ -3355,6 +3375,16 @@
       }
     }
 
+    // ★追加：ライフ全裏（表札のリセット）
+    function applyLifeHideAll(a){
+      const player = a?.player; if (!player) return;
+      const key = `life-${player}`;
+      revealedFaces[key] = new Set();          // 全て裏
+      if (thumbsContext?.area === 'life' && thumbsContext?.player === player) {
+        refreshIfOpen('life', player);
+      }
+    }
+
     function applyLifeRevealOne(a){
       const { player, src } = a || {};
       if (!player || !src) return;
@@ -4649,6 +4679,7 @@
         case 'LIFE_REVEAL_ONE':    if (typeof applyLifeRevealOne  === 'function') applyLifeRevealOne(a); break;
         case 'LIFE_HIDE_ONE':      if (typeof applyLifeHideOne    === 'function') applyLifeHideOne(a); break;
         case 'MULLIGAN':        if (typeof applyMulligan === 'function') applyMulligan(a); break;
+        case 'LIFE_HIDE_ALL':      if (typeof applyLifeHideAll    === 'function') applyLifeHideAll(a); break;
         case 'COIN_TOSS': {
           const isHeads = (a?.result === 'heads');
           alert(isHeads ? 'オモテ！' : 'ウラ！');
