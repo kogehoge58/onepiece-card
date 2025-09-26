@@ -2983,6 +2983,9 @@
           // === 追加：攻撃不可アイコン/ターン状態を初期化（同期配信） ===
           // 全クライアントへ同報 → 受信側で一括適用
           emitAction({ type:'TURN_UI_RESET' });
+          // ★ 追加：ドン戻しアイコン（don_return.png）を同期で非表示（A/B）
+          emitAction({ type:'DON_RETURN_HIDE', player:'A' });
+          emitAction({ type:'DON_RETURN_HIDE', player:'B' });
           // === 追加：デッキ一覧を image(1)~image(50) で同期ソート → 必要なら静かにプリロード
           // 両プレイヤー対象（player省略でA/B両方を処理）
           emitAction({ type:'DECK_SORT_PRELOAD' });
@@ -4596,6 +4599,11 @@
         case 'DON_RETURN_HIDE': {
           const p = a.player;
           if (p) setDonReturnVisible(p, false);
+          break;
+        }
+        case 'DON_RETURN_SHOW': {
+          const p = a.player;
+          if (p) setDonReturnVisible(p, true);
           break;
         }
         case 'DON_RETURN_APPLY': {
