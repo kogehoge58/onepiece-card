@@ -2973,6 +2973,8 @@
             moveListTop('life',  lifeImages);
             moveListTop('hand',  handImages);
             moveListTop('trash', trashImages);
+            // ★追加：リーダーのドンチップを0に戻す（同期）
+            emitAction({ type:'PIECE_DON_SET', player:p, area:'leader', slot:0, value:0 });
             // ★ドン初期化：デッキ=10、アクティブ=0、レスト=0（同期）
             emitAction({ type:'DON_SET', scope:'donDeck', player:p, value:10 });
             emitAction({ type:'DON_SET', scope:'donAct',  player:p, value:0  });
