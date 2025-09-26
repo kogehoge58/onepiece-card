@@ -620,6 +620,19 @@
     .upload-actions{ display:flex; justify-content:center; margin-top:16px; }
     /* 送信ボタンは画像ではなく通常ボタン（黒・白文字）を使用 */
     .upload-error{ min-height:28px; text-align:center; color:#e11; font-weight:700; margin-top:12px; }
+
+    /* === 画面左下：クイック操作（コイントス／ルーム選択／リセット） === */
+    .quick-actions{
+      position: fixed;
+      left: 12px; bottom: 12px;
+      display: flex; flex-direction: column; gap: 12px;
+      z-index: 1000;
+    }
+    .quick-actions img{
+      width: 30px; height: 30px; cursor: pointer;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,.35));
+    }
+    .quick-actions img:active{ transform: translateY(1px); }
   </style>
 </head>
 <body>
@@ -852,11 +865,11 @@
   <!-- ==== メニュー（A-MENU / B-MENU）右クリック用 ==== -->
   <div id="main-menu" class="context-menu" role="menu" aria-hidden="true">
     <button type="button" role="menuitem" data-action="mulligan">マリガン</button>
-    <button type="button" role="menuitem" data-action="coin-toss">コイントス</button>
-    <button type="button" role="menuitem" data-action="room-settings">ルーム設定</button>
+    <!-- <button type="button" role="menuitem" data-action="coin-toss">コイントス</button> -->
+    <!-- <button type="button" role="menuitem" data-action="room-settings">ルーム設定</button> -->
     <button type="button" role="menuitem" data-action="deck-select">デッキ選択</button>
     <button type="button" role="menuitem" data-action="upload-open">アップロード</button>
-    <button type="button" role="menuitem" data-action="reset">リセット</button>
+    <!-- <button type="button" role="menuitem" data-action="reset">リセット</button> -->
     <!-- <button type="button" role="menuitem" data-action="rules">ルール確認</button> -->
   </div>
 
@@ -1001,6 +1014,13 @@
         <div id="upl-error" class="upload-error">&nbsp;</div>
       </form>
     </div>
+  </div>
+
+  <!-- ▼ 左下のクイック操作 -->
+  <div id="quick-actions" class="quick-actions" aria-label="クイック操作">
+    <img id="qa-coin"  src="component_images/coin_toss.png"  alt="コイントス">
+    <img id="qa-room"  src="component_images/room_enter.png" alt="ルーム選択">
+    <img id="qa-reset" src="component_images/reset.png"      alt="リセット">
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -1361,6 +1381,25 @@
         }
       }, true);
     });
+
+    // === 左下クイック操作 ===
+    (function wireQuickActions(){
+      const coin = document.getElementById('qa-coin');
+      const room = document.getElementById('qa-room');
+      const reset= document.getElementById('qa-reset');
+      [coin, room, reset].forEach(el => el && el.addEventListener('contextmenu', e => e.preventDefault()));
+      // コイントス：同期で結果配信（受信側でalert表示）
+      coin?.addEventListener('click', () => {
+        const result = (Math.random() < 0.5) ? 'heads' : 'tails';
+        if (typeof emitAction === 'function') emitAction({ type:'COIN_TOSS', result });
+      });
+      // ルーム選択：既存のモーダルを開く
+      room?.addEventListener('click', () => {
+        if (typeof openRoomSettings === 'function') openRoomSettings();
+      });
+      // リセット：共通処理
+      reset?.addEventListener('click', () => runResetFlow());
+    })();
 
     function renderCounts(){
       document.getElementById('a-deck-label').textContent  = `デッキ×${deckCounts.A}`;
@@ -2994,6 +3033,51 @@
         hideMainMenu();
       }
     });
+
+    // === 共通：リセット処理（メニュー/左下ボタン共通で呼ぶ） ===
+    function runResetFlow(){
+      // 次フレームで confirm（キャンセル可）
+      setTimeout(() => {
+        const ok = confirm('盤面をリセットしますか？');
+        if (!ok) return;
+        ['A','B'].forEach(p => {
+          // キャラ(1..5) → デッキ上
+          for (let i = 1; i <= 5; i++) {
+            const cell = getPieceCell(p,'chara',i);
+            const img  = cell?.querySelector('img');
+            const src  = img && (img.dataset?.src || img.getAttribute('src'));
+            if (src) emitAction({ type:'PIECE_TO_LIST', player:p, fromArea:'chara', fromSlot:i, to:'deck', pos:'top', src });
+          }
+          // ステージ → デッキ上
+          { const cell = getPieceCell(p,'stage',0);
+            const img  = cell?.querySelector('img');
+            const src  = img && (img.dataset?.src || img.getAttribute('src'));
+            if (src) emitAction({ type:'PIECE_TO_LIST', player:p, fromArea:'stage', fromSlot:0, to:'deck', pos:'top', src });
+          }
+          // ライフ／手札／トラッシュ → デッキ上（既存LIST_MOVEと同経路）
+          const moveListTop = (fromArea, list) => {
+            const snapshot = (list?.[p] || []).slice();
+            snapshot.forEach(src => emitAction({ type:'LIST_MOVE', player:p, from:fromArea, to:'deck', pos:'top', src }));
+          };
+          moveListTop('life',  lifeImages);
+          moveListTop('hand',  handImages);
+          moveListTop('trash', trashImages);
+          // ドン：デッキ=10、アクティブ=0、レスト=0
+          emitAction({ type:'DON_SET', scope:'donDeck', player:p, value:10 });
+          emitAction({ type:'DON_SET', scope:'donAct',  player:p, value:0  });
+          emitAction({ type:'DON_SET', scope:'donRest', player:p, value:0  });
+          // リーダーのドンチップを0
+          emitAction({ type:'PIECE_DON_SET', player:p, area:'leader', slot:0, value:0 });
+        });
+        // UI系：no_attack再表示/ターン数0/赤枠を黒（同期）
+        emitAction({ type:'TURN_UI_RESET' });
+        // デッキ image(1)→(50) に同期ソートし、必要ならプリロード
+        emitAction({ type:'DECK_SORT_PRELOAD' });
+        // don_return.png をA/Bとも非表示
+        emitAction({ type:'DON_RETURN_HIDE', player:'A' });
+        emitAction({ type:'DON_RETURN_HIDE', player:'B' });
+      }, 0);
+    }
 
     // 外側クリック/スクロール/リサイズ/ESCで閉じる
     document.addEventListener('click', (e) => { if (!mainMenu.contains(e.target)) hideMainMenu(); });
