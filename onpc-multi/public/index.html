@@ -2973,6 +2973,10 @@
             moveListTop('life',  lifeImages);
             moveListTop('hand',  handImages);
             moveListTop('trash', trashImages);
+            // ★ドン初期化：デッキ=10、アクティブ=0、レスト=0（同期）
+            emitAction({ type:'DON_SET', scope:'donDeck', player:p, value:10 });
+            emitAction({ type:'DON_SET', scope:'donAct',  player:p, value:0  });
+            emitAction({ type:'DON_SET', scope:'donRest', player:p, value:0  });
           });
         }, 0);
       } else {
