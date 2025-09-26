@@ -643,6 +643,29 @@
       font-size: clamp(12px, 1.1vw, 16px); line-height: 1;
       cursor: pointer; user-select: none;
     }
+
+    /* === Mobile only: EX用カスタムスクロールバー（黒ぶち白塗り・カード下に重ねる） === */
+    @media (pointer: coarse) {
+      .card.ex-card { position: relative; }
+      .ex-scrollbar-track{
+        position:absolute;
+        left:8px; right:8px;          /* 端は少し内側に */
+        bottom:4px;                   /* カード下端に重ねる */
+        height:12px;                  /* トラックの高さ（見た目はthumbだけ） */
+        pointer-events:none;          /* タップを妨げない */
+        z-index:5;                    /* 画像より前面 */
+      }
+      .ex-scrollbar-thumb{
+        position:absolute;
+        bottom:0;
+        height:12px;
+        border:2px solid #000;        /* 黒ぶち */
+        background:#fff;              /* 白塗りつぶし */
+        border-radius:8px;
+        width:48px;                   /* JSで上書き */
+        transform:translateX(0);      /* JSで上書き */
+      }
+    }
   </style>
 </head>
 <body>
@@ -730,6 +753,10 @@
         <div id="a-ex" class="card ex-card">
           <div class="ex-mask" aria-hidden="true"></div>
           <div id="a-ex-scroll" class="ex-scroll" aria-label="Aの手札ストリップ"></div>
+          <!-- ★スマホ専用：見やすい重ねスクロールバー -->
+          <div class="ex-scrollbar-track" aria-hidden="true">
+            <div class="ex-scrollbar-thumb"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -817,6 +844,10 @@
         <div id="b-ex" class="card ex-card">
           <div class="ex-mask" aria-hidden="true"></div>
           <div id="b-ex-scroll" class="ex-scroll" aria-label="Bの手札ストリップ"></div>
+          <!-- ★スマホ専用：見やすい重ねスクロールバー -->
+          <div class="ex-scrollbar-track" aria-hidden="true">
+            <div class="ex-scrollbar-thumb"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1070,7 +1101,7 @@
       if (!exCard || !exScroll) return;
       if (exVisible[player]) {
         exCard.classList.remove('ex-off');
-        // 画像枚数に応じたスクロールバー表示へ復帰
+        // 画像枚数に応じてカスタムバーも更新
         adjustExScrollbar(player);
       } else {
         exCard.classList.add('ex-off');
@@ -1078,6 +1109,79 @@
         exScroll.scrollLeft = 0;
       }
     }
+
+    /* === スマホ専用：EXストリップ用カスタムスクロールバー === */
+    function isMobileLike(){  // 既存にも同名がある場合はそちらを利用
+      return (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || window.innerWidth <= 900;
+    }
+    function getExDom(player){
+      const card   = document.getElementById(player === 'A' ? 'a-ex' : 'b-ex');
+      const scroll = document.getElementById(player === 'A' ? 'a-ex-scroll' : 'b-ex-scroll');
+      const track  = card?.querySelector('.ex-scrollbar-track');
+      const thumb  = track?.querySelector('.ex-scrollbar-thumb');
+      return { card, scroll, track, thumb };
+    }
+    function updateMobileExScrollbar(player){
+      if (!isMobileLike()) return;
+      const { card, scroll, track, thumb } = getExDom(player);
+      if (!card || !scroll || !track || !thumb) return;
+
+      // ★表示条件：スマホ & 手札が6枚以上のときのみ表示
+      const handN = (typeof handCounts !== 'undefined' && handCounts[player] != null) ? handCounts[player] : 0;
+      if (handN < 6) {
+        track.style.display = 'none';
+        return;
+      }
+
+      const cw = scroll.clientWidth;
+      const sw = scroll.scrollWidth;
+      const tw = track.clientWidth;
+
+      // オーバーフローがないときは非表示
+      if (sw <= cw || exVisible[player] === false || card.classList.contains('ex-off')) {
+        track.style.display = 'none';
+        return;
+      }
+      track.style.display = 'block';
+
+      // サム幅：表示割合に応じて計算（最小48px）
+      const minThumb = 48;
+      const thumbW = Math.max(minThumb, Math.round(tw * (cw / sw)));
+      thumb.style.width = thumbW + 'px';
+
+      // サム位置：スクロール割合に応じて
+      const maxScroll = sw - cw;
+      const maxX = tw - thumbW;
+      const ratio = maxScroll > 0 ? (scroll.scrollLeft / maxScroll) : 0;
+      thumb.style.transform = `translateX(${Math.round(maxX * ratio)}px)`;
+    }
+    // 既存呼び出しに合わせたエイリアス（参照されていればこちらが呼ばれる）
+    function adjustExScrollbar(player){
+      updateMobileExScrollbar(player);
+    }
+    // イベント連動
+    ['A','B'].forEach(p=>{
+      const { scroll } = getExDom(p);
+      if (scroll){
+        scroll.addEventListener('scroll', () => updateMobileExScrollbar(p), { passive:true });
+
+        // ★手札の増減（DOM変化）監視：DOM確定後に再計算（2フレーム待ち）
+        const mo = new MutationObserver(() => {
+          requestAnimationFrame(()=> requestAnimationFrame(()=> updateMobileExScrollbar(p)));
+        });
+        mo.observe(scroll, { childList: true, subtree: false });
+
+        // ★サイズ変化（高さ→カード幅が変わる等）にも追従
+        if (window.ResizeObserver){
+          const ro = new ResizeObserver(()=> updateMobileExScrollbar(p));
+          ro.observe(scroll);
+        }
+      }
+    });
+    window.addEventListener('resize', () => { updateMobileExScrollbar('A'); updateMobileExScrollbar('B'); }, { passive:true });
+    window.addEventListener('orientationchange', () => { setTimeout(()=>{ updateMobileExScrollbar('A'); updateMobileExScrollbar('B'); }, 0); });
+    // 初期描画
+    requestAnimationFrame(() => { updateMobileExScrollbar('A'); updateMobileExScrollbar('B'); });
 
     function wireExToggle(player){
       const input = document.getElementById(player === 'A' ? 'a-ex-toggle' : 'b-ex-toggle');
@@ -1100,7 +1204,15 @@
     /* ===== カウント管理 ===== */
     let deckCounts   = { A: 50, B: 50 };
     let lifeCounts   = { A: 0,  B: 0 };
-    let handCounts   = { A: 0,  B: 0 };
+    // ★手札カウントは Proxy 化：値更新時に即スクロールバーを再計算
+    let handCounts   = new Proxy({ A: 0, B: 0 }, {
+      set(obj, key, val){
+        obj[key] = val;
+        // DOM更新よりわずかに後で実行（“スクロール開始前”に確定させる）
+        requestAnimationFrame(()=> updateMobileExScrollbar(String(key)));
+        return true;
+      }
+    });
     let trashCounts  = { A: 0,  B: 0 };
 
     let donDeckCounts = { A: 10, B: 10 };
