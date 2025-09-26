@@ -919,7 +919,7 @@
       </div>
 
       <form id="room-form" class="room-form" onsubmit="return false;">
-        <!-- サイド -->
+        <!-- サイド（非表示化）
         <div id="room-side-row" class="room-row">
           <div class="room-label">サイド</div>
           <div class="room-field">
@@ -928,6 +928,7 @@
             <label class="room-radio"><input type="radio" name="side" value="C"> C（観戦/練習）</label>
           </div>
         </div>
+        -->
 
         <!-- ルーム名 -->
         <div id="room-name-row" class="room-row">
@@ -3836,12 +3837,12 @@
     const roomEnterBtn   = document.getElementById('room-enter-btn');
 
     function openRoomSettings(){
-      // 初期状態：サイドA / ルーム名空
-      roomForm.side.value = 'A';
+      // 初期状態（サイド行は非表示化済み）
+      if (roomForm.side) roomForm.side.value = 'A';
       roomNameInput.value = '';
       roomNameError.style.display = 'none';
-      roomSideRow.style.display = '';
-      roomNameRow.style.display = '';
+      if (roomSideRow) roomSideRow.style.display = '';
+      if (roomNameRow) roomNameRow.style.display = '';
 
       roomBackdrop.style.display = 'flex';
       roomBackdrop.setAttribute('aria-hidden', 'false');
@@ -3854,12 +3855,11 @@
     roomBackdrop.addEventListener('click', (e) => { if (e.target === roomBackdrop) hideRoomSettings(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideRoomSettings(); });
 
-    // ロール切替で表示ブロックを制御
+    // ロール切替で表示ブロックを制御（サイド行は存在チェック）
     roomForm.addEventListener('change', (e) => {
       if (e.target.name !== 'role') return;
-
-      roomSideRow.style.display = '';
-      roomNameRow.style.display = '';
+      if (roomSideRow) roomSideRow.style.display = '';
+      if (roomNameRow) roomNameRow.style.display = '';
     });
 
     // 10桁の半角数字ランダム
@@ -3869,16 +3869,13 @@
       return s;
     }
 
-    // 入室
+    // 入室（name は一律 'user'）
     roomEnterBtn.addEventListener('click', () => {
-      const side = roomForm.side.value || 'A';      // 'A' | 'B'
       const base = location.origin;                 // 実行中のドメインを利用
-
       const room = (roomNameInput.value || '').trim();
       if (!room) { roomNameError.style.display = 'inline'; return; }
       roomNameError.style.display = 'none';
-      const url = `${base}/?room=${encodeURIComponent(room)}&name=${encodeURIComponent(side)}`;
-
+      const url = `${base}/?room=${encodeURIComponent(room)}&name=${encodeURIComponent('user')}`;
       // 遷移（※非同期通信なし）
       location.href = url;
     });
@@ -4512,10 +4509,10 @@
 
 
 
-    // ====== 1) 接続（room/name/role=spec で観戦入室） ======
+    // ====== 1) 接続（name は一律 'user'） ======
     const qs   = new URLSearchParams(location.search);
     const room = qs.get('room') || 'dev';
-    const name = qs.get('name') || `guest-${Math.floor(Math.random()*1000)}`;
+    const name = 'user';
     const socket = io({ query: { room, name } });
 
     let MY_SEAT = 'P1';
