@@ -2983,6 +2983,9 @@
           // === 追加：攻撃不可アイコン/ターン状態を初期化（同期配信） ===
           // 全クライアントへ同報 → 受信側で一括適用
           emitAction({ type:'TURN_UI_RESET' });
+          // === 追加：デッキ一覧を image(1)~image(50) で同期ソート → 必要なら静かにプリロード
+          // 両プレイヤー対象（player省略でA/B両方を処理）
+          emitAction({ type:'DECK_SORT_PRELOAD' });
         }, 0);
       } else {
         hideMainMenu();
@@ -4636,6 +4639,31 @@
           FIRST_TURN_DON_BOOTSTRAP = false;     // 初回ドンのブートストラップ解除
           if (typeof setActiveTurnUI === 'function') setActiveTurnUI(null); // 赤枠クリア→黒
           if (typeof ensureLeaderNoAttackOverlays === 'function') ensureLeaderNoAttackOverlays(); // リーダーに no_attack 再表示
+          break;
+        }
+        // === 追加：デッキを image(1)~image(50) でソートし、必要ならプリロード ===
+        case 'DECK_SORT_PRELOAD': {
+          // 対象プレイヤー（省略時は A/B 両方）
+          const targets = a?.player ? [a.player] : ['A','B'];
+          const num = (src) => {
+            // 末尾の "image (n).png" から n を抽出（?v=xxx 等のクエリは無視）
+            const m = /image\s*\((\d+)\)\.png/i.exec(decodeURIComponent(String(src)));
+            return m ? Number(m[1]) : Number.POSITIVE_INFINITY;
+          };
+          targets.forEach(p => {
+            const arr = deckImages?.[p];
+            if (!Array.isArray(arr) || arr.length === 0) return;
+            arr.sort((a,b) => num(a) - num(b));
+            deckImages[p] = arr;
+            deckCounts[p] = arr.length;
+          });
+          if (typeof renderCounts === 'function') renderCounts();
+          // ギャラリー開いていれば即反映
+          if (typeof refreshIfOpen === 'function') {
+            targets.forEach(p => refreshIfOpen('deck', p));
+          }
+          // 画像キャッシュが切れている可能性に備え、静かにプリロード（オーバーレイ非表示）
+          if (typeof runDeckPreload === 'function') runDeckPreload({ showOverlay: false });
           break;
         }
       }
