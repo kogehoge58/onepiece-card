@@ -2951,6 +2951,28 @@
                 }
               }
             }
+            // === ライフ／手札／トラッシュ → デッキ（上） ===
+            // 既存のサムメニューが使う経路に合わせて LIST_MOVE を発火する
+            // （from: hand|life|trash → to: deck, pos: 'top'）で1枚ずつ送る
+            const moveListTop = (fromArea, list) => {
+              // 送信中に配列が更新されても安全なようにスナップショットで回す
+              const arr = (list?.[p] || []).slice();
+              for (let i = 0; i < arr.length; i++) {
+                const src = arr[i];
+                if (!src) continue;
+                emitAction({
+                  type  : 'LIST_MOVE',
+                  player: p,
+                  from  : fromArea,   // 'hand' | 'life' | 'trash'
+                  to    : 'deck',
+                  pos   : 'top',
+                  src
+                });
+              }
+            };
+            moveListTop('life',  lifeImages);
+            moveListTop('hand',  handImages);
+            moveListTop('trash', trashImages);
           });
         }, 0);
       } else {
