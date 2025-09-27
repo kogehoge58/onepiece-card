@@ -1575,7 +1575,7 @@
 
     // 右上アイコン押下：一旦非表示（同期）
     document.querySelectorAll('.card.don-deck .don-return-btn').forEach(btn=>{
-      btn.addEventListener('click', (e)=>{
+      btn.addEventListener('click', async (e)=>{
         e.stopPropagation();
         const player = btn.dataset.player;
         setDonReturnVisible(player, false);              // まず自分を隠す
@@ -1593,7 +1593,7 @@
           }
           return;
         }
-        if (confirm('ドンを直前の状態に戻しますか？')) {
+        if (await mdConfirm('ドンを直前の状態に戻しますか？')) {
           // 全クライアントへ「復元実行」アクション（状態本体は各自の保持分を使用）
           if (typeof emitAction === 'function') {
             emitAction({ type:'DON_RETURN_APPLY', player });
