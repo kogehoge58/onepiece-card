@@ -4849,12 +4849,7 @@
 
       // 直前フォーカスを保持して終了時に戻す
       const last = document.activeElement;
-      // ロード後“最初の1回”は「はい」にフォーカスを当てない
-      if (window.__CONFIRM_OPENED_ONCE__ === undefined) window.__CONFIRM_OPENED_ONCE__ = false;
-      if (window.__CONFIRM_OPENED_ONCE__) {
-        setTimeout(()=>yesBtn.focus(), 0);
-      }
-      window.__CONFIRM_OPENED_ONCE__ = true;
+      // ★オートフォーカスは常にしない（1回目以降もOFF）
 
       return new Promise(resolve => {
         const cleanup = () => {
