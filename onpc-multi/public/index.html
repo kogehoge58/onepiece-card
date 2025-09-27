@@ -2528,10 +2528,18 @@
       if (typeof hideDeckMenu === 'function') hideDeckMenu();
 
       lastRightClickedThumb = img;
-      // ★保持値は正規化しない：?v のキャッシュバスターを残す
+      // ★PC手札ストリップ→移動で他端末に絶対URLが飛んで404になる対策
+      //   ?v 等のクエリは残しつつ、パスだけ相対化する（キャッシュ挙動は不変）
       //   （表示中が back.png の場合は data-src を優先）
       const raw = img?.dataset?.src || img?.currentSrc || img?.src || '';
-      thumbMenu.dataset.src = raw;
+      try {
+        const u = new URL(raw, location.href);
+        thumbMenu.dataset.src = decodeURIComponent(u.pathname) + (u.search || '');
+      } catch (_e) {
+        // URL でない場合はそのまま
+        thumbMenu.dataset.src = raw;
+      }
+
       thumbMenu.style.display = 'block';
       thumbMenu.setAttribute('aria-hidden', 'false');
 
