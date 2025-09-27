@@ -3245,9 +3245,8 @@
       } else if (action === 'reset') {
         hideMainMenu();
         // 次フレームで confirm（キャンセル可）
-        setTimeout(() => {
-          const ok = confirm('盤面をリセットしますか？');
-          if (!ok) return; // ★キャンセル時は何もしない
+        setTimeout(async () => {
+          if (!(await mdConfirm('盤面をリセットしますか？'))) return; // ★キャンセル時は何もしない
           // 以降は同期処理：全プレイヤー(A/B)のキャラ/ステージを走査し
           // 「PIECE_TO_LIST（to: deck, pos: top）」を emit して全員へ同期
           ['A','B'].forEach(p => {
@@ -3334,9 +3333,8 @@
     // === 共通：リセット処理（メニュー/左下ボタン共通で呼ぶ） ===
     function runResetFlow(){
       // 次フレームで confirm（キャンセル可）
-      setTimeout(() => {
-        const ok = confirm('盤面をリセットしますか？');
-        if (!ok) return;
+      setTimeout(async () => {
+        if (!(await mdConfirm('盤面をリセットしますか？'))) return;
         ['A','B'].forEach(p => {
           // キャラ(1..5) → デッキ上
           for (let i = 1; i <= 5; i++) {
