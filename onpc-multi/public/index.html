@@ -1410,6 +1410,8 @@
         if (errBox) errBox.innerHTML = dcErrors.map(m => `<div>${m}</div>`).join('');
         return;
       }
+      // ★追加：この導線では最初にリセット（確認アラートは出さない）
+      if (typeof runResetFlowNoConfirm === 'function') runResetFlowNoConfirm();
 
       const btn = e.currentTarget;
       const origText = btn.textContent;
@@ -3329,6 +3331,44 @@
       }, 0);
     }
 
+    // ★追加：確認アラート無しのリセット（デッキ選択/アップロード導線専用）
+    function runResetFlowNoConfirm(){
+      ['A','B'].forEach(p => {
+        // キャラ(1..5) → デッキ上
+        for (let i = 1; i <= 5; i++) {
+          const cell = getPieceCell(p,'chara',i);
+          const img  = cell?.querySelector('img');
+          const src  = img && (img.dataset?.src || img.getAttribute('src'));
+          if (src) emitAction({ type:'PIECE_TO_LIST', player:p, fromArea:'chara', fromSlot:i, to:'deck', pos:'top', src });
+        }
+        // ステージ → デッキ上
+        { const cell = getPieceCell(p,'stage',0);
+          const img  = cell?.querySelector('img');
+          const src  = img && (img.dataset?.src || img.getAttribute('src'));
+          if (src) emitAction({ type:'PIECE_TO_LIST', player:p, fromArea:'stage', fromSlot:0, to:'deck', pos:'top', src });
+        }
+        // ライフ／手札／トラッシュ → デッキ上（既存のLIST_MOVE経路で）
+        const moveListTop = (fromArea, list) => {
+          const snapshot = (list?.[p] || []).slice();
+          snapshot.forEach(src => emitAction({ type:'LIST_MOVE', player:p, from:fromArea, to:'deck', pos:'top', src }));
+        };
+        moveListTop('life',  lifeImages);
+        moveListTop('hand',  handImages);
+        moveListTop('trash', trashImages);
+        // ドン初期化・リーダードン/レスト解除（既存どおり）
+        emitAction({ type:'DON_SET', scope:'donDeck', player:p, value:10 });
+        emitAction({ type:'DON_SET', scope:'donAct',  player:p, value:0  });
+        emitAction({ type:'DON_SET', scope:'donRest', player:p, value:0  });
+        emitAction({ type:'PIECE_DON_SET', player:p, area:'leader', slot:0, value:0 });
+        emitAction({ type:'PIECE_REST_SET', player:p, area:'leader', slot:0, on:false });
+      });
+      // UI 初期化 / 画像まわり（既存どおり）
+      emitAction({ type:'TURN_UI_RESET' });
+      emitAction({ type:'DON_RETURN_HIDE', player:'A' });
+      emitAction({ type:'DON_RETURN_HIDE', player:'B' });
+      emitAction({ type:'DECK_SORT_PRELOAD' });
+    }
+
     // 外側クリック/スクロール/リサイズ/ESCで閉じる
     document.addEventListener('click', (e) => { if (!mainMenu.contains(e.target)) hideMainMenu(); });
     window.addEventListener('scroll', hideMainMenu, true);
@@ -3848,6 +3888,8 @@
 
           btnPick.addEventListener('click', async () => {
             if (!DECK_SELECT_PLAYER) { alert('プレイヤーが特定できません'); return; }
+            // ★追加：この導線では最初にリセット（確認アラートは出さない）
+            if (typeof runResetFlowNoConfirm === 'function') runResetFlowNoConfirm();
             btnPick.disabled = true;
             const orig = btnPick.textContent;
             btnPick.textContent = '適用中…';
