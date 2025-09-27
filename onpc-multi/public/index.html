@@ -3225,8 +3225,8 @@
         })
       } else if (action === 'mulligan' && player) {
         hideMainMenu();
-        requestAnimationFrame(() => {
-          if (confirm('マリガンを行いますか？')) {
+        requestAnimationFrame(async () => {
+          if (await mdConfirm('マリガンを行いますか？')) {
             const seed = (Date.now() ^ Math.floor(Math.random()*1e9)) >>> 0;
             emitAction({ type: 'MULLIGAN', player, seed });
             // ★ 一覧は開かず、EXストリップを左端へ
