@@ -697,6 +697,42 @@
       font-size: clamp(16px, 4.5vw, 28px);
       text-shadow: 0 2px 4px rgba(0,0,0,.35);
     }
+
+    /* ==== 共通：確認モーダル ==== */
+    .confirm-modal{
+      width: min(720px, 92vw);
+      height: auto;
+      /* border: 2px solid #000; */
+      border-radius: 28px;
+      padding: 28px 24px 36px;
+      background: #fff;
+    }
+    .confirm-title{
+      text-align: center;
+      font-weight: 800;
+      font-size: clamp(8px, 2.6vw, 18px);
+      letter-spacing: .08em;
+      margin-top: 12px;
+    }
+    .confirm-actions{
+      display: flex;
+      justify-content: center;
+      gap: 64px;
+      margin-top: 56px;
+    }
+    /* 既存ボタン系と同じテイスト（黒/白文字/角丸/太字） */
+    .confirm-btn{
+      padding: 14px 36px;
+      border: 0;
+      border-radius: 12px;
+      background: rgba(0,0,0,.8);
+      color: #fff;
+      font-size: clamp(10px, 1.6vw, 14px);
+      line-height: 1;
+      cursor: pointer;
+      font-weight: 600; /* 「いいえ」は通常太さ */
+    }
+    .confirm-btn.yes{ font-weight: 800; } /* 「はい」だけbold指定 */
   </style>
 </head>
 <body>
@@ -1101,6 +1137,17 @@
     <div class="og-inner" role="document">
       <img src="component_images/landscape.png" alt="横向きアイコン">
       <div class="og-text">横向きでプレイ</div>
+    </div>
+  </div>
+
+  <!-- ★共通：確認モーダル -->
+  <div id="confirm-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div class="modal confirm-modal" role="document">
+      <div id="confirm-title" class="confirm-title">確認</div>
+      <div class="confirm-actions">
+        <button id="confirm-yes" type="button" class="confirm-btn yes">はい</button>
+        <button id="confirm-no"  type="button" class="confirm-btn">いいえ</button>
+      </div>
     </div>
   </div>
 
@@ -2280,7 +2327,7 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideDeckMenu(); });
 
     // ★ メニュークリック：デッキでは親項目クリックで数量サブメニューを開く
-    deckMenu.addEventListener('click', (e) => {
+    deckMenu.addEventListener('click', async (e) => {
       const btn = e.target.closest('button');
       if (!btn) return;
       const action = btn.dataset.action;
@@ -2297,7 +2344,7 @@
         }
         if (action === 'shuffle') {
           hideDeckMenu(); // メニューはローカルで閉じるだけ
-          if (confirm('シャッフルしますか？')) {
+          if (await mdConfirm('シャッフルしますか？')) {
             const seed = (Date.now() ^ Math.floor(Math.random()*1e9)) >>> 0;
             emitAction({ type: 'DECK_SHUFFLE', player, seed });
           }
@@ -2309,7 +2356,7 @@
         else if (action === 'trash-plus'){ hideDeckMenu(); emitAction({ type: 'LIFE_TO_TRASH', player }); return; }
         else if (action === 'shuffle')   {
           hideDeckMenu();
-          if (confirm('シャッフルしますか？')) {
+          if (await mdConfirm('シャッフルしますか？')) {
             const seed = (Date.now() ^ Math.floor(Math.random()*1e9)) >>> 0;
             emitAction({ type: 'LIFE_SHUFFLE', player, seed });
           }
@@ -4777,6 +4824,52 @@
     window.addEventListener('orientationchange', () => setTimeout(setOrientationGuard, 0), { passive: true });
     document.addEventListener('visibilitychange', setOrientationGuard);
     requestAnimationFrame(setOrientationGuard);
+
+    /* ===== 共通：自作 confirm（Promise版） =====
+      使い方： const ok = await mdConfirm('シャッフルしますか？');
+      既存の confirm と同様に1行で呼べるよう Promiseを返す */
+    async function mdConfirm(message, { yesLabel='はい', noLabel='いいえ' } = {}){
+      const backdrop = document.getElementById('confirm-backdrop');
+      const title    = document.getElementById('confirm-title');
+      const yesBtn   = document.getElementById('confirm-yes');
+      const noBtn    = document.getElementById('confirm-no');
+      if (!backdrop || !title || !yesBtn || !noBtn){
+        // フォールバック（万一テンプレが無い場合はブラウザconfirm）
+        return Promise.resolve(window.confirm(message));
+      }
+      title.textContent = message;
+      yesBtn.textContent = yesLabel;
+      noBtn.textContent  = noLabel;
+      backdrop.style.display = 'flex';
+      backdrop.setAttribute('aria-hidden','false');
+
+      // 直前フォーカスを保持して終了時に戻す
+      const last = document.activeElement;
+      setTimeout(()=>yesBtn.focus(), 0);
+
+      return new Promise(resolve => {
+        const cleanup = () => {
+          backdrop.style.display = 'none';
+          backdrop.setAttribute('aria-hidden','true');
+          document.removeEventListener('keydown', onKey, true);
+          backdrop.removeEventListener('click', onBg, true);
+          yesBtn.removeEventListener('click', onYes, true);
+          noBtn.removeEventListener('click', onNo, true);
+          if (last && typeof last.focus === 'function') setTimeout(()=>last.focus(), 0);
+        };
+        const onYes = () => { cleanup(); resolve(true);  };
+        const onNo  = () => { cleanup(); resolve(false); };
+        const onBg  = (e) => { if (e.target === backdrop) onNo(); };
+        const onKey = (e) => {
+          if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); onNo(); }
+          else if (e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); onYes(); }
+        };
+        yesBtn.addEventListener('click', onYes, true);
+        noBtn .addEventListener('click', onNo,  true);
+        backdrop.addEventListener('click', onBg, true);
+        document.addEventListener('keydown', onKey, true);
+      });
+    }
 
 
 
