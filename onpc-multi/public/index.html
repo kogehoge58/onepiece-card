@@ -666,6 +666,37 @@
         transform:translateX(0);      /* JSで上書き */
       }
     }
+
+    /* === 縦向きガード（スマホ縦向き時だけ最前面でブロック） === */
+    #orientation-guard{
+      position: fixed;
+      inset: 0;
+      display: none;                 /* JSで切替 */
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.55);
+      z-index: 10020;                /* 既存モーダルより前面 */
+      pointer-events: auto;
+    }
+    #orientation-guard .og-inner{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      transform: translateZ(0);      /* 文字にじみ防止 */
+    }
+    #orientation-guard .og-inner img{
+      width: min(36vw, 220px);
+      height: auto;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,.45));
+    }
+    #orientation-guard .og-text{
+      color: #fff;
+      font-weight: 800;
+      letter-spacing: .08em;
+      font-size: clamp(16px, 4.5vw, 28px);
+      text-shadow: 0 2px 4px rgba(0,0,0,.35);
+    }
   </style>
 </head>
 <body>
@@ -1063,6 +1094,14 @@
     <img id="qa-coin"  src="component_images/coin_toss.png"  alt="コイントス">
     <img id="qa-room"  src="component_images/room_enter.png" alt="ルーム選択">
     <img id="qa-reset" src="component_images/reset.png"      alt="リセット">
+  </div>
+
+  <!-- ★スマホ縦向きガード -->
+  <div id="orientation-guard" aria-hidden="true" role="dialog">
+    <div class="og-inner" role="document">
+      <img src="component_images/landscape.png" alt="横向きアイコン">
+      <div class="og-text">横向きでプレイ</div>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -4680,6 +4719,22 @@
     // 初期表示＆画面サイズ変更で実行
     window.addEventListener('load',  fitGridsToViewport, { once:true });
     window.addEventListener('resize', fitGridsToViewport);
+
+    /* === スマホ縦向きガード表示制御 === */
+    function setOrientationGuard(){
+      const el = document.getElementById('orientation-guard');
+      if (!el) return;
+      // 既存の isMobileLike() を流用
+      const portrait = window.matchMedia && window.matchMedia('(orientation: portrait)').matches;
+      const show = isMobileLike() && portrait;
+      el.style.display = show ? 'flex' : 'none';
+      el.setAttribute('aria-hidden', show ? 'false' : 'true');
+    }
+    // 画面変化で反映
+    window.addEventListener('resize', setOrientationGuard, { passive: true });
+    window.addEventListener('orientationchange', () => setTimeout(setOrientationGuard, 0), { passive: true });
+    document.addEventListener('visibilitychange', setOrientationGuard);
+    requestAnimationFrame(setOrientationGuard);
 
 
 
