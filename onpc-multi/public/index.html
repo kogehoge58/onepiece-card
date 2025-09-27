@@ -1612,11 +1612,11 @@
     document.querySelectorAll('.start-btn').forEach(btn => {
       // 右クリ（長押し）ではメニューを出さない
       btn.addEventListener('contextmenu', e => e.preventDefault());
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const player = btn.dataset.player;
         if (!player) return;
-        if (confirm('ターンを開始しますか？')) {
+        if (await mdConfirm('ターンを開始しますか？')) {
           if (typeof emitAction === 'function') {
             emitAction({ type: 'REFRESH', player });
           }
