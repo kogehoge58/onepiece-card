@@ -720,19 +720,24 @@
       gap: 64px;
       margin-top: 56px;
     }
-    /* 既存ボタン系と同じテイスト（黒/白文字/角丸/太字） */
+    /* 確認モーダルのボタン（サイズ統一・配色変更） */
     .confirm-btn{
       padding: 14px 36px;
       border: 0;
       border-radius: 12px;
-      background: rgba(0,0,0,.8);
+      background: rgba(0,0,0,.8);   /* いいえ＝ダークグレー */
       color: #fff;
       font-size: clamp(10px, 1.6vw, 14px);
       line-height: 1;
       cursor: pointer;
-      font-weight: 600; /* 「いいえ」は通常太さ */
+      font-weight: 700;             /* いいえ も bold */
+      width: min(130px, 42vw);      /* はい/いいえ 同じ幅 */
+      text-align: center;
     }
-    .confirm-btn.yes{ font-weight: 800; } /* 「はい」だけbold指定 */
+    .confirm-btn.yes{
+      background: #39C87A;          /* はい＝緑 */
+      font-weight: 800;             /* はい はやや太め */
+    }
   </style>
 </head>
 <body>
@@ -4838,12 +4843,18 @@
       title.textContent = message;
       yesBtn.textContent = yesLabel;
       noBtn.textContent  = noLabel;
+
       backdrop.style.display = 'flex';
       backdrop.setAttribute('aria-hidden','false');
 
       // 直前フォーカスを保持して終了時に戻す
       const last = document.activeElement;
-      setTimeout(()=>yesBtn.focus(), 0);
+      // ロード後“最初の1回”は「はい」にフォーカスを当てない
+      if (window.__CONFIRM_OPENED_ONCE__ === undefined) window.__CONFIRM_OPENED_ONCE__ = false;
+      if (window.__CONFIRM_OPENED_ONCE__) {
+        setTimeout(()=>yesBtn.focus(), 0);
+      }
+      window.__CONFIRM_OPENED_ONCE__ = true;
 
       return new Promise(resolve => {
         const cleanup = () => {
