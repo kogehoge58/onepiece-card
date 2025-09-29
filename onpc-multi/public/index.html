@@ -4029,11 +4029,29 @@
           del.src = 'component_images/delete.png';
           del.alt = '削除';
           del.className = 'deckdelete-btn';
-          del.addEventListener('click', (ev) => {
-            ev.stopPropagation();                 // 他のクリック処理に干渉しない
-            // 共通モーダルを表示（はい押下時の実処理は未実装）
-            mdConfirm('デッキを削除しますか？');
-          }); 
+          del.addEventListener('click', async (ev) => {
+            ev.stopPropagation(); // 他のクリック処理に干渉しない
+            const ok = await mdConfirm('デッキを削除しますか？');
+            if (!ok) return;
+            try {
+              const r = await fetch(
+                '/api/deck/delete?room=' + encodeURIComponent(ROOM) + '&user=' + encodeURIComponent(USER),
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ folder: name })
+                }
+              );
+              const j = await r.json().catch(() => ({ ok:false, error:'invalid response' }));
+              if (!r.ok || !j.ok) throw new Error(j.error || r.statusText || 'unknown error');
+
+              // 一覧を最新化（モーダルは開いたまま）
+              deckFoldersLoaded = false;      // ← API再取得させる
+              renderDeckSelectList();         // ← 非同期で一覧再描画
+            } catch (e) {
+              alert('削除に失敗：' + (e && e.message || e));
+            }
+          });
 
           const img = document.createElement('img');
           img.loading = 'lazy';

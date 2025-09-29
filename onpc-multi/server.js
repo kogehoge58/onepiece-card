@@ -47,6 +47,35 @@ app.get('/api/deckbuilt', (req, res) => {
   });
 });
 
+// ★デッキ削除：{ folder: 'フォルダ名' }
+app.post('/api/deck/delete', async (req, res) => {
+  try {
+    const { folder } = req.body || {};
+    if (!folder || typeof folder !== 'string') {
+      return res.status(400).json({ ok:false, error:'bad folder' });
+    }
+    // ディレクトリトラバーサル対策
+    if (folder.includes('..') || folder.includes('/') || folder.includes('\\')) {
+      return res.status(400).json({ ok:false, error:'invalid folder' });
+    }
+
+    const user = pickUser(req);
+    const base = path.join(__dirname, 'public', 'deck_built', user);
+    const target = path.join(base, folder);
+    const leader = path.join(target, 'leader.png'); // 正当なデッキか軽く確認
+    if (!fs.existsSync(target) || !fs.existsSync(leader)) {
+      return res.status(404).json({ ok:false, error:'not found' });
+    }
+
+    const fsp = fs.promises;
+    await fsp.rm(target, { recursive: true, force: true });
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok:true });
+  } catch (e) {
+    res.status(500).json({ ok:false, error: String(e && e.message || e) });
+  }
+});
+
 // デッキ適用（完全非同期）: { player: 'A'|'B', folder: 'フォルダ名' }
 app.post('/api/deck/apply', async (req, res) => {
   try {
