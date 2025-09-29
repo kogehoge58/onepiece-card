@@ -134,12 +134,16 @@ app.post('/api/deck/apply', async (req, res) => {
 });
 
 // ★カスタムアップロード＆即時適用
-// 受信: { player:'A'|'B', files:[{path:'leader.png' or 'images/xxx', contentBase64:'...'}] }
+// 受信: { player:'A'|'B', title:'デッキ名', files:[{path:'leader.png' or 'images/xxx', contentBase64:'...'}] }
 app.post('/api/deck/upload-and-apply', async (req, res) => {
   try {
     const { player, files } = req.body || {};
+    const rawTitle = String(req.body?.title || '').trim();
     if (player !== 'A' && player !== 'B') {
       return res.status(400).json({ ok:false, error:'bad player' });
+    }
+    if (!rawTitle) {
+      return res.status(400).json({ ok:false, error:'bad title' });
     }
     if (!Array.isArray(files) || files.length === 0) {
       return res.status(400).json({ ok:false, error:'no files' });
@@ -194,7 +198,20 @@ app.post('/api/deck/upload-and-apply', async (req, res) => {
     await cpdir(path.join(tmpDir, 'images'), dstImages);
     await fsp.copyFile(path.join(tmpDir, 'leader.png'), dstLeader);
 
-    // 3) 掃除して完了
+    // 3) deck_built/<user>/<title> にも保存（既存なら更新）
+    const user = pickUser(req);
+    // Windows 系の禁止文字とパス区切りをざっくり無効化（日本語は通す）
+    const safeTitle = rawTitle.replace(/[\\\/:*?"<>|]/g, '_');
+    const builtDir     = path.join(base, 'deck_built', user, safeTitle);
+    const builtLeader  = path.join(builtDir, 'leader.png');
+    const builtImages  = path.join(builtDir, 'images');
+    await rmrf(builtImages);
+    await fsp.unlink(builtLeader).catch(()=>{});
+    await fsp.mkdir(builtDir, { recursive:true });
+    await cpdir(path.join(tmpDir, 'images'), builtImages);
+    await fsp.copyFile(path.join(tmpDir, 'leader.png'), builtLeader);
+
+    // 4) 一時領域を掃除して完了
     await rmrf(tmpDir);
     res.set('Cache-Control','no-store');
     res.json({ ok:true });
