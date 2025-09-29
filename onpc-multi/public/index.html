@@ -605,7 +605,7 @@
     /* ==== アップロードモーダル ==== */
     .upload-modal{ width: min(720px, 92vw); height:auto; }
     .upload-form{
-      padding:16px 20px 22px;
+      padding:0px 20px 22px;
       flex: 1 1 auto;             /* ★ヘッダーの下を占める */
       overflow: auto;              /* ★縦スクロール許可 */
       overscroll-behavior: contain;/* iOSのバウンスが背面に伝播しないように */
@@ -633,7 +633,9 @@
     .upload-note{ text-align:center; font-size:14px; margin:8px 0 4px; color:#333; }
     .upload-actions{ display:flex; justify-content:center; margin-top:16px; }
     /* 送信ボタンは画像ではなく通常ボタン（黒・白文字）を使用 */
-    .upload-error{ min-height:28px; text-align:center; color:#e11; font-weight:700; margin-top:12px; }
+    /* 空のときは高さ0で隠す／発生時だけ .show で表示 */
+    .upload-error{ display:none; min-height:0; text-align:center; color:#e11; font-weight:700; margin-top:0; }
+    .upload-error.show{ display:block; min-height:28px; margin-top:12px; }
 
     /* === 画面左下：クイック操作（コイントス／ルーム選択／リセット） === */
     .quick-actions{
@@ -765,8 +767,9 @@
 
     /* 入力欄（デッキ名） */
     .upl-text{
-      width: 360px; max-width: 100%;
+      width: 100%; max-width: none; /* ★リーダー画像の表示枠と同じ右端まで伸ばす */
       padding: 8px 10px; border:1px solid #999; border-radius:4px; font-size:14px;
+      display: block;               /* 幅指定を確実に効かせる（保険） */
     }
   </style>
 </head>
@@ -1138,7 +1141,7 @@
       </div>
       <form id="upload-form" class="upload-form" onsubmit="return false;">
         <!-- デッキ名（必須） -->
-        <div class="upl-row upl-inline">
+        <div class="upl-row">
           <div class="upl-label"><span class="req">*</span>デッキ名</div>
           <div class="upl-field">
             <input id="upl-deck-title" type="text" class="upl-text" placeholder="「色 + リーダー名 + 備考」形式推奨 / 25文字以内">
@@ -1171,8 +1174,8 @@
         <div class="upload-actions">
           <button id="upl-submit" class="btn-primary" type="button">アップロード</button>
         </div>
-        <!-- エラーメッセージ領域（確保のみ） -->
-        <div id="upl-error" class="upload-error">&nbsp;</div>
+        <!-- エラーメッセージ領域（空のときは非表示） -->
+        <div id="upl-error" class="upload-error"></div>
       </form>
     </div>
   </div>
@@ -1494,7 +1497,7 @@
     document.getElementById('upl-submit')?.addEventListener('click', async (e) => {
       e.preventDefault();
       const errBox = document.getElementById('upl-error');
-      if (errBox) errBox.innerHTML = '&nbsp;';
+      if (errBox){ errBox.classList.remove('show'); errBox.textContent = ''; }
       // 入力済みのデッキ名（前後空白除去）
       const titleEl = document.getElementById('upl-deck-title');
       const title   = (titleEl?.value ?? '').trim();
@@ -1530,7 +1533,10 @@
         dcErrors.push('※デッキ画像が50枚ではありません。');
       }
       if (dcErrors.length){
-        if (errBox) errBox.innerHTML = dcErrors.map(m => `<div>${m}</div>`).join('');
+        if (errBox){
+          errBox.innerHTML = dcErrors.map(m => `<div>${m}</div>`).join('');
+          errBox.classList.add('show');     // ★発生時だけ表示
+        }
         if (title === '') titleEl?.focus?.();
         document.getElementById('upload-form')?.scrollTo({ top: 1e9, behavior: 'smooth' }); // ★追加：下までスクロール
         return;
