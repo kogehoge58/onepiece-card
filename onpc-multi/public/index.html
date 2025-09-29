@@ -723,6 +723,8 @@
       padding: 28px 24px 36px;
       background: #fff;
     }
+    /* ★確認モーダルを他モーダルより前面に（DeckSelect:10001 などより上） */
+    #confirm-backdrop{ z-index: 10005; }
     .confirm-title{
       text-align: center;
       font-weight: 800;
@@ -770,6 +772,21 @@
       width: 100%; max-width: none; /* ★リーダー画像の表示枠と同じ右端まで伸ばす */
       padding: 8px 10px; border:1px solid #999; border-radius:4px; font-size:14px;
       display: block;               /* 幅指定を確実に効かせる（保険） */
+    }
+
+    /* ★追加：各カード左上の削除アイコン */
+    .deckselect-item .deckdelete-btn{
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
+      user-select: none;
+      border: none !important;     /* ★枠線（.deckselect-item img の border）を打ち消す */
+      outline: none;               /* フォーカス輪郭も消す */
+      background: none;            /* 念のため背景も無効化 */
     }
   </style>
 </head>
@@ -4007,6 +4024,17 @@
 
           paintDeckBg(item, name); // ★ 先頭2文字の色で背景を塗る
 
+          // ★追加：左上の削除（delete.png）
+          const del = document.createElement('img');
+          del.src = 'component_images/delete.png';
+          del.alt = '削除';
+          del.className = 'deckdelete-btn';
+          del.addEventListener('click', (ev) => {
+            ev.stopPropagation();                 // 他のクリック処理に干渉しない
+            // 共通モーダルを表示（はい押下時の実処理は未実装）
+            mdConfirm('デッキを削除しますか？');
+          }); 
+
           const img = document.createElement('img');
           img.loading = 'lazy';
           img.src = `deck_built/${encodeURIComponent(USER)}/${encodeURIComponent(name)}/leader.png`; // 例: /deck_built/user001/黒イム/leader.png
@@ -4077,7 +4105,7 @@
             }
           });
 
-          item.append(img, nm, btnSee, btnPick);
+          item.append(del, img, nm, btnSee, btnPick);
           frag.appendChild(item);
         });
         deckSelList.appendChild(frag);
