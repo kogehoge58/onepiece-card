@@ -30,7 +30,12 @@ const fs   = require('fs');
 
 // 既存の app = express() の後あたりに
 app.get('/api/deckbuilt', (req, res) => {
-  const base = path.join(__dirname, 'public', 'deck_built');
+  const user = pickUser(req);
+  const base = path.join(__dirname, 'public', 'deck_built', user);
+  if (!fs.existsSync(base)) {
+    res.set('Cache-Control', 'no-store');
+    return res.json({ folders: [] });
+  }
   fs.readdir(base, { withFileTypes: true }, (err, entries) => {
     if (err) return res.status(500).json({ error: String(err) });
     const folders = entries
@@ -58,7 +63,8 @@ app.post('/api/deck/apply', async (req, res) => {
     }
 
     const base = path.join(__dirname, 'public');
-    const srcDir = path.join(base, 'deck_built', folder);
+    const user = pickUser(req);
+    const srcDir = path.join(base, 'deck_built', user, folder);
     const srcLeader = path.join(srcDir, 'leader.png');
     const srcImages = path.join(srcDir, 'images');
 
@@ -204,6 +210,14 @@ function pickRoom(req){
   const q = (req.query && req.query.room) || fromRef || 'dev';
   // ルーム名をサニタイズ（英数-_のみ）
   return String(q).replace(/[^\w-]/g, '_');
+}
+
+// ▼ 追加：?user= を取得（無ければ Referer から）。英数のみ許可。
+function pickUser(req){
+  const ref = new URL(req.headers.referer || 'http://x/?user=user');
+  const fromRef = ref.searchParams.get('user');
+  const q = (req.query && req.query.user) || fromRef || 'user';
+  return String(q).replace(/[^A-Za-z0-9]/g, '_');
 }
 
 app.get(/^\/deck\/(.+)$/, (req, res) => {

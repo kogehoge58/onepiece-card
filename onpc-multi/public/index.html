@@ -1183,6 +1183,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const ROOM = new URLSearchParams(location.search).get('room') || 'dev';
+    const USER = new URLSearchParams(location.search).get('user') || 'user';  
     const withRoom = (url) => url + (url.includes('?') ? '&' : '?') +
                       'room=' + encodeURIComponent(ROOM);
 
@@ -3795,7 +3796,7 @@
 
       // 1) API（後述の /api/deckbuilt）
       try{
-        const r = await fetch('/api/deckbuilt', { cache:'no-store' });
+        const r = await fetch('/api/deckbuilt?user=' + encodeURIComponent(USER), { cache:'no-store' });
         if (r.ok){
           const j = await r.json();
           deckBuiltFolders = Array.isArray(j) ? j : (j.folders || []);
@@ -3804,9 +3805,9 @@
         }
       }catch(_){}
 
-      // 2) 静的JSON（public/deck_built/_list.json）
+      // 2) 静的JSON（public/deck_built/<USER>/_list.json）
       try{
-        const r2 = await fetch('deck_built/_list.json', { cache:'no-store' });
+        const r2 = await fetch('deck_built/' + encodeURIComponent(USER) + '/_list.json', { cache:'no-store' });
         if (r2.ok){
           const j2 = await r2.json();
           deckBuiltFolders = Array.isArray(j2) ? j2 : (j2.folders || []);
@@ -3950,7 +3951,7 @@
 
           const img = document.createElement('img');
           img.loading = 'lazy';
-          img.src = `deck_built/${encodeURIComponent(name)}/leader.png`; // 例: /deck_built/黒イム/leader.png
+          img.src = `deck_built/${encodeURIComponent(USER)}/${encodeURIComponent(name)}/leader.png`; // 例: /deck_built/user001/黒イム/leader.png
           img.alt = name;
 
           const nm  = document.createElement('div');
@@ -3976,7 +3977,7 @@
             const orig = btnPick.textContent;
             btnPick.textContent = '適用中…';
             try {
-              const r = await fetch('/api/deck/apply?room='+encodeURIComponent(ROOM), {
+              const r = await fetch('/api/deck/apply?room='+encodeURIComponent(ROOM)+'&user='+encodeURIComponent(USER), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ player: DECK_SELECT_PLAYER, folder: name })
@@ -4098,7 +4099,7 @@
 
     function buildCardListPaths(folder){
       // フォルダは未エンコードで組んでから、セグメント単位で1回だけエンコード
-      const base = encodeURI(`deck_built/${folder}`);
+      const base = encodeURI(`deck_built/${USER}/${folder}`);
 
       const list = [
         `${base}/leader.png`,
