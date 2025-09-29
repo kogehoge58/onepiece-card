@@ -293,7 +293,11 @@
     .deckselect-list{
       flex: 1; overflow: auto;
       display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
-      padding-inline-end: 20px; /* スクロールバー溝の調整は既存モーダルと同様 */
+      padding-inline-end: 20px;
+      align-content: start;      /* 行の上下引き伸ばし防止 */
+      align-items: start;        /* アイテムの縦ストレッチ無効 */
+      grid-auto-flow: row;       /* 念のため“行優先”を明示 */
+      grid-auto-rows: minmax(100px, auto); /* ★各行の高さを一定以上にし、内容に応じて拡張 */
     }
     .deckselect-item{
       display: flex; align-items: center; gap: 16px;
@@ -301,7 +305,8 @@
       padding: 20px 16px;                /* 余白も少し増量 */
       min-height: 100px;                 /* ★縦幅：およそ倍に */
       background: #fff;
-      position: relative; overflow: hidden; /* 背景グラデ維持 */
+      position: relative; overflow: hidden;
+      align-self: stretch;  /* ★行の高さに合わせてアイテムも伸ばす */
     }
     .deckselect-item img{
       width: 80px; height: 80px;       /* ★画像サイズも倍に */
