@@ -1043,6 +1043,15 @@
         </div>
         -->
 
+        <!-- ユーザー名 -->
+        <div id="user-name-row" class="room-row">
+          <div class="room-label"><span class="req">*</span>ユーザー名</div>
+          <div class="room-field room-name-field">
+            <input id="user-name-input" type="text" placeholder="例：user001（半角英数のみ）" pattern="[0-9A-Za-z]+">
+            <span id="user-name-error" class="room-error" style="display:none;">※入力必須です。</span>
+          </div>
+        </div>
+
         <!-- ルーム名 -->
         <div id="room-name-row" class="room-row">
           <div class="room-label"><span class="req">*</span>ルーム名</div>
@@ -4163,6 +4172,9 @@
     const roomBackdrop   = document.getElementById('room-backdrop');
     const roomForm       = document.getElementById('room-form');
     const roomSideRow    = document.getElementById('room-side-row');
+    const userNameRow    = document.getElementById('user-name-row');
+    const userNameInput  = document.getElementById('user-name-input');
+    const userNameError  = document.getElementById('user-name-error');
     const roomNameRow    = document.getElementById('room-name-row');
     const roomNameInput  = document.getElementById('room-name-input');
     const roomNameError  = document.getElementById('room-name-error');
@@ -4171,9 +4183,12 @@
     function openRoomSettings(){
       // 初期状態（サイド行は非表示化済み）
       if (roomForm.side) roomForm.side.value = 'A';
+      userNameInput.value = '';
+      userNameError.style.display = 'none';
       roomNameInput.value = '';
       roomNameError.style.display = 'none';
       if (roomSideRow) roomSideRow.style.display = '';
+      if (userNameRow) userNameRow.style.display = '';
       if (roomNameRow) roomNameRow.style.display = '';
 
       roomBackdrop.style.display = 'flex';
@@ -4201,13 +4216,16 @@
       return s;
     }
 
-    // 入室（name は一律 'user'）
+    // 入室（user をクエリに反映）
     roomEnterBtn.addEventListener('click', () => {
       const base = location.origin;                 // 実行中のドメインを利用
       const room = (roomNameInput.value || '').trim();
-      if (!room) { roomNameError.style.display = 'inline'; return; }
-      roomNameError.style.display = 'none';
-      const url = `${base}/?room=${encodeURIComponent(room)}&name=${encodeURIComponent('user')}`;
+      const user = (userNameInput.value || '').trim();
+      let invalid = false;
+      if (!user) { userNameError.style.display = 'inline'; invalid = true; } else { userNameError.style.display = 'none'; }
+      if (!room) { roomNameError.style.display = 'inline'; invalid = true; } else { roomNameError.style.display = 'none'; }
+      if (invalid) return;
+      const url = `${base}/?room=${encodeURIComponent(room)}&user=${encodeURIComponent(user)}`;
       // 遷移（※非同期通信なし）
       location.href = url;
     });
@@ -4215,8 +4233,8 @@
    // === 起動時にルーム設定モーダルを開く ===
     window.addEventListener('load', () => {
       const qp = new URLSearchParams(location.search);
-      // ▼「room と name が未指定のときだけ」開く（常に開きたい場合は if を削除）
-      if (!qp.get('room') || !qp.get('name')) {
+      // ▼「room と user が未指定のときだけ」開く（常に開きたい場合は if を削除）
+      if (!qp.get('room') || !qp.get('user')) {
         if (typeof openRoomSettings === 'function') {
           requestAnimationFrame(openRoomSettings);
         }
@@ -4925,10 +4943,10 @@
 
 
 
-    // ====== 1) 接続（name は一律 'user'） ======
+    // ====== 1) 接続（name はクエリ user を採用） ======
     const qs   = new URLSearchParams(location.search);
     const room = qs.get('room') || 'dev';
-    const name = 'user';
+    const name = qs.get('user') || 'user';
     const socket = io({ query: { room, name } });
 
     let MY_SEAT = 'P1';
