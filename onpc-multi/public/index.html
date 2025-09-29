@@ -1129,13 +1129,6 @@
         <div class="modal-title">アップロード</div>
       </div>
       <form id="upload-form" class="upload-form" onsubmit="return false;">
-        <!-- デッキ名（必須） -->
-        <div class="upl-row upl-inline">
-          <div class="upl-label"><span class="req">*</span>デッキ名</div>
-          <div class="upl-field">
-            <input id="upl-deck-title" type="text" class="upl-text" placeholder="「色 + リーダー名 + 備考」形式推奨/25文字以内">
-          </div>
-        </div>
         <!-- リーダー画像（1枚） -->
         <div class="upl-row">
           <div class="upl-label"><span class="req">*</span>リーダー画像（1枚）</div>
@@ -1158,7 +1151,15 @@
             <div id="upl-deck-name" class="upl-name">ここに選択された画像の名称が表示されます。</div>
           </div>
         </div>
+        <!-- デッキ名（必須） -->
+        <div class="upl-row upl-inline">
+          <div class="upl-label"><span class="req">*</span>デッキ名</div>
+          <div class="upl-field">
+            <input id="upl-deck-title" type="text" class="upl-text" placeholder="「色 + リーダー名 + 備考」形式推奨 / 25文字以内">
+          </div>
+        </div>
         <div class="upload-note">※アップロードしたデッキは、「メニュー＞デッキ選択」から確認できます。</div>
+        <div class="upload-note">※既存のデッキ名とデッキ名を一致させることで、デッキリストを更新できます。</div>
         <div class="upload-actions">
           <button id="upl-submit" class="btn-primary" type="button">アップロード</button>
         </div>
@@ -3825,7 +3826,10 @@
 
       // 1) API（後述の /api/deckbuilt）
       try{
-        const r = await fetch('/api/deckbuilt?user=' + encodeURIComponent(USER), { cache:'no-store' });
+        const r = await fetch(
+          '/api/deckbuilt?user=' + encodeURIComponent(USER) + '&_=' + Date.now(),
+          { cache:'no-store' }
+        );
         if (r.ok){
           const j = await r.json();
           deckBuiltFolders = Array.isArray(j) ? j : (j.folders || []);
@@ -4059,6 +4063,8 @@
     }
 
     function openDeckSelect(){
+      // ★アップロード直後でも常に最新を出す：一覧キャッシュを無効化
+      deckFoldersLoaded = false;
       renderDeckSelectList();                      // ← 非同期で一覧を埋める
       deckSelBackdrop.style.display = 'flex';
       deckSelBackdrop.setAttribute('aria-hidden', 'false');
