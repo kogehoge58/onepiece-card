@@ -4216,14 +4216,37 @@
       return s;
     }
 
-    // 入室（user をクエリに反映）
+    // 入室（user をクエリに反映）※DC: 必須 + 文字種（半角英数）チェックを追加
     roomEnterBtn.addEventListener('click', () => {
       const base = location.origin;                 // 実行中のドメインを利用
       const room = (roomNameInput.value || '').trim();
       const user = (userNameInput.value || '').trim();
+      const alnum = /^[0-9A-Za-z]+$/;
       let invalid = false;
-      if (!user) { userNameError.style.display = 'inline'; invalid = true; } else { userNameError.style.display = 'none'; }
-      if (!room) { roomNameError.style.display = 'inline'; invalid = true; } else { roomNameError.style.display = 'none'; }
+      // ユーザー名：必須 + 文字種
+      if (!user) {
+        userNameError.textContent = '※入力必須';
+        userNameError.style.display = 'inline';
+        invalid = true;
+      } else if (!alnum.test(user)) {
+        userNameError.textContent = '※半角英数のみ';
+        userNameError.style.display = 'inline';
+        invalid = true;
+      } else {
+        userNameError.style.display = 'none';
+      }
+      // ルーム名：必須 + 文字種
+      if (!room) {
+        roomNameError.textContent = '※入力必須';
+        roomNameError.style.display = 'inline';
+        invalid = true;
+      } else if (!alnum.test(room)) {
+        roomNameError.textContent = '※半角英数のみ';
+        roomNameError.style.display = 'inline';
+        invalid = true;
+      } else {
+        roomNameError.style.display = 'none';
+      }
       if (invalid) return;
       const url = `${base}/?room=${encodeURIComponent(room)}&user=${encodeURIComponent(user)}`;
       // 遷移（※非同期通信なし）
