@@ -97,6 +97,7 @@
       height: 90vh;                /* 既存どおり縦は固定 */
       border-radius: 10px; padding: 16px;
       display: flex; flex-direction: column;
+      overflow: hidden;            /* ★モーダルの枠外に内容が漏れないようにする */
     }
 
     /* ★モーダル背景色バリエーション */
@@ -603,7 +604,14 @@
 
     /* ==== アップロードモーダル ==== */
     .upload-modal{ width: min(720px, 92vw); height:auto; }
-    .upload-form{ padding:16px 20px 22px; }
+    .upload-form{
+      padding:16px 20px 22px;
+      flex: 1 1 auto;             /* ★ヘッダーの下を占める */
+      overflow: auto;              /* ★縦スクロール許可 */
+      overscroll-behavior: contain;/* iOSのバウンスが背面に伝播しないように */
+      padding-inline-end: 18px;    /* 縦スクロールバー分の余白（見切れ防止） */
+      box-sizing: border-box;
+    }
     .upl-pick{ border:0; background:transparent; padding:0; width:36px; height:36px; display:inline-grid; place-items:center; cursor:pointer; }
     .upl-pick img{ width:30px; height:30px; display:block; }
     .upl-name{
@@ -1129,6 +1137,13 @@
         <div class="modal-title">アップロード</div>
       </div>
       <form id="upload-form" class="upload-form" onsubmit="return false;">
+        <!-- デッキ名（必須） -->
+        <div class="upl-row upl-inline">
+          <div class="upl-label"><span class="req">*</span>デッキ名</div>
+          <div class="upl-field">
+            <input id="upl-deck-title" type="text" class="upl-text" placeholder="「色 + リーダー名 + 備考」形式推奨 / 25文字以内">
+          </div>
+        </div>
         <!-- リーダー画像（1枚） -->
         <div class="upl-row">
           <div class="upl-label"><span class="req">*</span>リーダー画像（1枚）</div>
@@ -1149,13 +1164,6 @@
               <img src="component_images/upload.png" alt="upload">
             </button>
             <div id="upl-deck-name" class="upl-name">ここに選択された画像の名称が表示されます。</div>
-          </div>
-        </div>
-        <!-- デッキ名（必須） -->
-        <div class="upl-row upl-inline">
-          <div class="upl-label"><span class="req">*</span>デッキ名</div>
-          <div class="upl-field">
-            <input id="upl-deck-title" type="text" class="upl-text" placeholder="「色 + リーダー名 + 備考」形式推奨 / 25文字以内">
           </div>
         </div>
         <div class="upload-note">※アップロードしたデッキは、「メニュー＞デッキ選択」から確認できます。</div>
@@ -1487,13 +1495,9 @@
       e.preventDefault();
       const errBox = document.getElementById('upl-error');
       if (errBox) errBox.innerHTML = '&nbsp;';
-      // ★必須チェック：デッキ名
+      // 入力済みのデッキ名（前後空白除去）
       const titleEl = document.getElementById('upl-deck-title');
-      if (!titleEl || !titleEl.value.trim()){
-        if (errBox) errBox.textContent = '※デッキ名が入力されていません。';
-        titleEl?.focus?.();
-        return;
-      }
+      const title   = (titleEl?.value ?? '').trim();
 
       // datasetが消えても特定できるように退避値を優先
       const player = UPLOAD_PLAYER || (mainMenuEl && mainMenuEl.dataset && mainMenuEl.dataset.player) || null;
@@ -1504,8 +1508,21 @@
       const leaderFile = leaderInp?.files?.[0];
       const deckFiles  = Array.from(deckInp?.files || []);
 
-      // ★DC: 必須 & 枚数 (=50) チェック。複数エラーは縦に積んで表示
+      // ★DC: エラーを縦積み表示
       const dcErrors = [];
+      // デッキ名の必須
+      if (title === '') {
+        dcErrors.push('※デッキ名が入力されていません。');
+      }
+      // タイトルが空でない場合のみ、追加のDCを適用
+      if (title !== '') {
+        if (title.length > 25) {
+          dcErrors.push('※デッキ名は25文字以内で入力してください。');
+        }
+        if (/[\\\/:*?"<>|]/.test(title)) {
+          dcErrors.push('※デッキ名に使用できない文字が入力されています。');
+        }
+      }
       if (!leaderFile) dcErrors.push('※リーダー画像が選択されていません。');
       if (deckFiles.length === 0) {
         dcErrors.push('※デッキ画像が選択されていません。');
@@ -1514,6 +1531,8 @@
       }
       if (dcErrors.length){
         if (errBox) errBox.innerHTML = dcErrors.map(m => `<div>${m}</div>`).join('');
+        if (title === '') titleEl?.focus?.();
+        document.getElementById('upload-form')?.scrollTo({ top: 1e9, behavior: 'smooth' }); // ★追加：下までスクロール
         return;
       }
       // ★追加：この導線では最初にリセット（確認アラートは出さない）
