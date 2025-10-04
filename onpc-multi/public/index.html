@@ -5466,13 +5466,15 @@
       }
     }
     function capturePiece(cell){
-      if (!cell) return { src:'', rest:false, don:0 };
+      if (!cell) return { src:'', rest:false, don:0, noAttack:false };
       const img  = cell.querySelector('img');
       const src  = img ? img.getAttribute('src') : '';
       // ★修正：表示実装に合わせて isRest() 判定に統一
       const rest = isRest(cell);
       const don  = (typeof getDonCount === 'function') ? (getDonCount(cell) || 0) : 0;
-      return { src, rest, don };
+      // ★追加：no_attack.png の表示有無を保存（リーダー/キャラ共通）
+      const noAttack = !!cell.querySelector('.no-attack-icon');
+      return { src, rest, don, noAttack };
     }
     function applyPiece(cell, data){
       data = data || {};
@@ -5482,9 +5484,25 @@
       if (!data.src) {
         const chip = cell?.querySelector?.('.don-chip');
         if (chip) chip.remove();
+        // ★追加：カードが不在なら攻撃不可アイコンも除去
+        cell?.querySelectorAll?.('.no-attack-icon').forEach(el => el.remove());
       } else if (typeof setDonCount === 'function') {
         // カードが存在するときのみドン枚数を反映
         setDonCount(cell, Number(data.don || 0));
+      }
+      // ★追加：no_attack.png の表示有無を反映（リーダー/キャラのみ）
+      const isChara  = (cell?.id || '').includes('chara');
+      const isLeader = !!cell?.querySelector?.('#a-leader-img, #b-leader-img');
+      if (isChara || isLeader) {
+        // いったん既存のアイコンをクリア
+        cell?.querySelectorAll?.('.no-attack-icon').forEach(el => el.remove());
+        if (data.noAttack && data.src) {
+          const na = document.createElement('img');
+          na.className = 'no-attack-icon' + (isLeader ? ' leader-no-attack' : '');
+          na.src = 'component_images/no_attack.png';
+          na.alt = 'no-attack';
+          cell.appendChild(na);
+        }
       }
     }
 
