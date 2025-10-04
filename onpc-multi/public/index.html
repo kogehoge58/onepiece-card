@@ -3706,8 +3706,37 @@
         return;
       }
 
+      // ★ライフ内での上下移動時は「表向き」状態を維持する
+      //   さらに、一覧モーダル上で直前に表向きにした直後でも確実に判定できるよう
+      //   DOMの表示状態も併用して判定する（サーバ反映の競合対策）
+      let wasLifeRevealed = false;
+      if (from === 'life' && to === 'life') {
+        const k = `life-${player}`;
+        // 1) サーバ同期済みセットを参照
+        wasLifeRevealed = !!(revealedFaces?.[k]?.has(src));
+        // 2) まだセットに反映前の可能性がある場合は、一覧モーダルの実表示を参照
+        if (!wasLifeRevealed &&
+            backdrop?.style.display === 'flex' &&
+            thumbsContext?.area === 'life' &&
+            thumbsContext?.player === player) {
+          const img = Array.from(thumbs.querySelectorAll('.thumb-wrap img'))
+            .find(el => el?.dataset?.src &&
+                        normalizeSrc(el.dataset.src) === normalizeSrc(src));
+          if (img) {
+            // 表＝現在srcがdata-src（実画像）と同じ
+            wasLifeRevealed = (normalizeSrc(img.getAttribute('src')) === normalizeSrc(img.dataset.src));
+          }
+        }
+      }
+
       removeFromArea(player, from, src);
       addToArea(player, to, src, pos);
+
+      if (to === 'life' && wasLifeRevealed) {
+        const k = `life-${player}`;
+        (revealedFaces[k] ||= new Set()).add(src);
+      }
+
       // ★追加：from と to の両方をケア
       refreshIfOpen(from, player);
       refreshIfOpen(to,   player);
