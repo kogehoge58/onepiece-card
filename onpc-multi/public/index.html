@@ -5461,11 +5461,16 @@
           donRest: Number(donRestCounts?.[p] || 0),
         },
       });
-      const pickBoard = (p) => ({
-        leader: capturePiece(document.getElementById(p.toLowerCase() + '-leader-img')),
-        stage : capturePiece(document.getElementById(p.toLowerCase() + '-stage')),
-        chara : [1,2,3,4,5].map(i => capturePiece(document.getElementById(`${p.toLowerCase()}-chara-${i}`))),
-      });
+      const pickBoard = (p) => {
+        const base = p.toLowerCase();
+        // ★変更：リーダーは IMG ではなく親の .card をセルとして扱う（ドンチップはセル側に付与）
+        const leaderCell = document.getElementById(`${base}-leader-img`)?.closest('.card');
+        return {
+          leader: capturePiece(leaderCell),
+          stage : capturePiece(document.getElementById(`${base}-stage`)),
+          chara : [1,2,3,4,5].map(i => capturePiece(document.getElementById(`${base}-chara-${i}`))),
+        };
+      };
       return {
         v: 1,
         ex: {
@@ -5498,8 +5503,10 @@
       const applyBoard = (p, data) => {
         if (!data) return;
         const base = p.toLowerCase();
-        applyPiece(document.getElementById(base + '-leader-img'), data.leader);
-        applyPiece(document.getElementById(base + '-stage'),      data.stage);
+        // ★変更：復元時もリーダーは .card セルに対して適用（ドン枚数が正しく復元される）
+        const leaderCell = document.getElementById(`${base}-leader-img`)?.closest('.card');
+        applyPiece(leaderCell, data.leader);
+        applyPiece(document.getElementById(`${base}-stage`), data.stage);
         [1,2,3,4,5].forEach((i) => applyPiece(document.getElementById(`${base}-chara-${i}`), data.chara?.[i-1]));
       };
       applyPiles('A', s?.A?.piles);  applyBoard('A', s?.A?.board);
