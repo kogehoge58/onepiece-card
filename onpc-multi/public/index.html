@@ -5112,6 +5112,30 @@
       } catch (e) {
         console.error('apply turn state failed', e);
       }
+      // ★追加：ライフ一覧 表/裏の状態を復元
+      try {
+        const lr = state?.lifeRevealed;
+        if (lr && typeof revealedFaces !== 'undefined') {
+          revealedFaces['life-A'] = new Set(lr.A || []);
+          revealedFaces['life-B'] = new Set(lr.B || []);
+          // ※モーダル再描画は既存の処理（open/refresh）に委譲
+        }
+      } catch (e) {
+        console.error('apply life reveal failed', e);
+      }
+
+      // ★追加：ドンデッキ alert.png の表示有無を復元
+      try {
+        const da = state?.donAlert;
+        if (da) {
+          const aAlert = document.getElementById('a-don-deck-label')?.closest('.don-deck')?.querySelector('.alert-icon');
+          const bAlert = document.getElementById('b-don-deck-label')?.closest('.don-deck')?.querySelector('.alert-icon');
+          if (aAlert) aAlert.style.display = (da.A ? '' : 'none');
+          if (bAlert) bAlert.style.display = (da.B ? '' : 'none');
+        }
+      } catch (e) {
+        console.error('apply don alert failed', e);
+      }
     });
     // ★追加：入室ハンドシェイク後に明示 pull（保険）
     socket.on('room:hello', () => socket.emit('snapshot:pull'));
@@ -5426,6 +5450,25 @@
             beginCount: (typeof TURN_BEGIN_COUNT !== 'undefined') ? Number(TURN_BEGIN_COUNT) : 0,
             firstBootstrap: !!(typeof FIRST_TURN_DON_BOOTSTRAP !== 'undefined' ? FIRST_TURN_DON_BOOTSTRAP : false),
           };
+          // ★追加：ライフ一覧の表/裏状態を保存
+          try {
+            if (typeof revealedFaces !== 'undefined') {
+              snap.lifeRevealed = {
+                A: Array.from(revealedFaces['life-A'] || []),
+                B: Array.from(revealedFaces['life-B'] || []),
+              };
+            }
+          } catch (e) { console.error('capture lifeRevealed failed', e); }
+
+          // ★追加：ドンデッキの alert.png の表示有無を保存
+          try {
+            const aAlert = document.getElementById('a-don-deck-label')?.closest('.don-deck')?.querySelector('.alert-icon');
+            const bAlert = document.getElementById('b-don-deck-label')?.closest('.don-deck')?.querySelector('.alert-icon');
+            snap.donAlert = {
+              A: !!(aAlert && aAlert.style.display !== 'none'),
+              B: !!(bAlert && bAlert.style.display !== 'none'),
+            };
+          } catch (e) { console.error('capture don alert failed', e); }
           socket.emit('snapshot:push', snap);
         } catch (e) {
           console.error(e);
