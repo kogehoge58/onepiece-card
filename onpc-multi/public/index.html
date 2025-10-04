@@ -5513,6 +5513,11 @@
       const bExRow = document.getElementById('b-ex'); if (bExRow) bExRow.classList.add('ex-off');
       // ラベル等の数表示を更新（既存描画関数を使用）
       if (typeof renderCounts === 'function') renderCounts();
+      // ★追加：保存盤面反映時にもトラッシュの表面画像を同期
+      if (typeof updateTrashFace === 'function') {
+        updateTrashFace('A');
+        updateTrashFace('B');
+      }
       if (typeof refreshIfOpen === 'function') {
         ['deck','hand','life','trash'].forEach(area => { refreshIfOpen(area, 'A'); refreshIfOpen(area, 'B'); });
       }
