@@ -5520,16 +5520,31 @@
     // ====== Snapshot helper ======
     function setCellImage(cell, src){
       if (!cell) return;
+      // 重複付与防止つき：左クリックで拡大プレビュー
+      const bindPreview = (el) => {
+        if (!el?.dataset?.previewBound) {
+          el.addEventListener('click', () => {
+            const s = (el.dataset?.src || el.getAttribute('src') || '');
+            openImagePreview(s, el.alt || '');
+          });
+          el.dataset.previewBound = '1';
+        }
+      };
+
       const img = cell.querySelector('img');
       if (src) {
         let el = img;
         if (!el) {
           cell.textContent = '';
           el = document.createElement('img');
-          el.alt = '';
+          // ざっくりでも alt を入れておく（なくても動作はする）
+          el.alt = (cell.id || '').toUpperCase();
           cell.appendChild(el);
         }
+        // ?v 保持系の取得元と合わせるため dataset.src もセット
+        el.dataset.src = src;
         el.src = src;
+        bindPreview(el);
       } else {
         if (img) img.remove();
         // 既定ラベルの復元（簡易）
@@ -5552,6 +5567,24 @@
       data = data || {};
       setCellImage(cell, data.src || '');
       if (typeof setRestState === 'function') setRestState(cell, !!data.rest);
+
+      // ★追加：占有状態（charaImages / stageImage）をスナップショット適用でも同期
+      try {
+        const id = cell?.id || '';
+        const m  = id.match(/^([ab])-chara-(\d)$/i);
+        if (m && typeof charaImages !== 'undefined') {
+          const player = m[1].toUpperCase();
+          const idx    = parseInt(m[2], 10) - 1; // 0-based
+          if (idx >= 0 && idx < 5) {
+            // 画像あり→srcを記録 / 画像なし→nullで空きを記録
+            charaImages[player][idx] = data.src || null;
+          }
+        } else if ((id === 'a-stage' || id === 'b-stage') && typeof stageImage !== 'undefined') {
+          const player = id.startsWith('a-') ? 'A' : 'B';
+          stageImage[player] = data.src || null;
+        }
+      } catch (_) {}
+
       // ★変更：キャラが「不在」のときはドンチップそのものを除去（0表示もしない）
       if (!data.src) {
         const chip = cell?.querySelector?.('.don-chip');
