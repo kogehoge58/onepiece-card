@@ -5128,9 +5128,21 @@
     const room = qs.get('room') || 'dev';
     const name = qs.get('user') || 'user';
     const socket = io({ query: { room, name } });
+    // ★追加：最新 action のサーバ時刻を保持（因果順序ガード用）
+    let LAST_ACTION_TS_SEEN = 0;
+    socket.on('action', (enriched) => {
+      const ts = Number(enriched && enriched._ts) || 0;
+      if (ts > LAST_ACTION_TS_SEEN) LAST_ACTION_TS_SEEN = ts;
+    });
 
     // ★追加：サーバから配られるスナップショットを適用
     socket.on('snapshot:apply', (state) => {
+      // 古いスナップショットは無視（直近 action を下回るなら適用しない）
+      const since = Number(state && state._sinceTs) || 0;
+      if (since && since < LAST_ACTION_TS_SEEN) {
+        // console.warn('drop stale snapshot on client', { since, seen: LAST_ACTION_TS_SEEN });
+        return;
+      }
       // 既存の盤面復元
       try { applySnapshot(state); } catch (e) { console.error('applySnapshot failed', e); }
       // ★追加：ターン情報（赤枠／カウンタ）も復元
@@ -5514,6 +5526,8 @@
               B: !!(bAlert && bAlert.style.display !== 'none'),
             };
           } catch (e) { console.error('capture don alert failed', e); }
+          // ★追加：このスナップショットが取り込んでいる最新 action の時刻
+          snap._sinceTs = LAST_ACTION_TS_SEEN || 0;
           socket.emit('snapshot:push', snap);
         } catch (e) {
           console.error(e);

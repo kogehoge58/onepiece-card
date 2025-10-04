@@ -340,11 +340,19 @@ io.on('connection', (socket) => {
   socket.on('action', (payload = {}, ack) => {
     const enriched = { ...payload, _from: socket.id, _ts: Date.now() };
     io.to(roomId).emit('action', enriched);
+    // ★追加：この action の因果時刻を記録（snapshot の古い上書きを防止）
+    info.lastActionTs = enriched._ts;
     if (ack) ack({ ok: true });
   });
 
   // --- 盤面スナップショット: 全員から受け付け、保持＆配信 ---
   socket.on('snapshot:push', (state) => {
+    // ★追加：古いスナップショットは破棄（直近 action 未反映の state を弾く）
+    const since = Number(state && state._sinceTs) || 0;
+    if (since && info.lastActionTs && since < info.lastActionTs) {
+      // console.debug('drop stale snapshot', { since, last: info.lastActionTs });
+      return;
+    }
     info.state = state;
     socket.to(roomId).emit('snapshot:apply', state);
   });
@@ -377,7 +385,8 @@ server.listen(PORT, () => {
 
 /* ================= ヘルパ ================= */
 function createRoomInfo() {
-  return { roster: new Map(), state: null };
+  // lastActionTs: そのルームで最後にブロードキャストした action の時刻（_ts）
+  return { roster: new Map(), state: null, lastActionTs: 0 };
 }
 function publishRoster(roomId, info) {
   const list = [...info.roster.entries()].map(([id, p]) => ({ id, name: p.name, role: p.role, seat: p.seat }));
