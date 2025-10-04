@@ -3055,9 +3055,13 @@
           b.textContent = 'レスト';
           cell.appendChild(b);
         }
+        // ★互換：旧実装互換のためクラスも付与（保存系/CSS用）
+        cell.classList.add('rest');
       }else{
         ov && ov.remove();
         bd && bd.remove();
+        // ★互換：旧実装互換のためクラスも除去
+        cell.classList.remove('rest');
       }
     }
 
@@ -5425,9 +5429,10 @@
     }
     function capturePiece(cell){
       if (!cell) return { src:'', rest:false, don:0 };
-      const img = cell.querySelector('img');
-      const src = img ? img.getAttribute('src') : '';
-      const rest = cell.classList?.contains?.('rest') || false;
+      const img  = cell.querySelector('img');
+      const src  = img ? img.getAttribute('src') : '';
+      // ★修正：表示実装に合わせて isRest() 判定に統一
+      const rest = isRest(cell);
       const don  = (typeof getDonCount === 'function') ? (getDonCount(cell) || 0) : 0;
       return { src, rest, don };
     }
