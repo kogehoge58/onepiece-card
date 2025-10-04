@@ -5435,7 +5435,14 @@
       data = data || {};
       setCellImage(cell, data.src || '');
       if (typeof setRestState === 'function') setRestState(cell, !!data.rest);
-      if (typeof setDonCount === 'function')  setDonCount(cell, Number(data.don || 0));
+      // ★変更：キャラが「不在」のときはドンチップそのものを除去（0表示もしない）
+      if (!data.src) {
+        const chip = cell?.querySelector?.('.don-chip');
+        if (chip) chip.remove();
+      } else if (typeof setDonCount === 'function') {
+        // カードが存在するときのみドン枚数を反映
+        setDonCount(cell, Number(data.don || 0));
+      }
     }
 
     function captureSnapshot(){
@@ -5498,8 +5505,12 @@
       applyPiles('A', s?.A?.piles);  applyBoard('A', s?.A?.board);
       applyPiles('B', s?.B?.piles);  applyBoard('B', s?.B?.board);
       // EXトグル
-      const aEx = document.getElementById('a-ex-toggle'); if (aEx) aEx.checked = !!s?.ex?.A;
-      const bEx = document.getElementById('b-ex-toggle'); if (bEx) bEx.checked = !!s?.ex?.B;
+      // ★変更：保存盤面適用時は手札トグルを両者ともOFF固定（公開防止）
+      const aEx = document.getElementById('a-ex-toggle'); if (aEx) aEx.checked = false;
+      const bEx = document.getElementById('b-ex-toggle'); if (bEx) bEx.checked = false;
+      // 表示状態にも即反映（ex-off クラス付与でストリップを隠す）
+      const aExRow = document.getElementById('a-ex'); if (aExRow) aExRow.classList.add('ex-off');
+      const bExRow = document.getElementById('b-ex'); if (bExRow) bExRow.classList.add('ex-off');
       // ラベル等の数表示を更新（既存描画関数を使用）
       if (typeof renderCounts === 'function') renderCounts();
       if (typeof refreshIfOpen === 'function') {
