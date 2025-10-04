@@ -5090,7 +5090,28 @@
 
     // ★追加：サーバから配られるスナップショットを適用
     socket.on('snapshot:apply', (state) => {
+      // 既存の盤面復元
       try { applySnapshot(state); } catch (e) { console.error('applySnapshot failed', e); }
+      // ★追加：ターン情報（赤枠／カウンタ）も復元
+      try {
+        const t = state?.turn || {};
+        if (typeof TURN_BEGIN_COUNT !== 'undefined') {
+          TURN_BEGIN_COUNT = Number(t.beginCount || 0);
+        }
+        if (typeof FIRST_TURN_DON_BOOTSTRAP !== 'undefined') {
+          FIRST_TURN_DON_BOOTSTRAP = !!t.firstBootstrap;
+        }
+        if (t.player && typeof setActiveTurnUI === 'function') {
+          // 保存時点の「どっちのターンか」を全クライアントで再適用（赤枠）
+          setActiveTurnUI(t.player);
+        } else {
+          // プレイヤー不明時は赤枠を念のためクリア（保険）
+          const fields = document.querySelectorAll('.player-field');
+          fields?.forEach(f => f.classList.remove('turn-active'));
+        }
+      } catch (e) {
+        console.error('apply turn state failed', e);
+      }
     });
     // ★追加：入室ハンドシェイク後に明示 pull（保険）
     socket.on('room:hello', () => socket.emit('snapshot:pull'));
@@ -5391,7 +5412,24 @@
       if (__snapshotTimer) clearTimeout(__snapshotTimer);
       __snapshotTimer = setTimeout(() => {
         __snapshotTimer = null;
-        try { socket.emit('snapshot:push', captureSnapshot()); } catch (e) { console.error(e); }
+        try {
+          // 既存スナップショットを取得
+          const snap = captureSnapshot();
+          // ★追加：ターン情報（赤枠のプレイヤー／ターン経過カウンタ）も保存する
+          //   - 赤枠は .player-field.turn-active の有無から A/B を推定（DOM順でAが先、Bが後）
+          const fields = document.querySelectorAll('.player-field');
+          let turnPlayer = null;
+          if (fields?.[0]?.classList.contains('turn-active'))      turnPlayer = 'A';
+          else if (fields?.[1]?.classList.contains('turn-active')) turnPlayer = 'B';
+          snap.turn = {
+            player: turnPlayer,
+            beginCount: (typeof TURN_BEGIN_COUNT !== 'undefined') ? Number(TURN_BEGIN_COUNT) : 0,
+            firstBootstrap: !!(typeof FIRST_TURN_DON_BOOTSTRAP !== 'undefined' ? FIRST_TURN_DON_BOOTSTRAP : false),
+          };
+          socket.emit('snapshot:push', snap);
+        } catch (e) {
+          console.error(e);
+        }
       }, 120);
     }
     window.emitAction = (action) => {
