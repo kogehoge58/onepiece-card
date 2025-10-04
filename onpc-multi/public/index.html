@@ -1616,7 +1616,11 @@
         const v = Date.now();
         const base = (player === 'A') ? 'deck/player_A' : 'deck/player_B';
         const leaderEl = document.getElementById(player === 'A' ? 'a-leader-img' : 'b-leader-img');
-        if (leaderEl) leaderEl.src = withRoom(`${base}/leader.png?v=${v}`);
+        if (leaderEl) {
+          const p = withRoom(`${base}/leader.png?v=${v}`);
+          leaderEl.dataset.src = p;
+          leaderEl.src = p;
+        }
         const imgs = Array.from({ length: 50 }, (_, i) => withRoom(`${base}/images/image (${i + 1}).png?v=${v}`));
         deckImages[player] = imgs;
         deckCounts[player] = imgs.length;
@@ -3987,7 +3991,11 @@
         const v = Date.now();
         const base = (player === 'A') ? 'deck/player_A' : 'deck/player_B';
         const leaderEl = document.getElementById(player === 'A' ? 'a-leader-img' : 'b-leader-img');
-        if (leaderEl) leaderEl.src = withRoom(`${base}/leader.png?v=${v}`);
+        if (leaderEl) {
+          const p = withRoom(`${base}/leader.png?v=${v}`);
+          leaderEl.dataset.src = p;
+          leaderEl.src = p;
+        }
         const imgs = Array.from({ length: 50 }, (_, i) => withRoom(`${base}/images/image (${i+1}).png?v=${v}`));
         deckImages[player] = imgs;
         deckCounts[player] = imgs.length;
@@ -4131,9 +4139,13 @@
                 const v = Date.now(); // キャッシュバスター
                 const base = (player === 'A') ? 'deck/player_A' : 'deck/player_B';
 
-                // 1) ローカルUI更新（リーダー画像）
+                // 1) ローカルUI更新（リーダー画像）※プレビュー用の dataset.src も必ず更新
                 const leaderEl = document.getElementById(player === 'A' ? 'a-leader-img' : 'b-leader-img');
-                if (leaderEl) leaderEl.src = withRoom(`${base}/leader.png?v=${v}`);
+                if (leaderEl) {
+                  const p = withRoom(`${base}/leader.png?v=${v}`);
+                  leaderEl.dataset.src = p;
+                  leaderEl.src = p;
+                }
 
                 // 2) ローカルUI更新（デッキ50枚の配列を差し替え）
                 const imgs = Array.from({ length: 50 }, (_, i) => withRoom(`${base}/images/image (${i+1}).png?v=${v}`));
@@ -5316,9 +5328,13 @@
           const v = a?.v || Date.now();
           const base = (player === 'A') ? 'deck/player_A' : 'deck/player_B';
 
-          // リーダー画像の差し替え（キャッシュバスター付）
+          // リーダー画像の差し替え（キャッシュバスター付）＋ dataset.src も更新
           const leaderEl = document.getElementById(player === 'A' ? 'a-leader-img' : 'b-leader-img');
-          if (leaderEl) leaderEl.src = withRoom(`${base}/leader.png?v=${v}`);
+          if (leaderEl) {
+            const p = withRoom(`${base}/leader.png?v=${v}`);
+            leaderEl.dataset.src = p;
+            leaderEl.src = p;
+          }
 
           // デッキ50枚を差し替え（配列とカウント）
           const imgs = Array.from({ length: 50 }, (_, i) => withRoom(`${base}/images/image (${i+1}).png?v=${v}`));
