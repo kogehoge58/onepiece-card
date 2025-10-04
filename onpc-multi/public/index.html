@@ -5084,6 +5084,13 @@
     const name = qs.get('user') || 'user';
     const socket = io({ query: { room, name } });
 
+    // ★追加：サーバから配られるスナップショットを適用
+    socket.on('snapshot:apply', (state) => {
+      try { applySnapshot(state); } catch (e) { console.error('applySnapshot failed', e); }
+    });
+    // ★追加：入室ハンドシェイク後に明示 pull（保険）
+    socket.on('room:hello', () => socket.emit('snapshot:pull'));
+
     let MY_SEAT = 'P1';
 
     // === 受信：同室からのリロード要求 → 自動で再読み込み（ループ防止フラグ付き） ===
@@ -5374,18 +5381,130 @@
     });
 
     // ====== 3) 送信APIの提供 ======
-    if (!window.emitAction) {
-      window.emitAction = function(action) {
-        action.actor = myClientId();
-        socket.emit('action', action);
-      };
+    // ★差し替え：アクション送信のたびに保存（120msデバウンス）
+    let __snapshotTimer = null;
+    function scheduleSnapshotPush(){
+      if (__snapshotTimer) clearTimeout(__snapshotTimer);
+      __snapshotTimer = setTimeout(() => {
+        __snapshotTimer = null;
+        try { socket.emit('snapshot:push', captureSnapshot()); } catch (e) { console.error(e); }
+      }, 120);
     }
+    window.emitAction = (action) => {
+      action.actor = name || 'user';
+      socket.emit('action', action);
+      scheduleSnapshotPush(); // ★同期処理＝保存トリガ
+    };
 
     // 任意：盤面スナップショットの送出
     if (!window.pushSnapshot) {
       window.pushSnapshot = function(state) {
         socket.emit('snapshot:push', state);
       };
+    }
+
+    // ====== Snapshot helper ======
+    function setCellImage(cell, src){
+      if (!cell) return;
+      const img = cell.querySelector('img');
+      if (src) {
+        let el = img;
+        if (!el) {
+          cell.textContent = '';
+          el = document.createElement('img');
+          el.alt = '';
+          cell.appendChild(el);
+        }
+        el.src = src;
+      } else {
+        if (img) img.remove();
+        // 既定ラベルの復元（簡易）
+        if (cell.id?.includes('chara')) cell.textContent = 'CHARACTER';
+        else if (cell.id?.includes('stage')) cell.textContent = 'STAGE';
+      }
+    }
+    function capturePiece(cell){
+      if (!cell) return { src:'', rest:false, don:0 };
+      const img = cell.querySelector('img');
+      const src = img ? img.getAttribute('src') : '';
+      const rest = cell.classList?.contains?.('rest') || false;
+      const don  = (typeof getDonCount === 'function') ? (getDonCount(cell) || 0) : 0;
+      return { src, rest, don };
+    }
+    function applyPiece(cell, data){
+      data = data || {};
+      setCellImage(cell, data.src || '');
+      if (typeof setRestState === 'function') setRestState(cell, !!data.rest);
+      if (typeof setDonCount === 'function')  setDonCount(cell, Number(data.don || 0));
+    }
+
+    function captureSnapshot(){
+      const pickPiles = (p) => ({
+        deck : Array.from(deckImages?.[p]  || []),
+        hand : Array.from(handImages?.[p]  || []),
+        life : Array.from(lifeImages?.[p]  || []),
+        trash: Array.from(trashImages?.[p] || []),
+        counts: {
+          deck : Number(deckCounts?.[p]  || 0),
+          hand : Number(handCounts?.[p]  || 0),
+          life : Number(lifeCounts?.[p]  || 0),
+          trash: Number(trashCounts?.[p] || 0),
+          donDeck: Number(donDeckCounts?.[p] || 0),
+          donAct : Number(donActCounts?.[p]  || 0),
+          donRest: Number(donRestCounts?.[p] || 0),
+        },
+      });
+      const pickBoard = (p) => ({
+        leader: capturePiece(document.getElementById(p.toLowerCase() + '-leader-img')),
+        stage : capturePiece(document.getElementById(p.toLowerCase() + '-stage')),
+        chara : [1,2,3,4,5].map(i => capturePiece(document.getElementById(`${p.toLowerCase()}-chara-${i}`))),
+      });
+      return {
+        v: 1,
+        ex: {
+          A: !!document.getElementById('a-ex-toggle')?.checked,
+          B: !!document.getElementById('b-ex-toggle')?.checked,
+        },
+        A: { piles: pickPiles('A'), board: pickBoard('A') },
+        B: { piles: pickPiles('B'), board: pickBoard('B') },
+      };
+    }
+
+    function applySnapshot(s){
+      if (!s) return;
+      const applyPiles = (p, data) => {
+        if (!data) return;
+        deckImages[p]  = Array.isArray(data.deck)  ? data.deck.slice()  : [];
+        handImages[p]  = Array.isArray(data.hand)  ? data.hand.slice()  : [];
+        lifeImages[p]  = Array.isArray(data.life)  ? data.life.slice()  : [];
+        trashImages[p] = Array.isArray(data.trash) ? data.trash.slice() : [];
+        if (data.counts){
+          deckCounts[p]   = Number(data.counts.deck  || 0);
+          handCounts[p]   = Number(data.counts.hand  || 0);
+          lifeCounts[p]   = Number(data.counts.life  || 0);
+          trashCounts[p]  = Number(data.counts.trash || 0);
+          donDeckCounts[p]= Number(data.counts.donDeck || 0);
+          donActCounts[p] = Number(data.counts.donAct  || 0);
+          donRestCounts[p]= Number(data.counts.donRest || 0);
+        }
+      };
+      const applyBoard = (p, data) => {
+        if (!data) return;
+        const base = p.toLowerCase();
+        applyPiece(document.getElementById(base + '-leader-img'), data.leader);
+        applyPiece(document.getElementById(base + '-stage'),      data.stage);
+        [1,2,3,4,5].forEach((i) => applyPiece(document.getElementById(`${base}-chara-${i}`), data.chara?.[i-1]));
+      };
+      applyPiles('A', s?.A?.piles);  applyBoard('A', s?.A?.board);
+      applyPiles('B', s?.B?.piles);  applyBoard('B', s?.B?.board);
+      // EXトグル
+      const aEx = document.getElementById('a-ex-toggle'); if (aEx) aEx.checked = !!s?.ex?.A;
+      const bEx = document.getElementById('b-ex-toggle'); if (bEx) bEx.checked = !!s?.ex?.B;
+      // ラベル等の数表示を更新（既存描画関数を使用）
+      if (typeof renderCounts === 'function') renderCounts();
+      if (typeof refreshIfOpen === 'function') {
+        ['deck','hand','life','trash'].forEach(area => { refreshIfOpen(area, 'A'); refreshIfOpen(area, 'B'); });
+      }
     }
   </script>
 </body>

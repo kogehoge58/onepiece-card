@@ -292,6 +292,21 @@ app.use('/public', express.static('public', {
 
 // roomId -> { roster: Map<socketId,{name,role,seat}>, state:any|null }
 const roomState = new Map();
+// ★追加：無人ルームの遅延削除タイマー
+const roomCleanupTimers = new Map();
+
+function scheduleRoomCleanup(roomId, delayMs = 10 * 60 * 1000){ // 10分保持
+  const old = roomCleanupTimers.get(roomId);
+  if (old) clearTimeout(old);
+  const timer = setTimeout(() => {
+    const info = roomState.get(roomId);
+    if (info && info.roster.size === 0) {
+      roomState.delete(roomId);
+    }
+    roomCleanupTimers.delete(roomId);
+  }, delayMs);
+  roomCleanupTimers.set(roomId, timer);
+}
 
 io.on('connection', (socket) => {
   const { room = 'dev', name = 'anon' } = socket.handshake.query || {};
@@ -299,6 +314,12 @@ io.on('connection', (socket) => {
 
   if (!roomState.has(roomId)) roomState.set(roomId, createRoomInfo());
   const info = roomState.get(roomId);
+
+  // ★追加：入室で掃除タイマーを打ち消す（復帰時に state を保持）
+  if (roomCleanupTimers.has(roomId)) {
+    clearTimeout(roomCleanupTimers.get(roomId));
+    roomCleanupTimers.delete(roomId);
+  }
 
   // --- 席割り（P1/P2 以降は P3, P4, ...） ---
   const used = new Set(Array.from(info.roster.values()).map(p => p.seat));
@@ -345,7 +366,8 @@ io.on('connection', (socket) => {
     if (!r) return;
     r.roster.delete(socket.id);
     publishRoster(roomId, r);
-    if (r.roster.size === 0) roomState.delete(roomId); // 無人なら掃除
+    // ★変更：無人でも即削除しない（ページ更新からの復帰を可能に）
+    if (r.roster.size === 0) scheduleRoomCleanup(roomId);
   });
 });
 
